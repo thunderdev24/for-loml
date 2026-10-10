@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Ifra site</title>
+<style>
+:root{--bg:#1b0710;--panel:#2a0d1a;--line:#4a1a30;--txt:#fbe9ef;--mut:#c9a0b0;--acc:#ff4d6d;--ok:#4cc38a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:10}
+#gate form{background:var(--panel);padding:28px;border-radius:14px;border:1px solid var(--line);width:min(340px,90vw);text-align:center}
+header{position:sticky;top:0;z-index:5;background:#12040b;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;margin-right:auto}
+#status{font-size:12px;color:var(--ok)}
+nav{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:#16050c}
+nav button{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:20px;padding:6px 12px;cursor:pointer;font-size:13px}
+nav button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+main{max-width:900px;margin:0 auto;padding:16px 14px 80px}
+h2{margin:6px 0 4px}h3{margin:18px 0 6px;color:#ffb3c4}
+.hint{color:var(--mut);font-size:13px;margin:0 0 12px}
+label.f{display:block;margin:8px 0}
+label.f>span{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
+input,textarea,select{width:100%;background:#12040b;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+textarea{resize:vertical}
+button.b{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+button.b.alt{background:#3a1526;border:1px solid var(--line)}
+button.b.sm{padding:4px 10px;font-size:13px}
+button.b.del{background:#7a1d33}
+details.item{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:7px 0}
+details.item>summary{padding:9px 12px;cursor:pointer;list-style:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.item[open]>summary{border-bottom:1px solid var(--line)}
+.body{padding:6px 12px 12px}
+.ctl{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px}
+@media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.photo{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+.photo img{width:110px;height:110px;object-fit:cover;border-radius:8px;background:#000;flex:none}
+.photo .r{flex:1;min-width:0}
+.tag{font-size:11px;background:#3a1526;border-radius:6px;padding:1px 6px;color:var(--mut)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+code{background:#12040b;padding:1px 5px;border-radius:5px}
+ol{padding-left:20px}
+</style>
+</head>
+<body>
+
+<div id="gate" style="display:flex">
+  <form onsubmit="return unlock(event)">
+    <h2>🔐 Admin</h2>
+    <p class="hint">Enter your admin password</p>
+    <input type="password" id="pass" autocomplete="off" autofocus>
+    <p id="gateErr" style="color:#ff8aa0;min-height:20px;margin:8px 0"></p>
+    <button class="b" type="submit" id="gateBtn">Sign in</button>
+  </form>
+</div>
+
+<header>
+  <h1>🌹 Ifra site · Admin panel</h1>
+  <span id="status">Ready</span>
+  <button class="b alt sm" onclick="preview()">👁 Preview</button>
+  <button class="b sm" id="pubTop" onclick="publish()">🚀 Publish live</button>
+</header>
+<nav id="tabs"></nav>
+<main id="main"></main>
+
+<script src="content.js"></script>
+<script src="/api/live.js"></script>
+<script>
+let TOKEN=sessionStorage.getItem('ifraToken')||'';
+async function api(path,opt){
+  opt=opt||{};
+  const r=await fetch('/api/admin/'+path,{method:opt.method||'GET',body:opt.body,headers:Object.assign({'Authorization':'Bearer '+TOKEN},opt.headers||{})});
+  let j={};try{j=await r.json();}catch(e){}
+  if(r.status===401&&path!=='login'){TOKEN='';sessionStorage.removeItem('ifraToken');showGate('Session expired, please sign in again');throw new Error('auth');}
+  if(!r.ok)throw new Error(j.error||('Request failed ('+r.status+')'));
+  return j;
+}
+function showGate(msg){document.getElementById('gate').style.display='flex';document.getElementById('gateErr').textContent=msg||'';}
+async function unlock(e){
+  e.preventDefault();
+  const btn=document.getElementById('gateBtn');btn.disabled=true;
+  try{
+    const r=await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:document.getElementById('pass').value})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){document.getElementById('gateErr').textContent=j.error||'Could not sign in';btn.disabled=false;return false;}
+    TOKEN=j.token;sessionStorage.setItem('ifraToken',TOKEN);
+    document.getElementById('gate').style.display='none';
+    start();
+  }catch(err){document.getElementById('gateErr').textContent='Cannot reach the server (is the site deployed with functions?)';}
+  btn.disabled=false;return false;
+}
+window.addEventListener('DOMContentLoaded',()=>{ if(TOKEN){document.getElementById('gate').style.display='none';start();} });
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+function el(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  for(const k in (attrs||{})){
+    const v=attrs[k];
+    if(k==='class')e.className=v; else if(k==='text')e.textContent=v;
+    else if(k.slice(0,2)==='on')e[k]=v; else e.setAttribute(k,v);
+  }
+  kids.flat().forEach(c=>{ if(c!=null) e.append(c); });
+  return e;
+}
+const clone=o=>JSON.parse(JSON.stringify(o));
+const PUBLISHED=clone(window.SITE_LIVE||window.SITE_CONTENT||{});
+const DEFAULTS=clone(window.SITE_CONTENT||{});
+let dirty=false;
+let C=null, saveT=0;
+function status(t,err){const s=$('#status');s.textContent=t;s.style.color=err?'#ff8aa0':'var(--ok)';}
+function save(){
+  clearTimeout(saveT);
+  saveT=setTimeout(()=>{
+    dirty=true;
+    try{localStorage.setItem('ifraDraft',JSON.stringify(C));status('● Unpublished changes (draft saved)');$('#pubTop').style.background='#ff9a3d';}
+    catch(e){status('Could not save draft: '+e.message,true);}
+  },300);
+}
+function loadDraft(){
+  let d=null;
+  try{d=JSON.parse(localStorage.getItem('ifraDraft')||'null');}catch(e){}
+  C=d||clone(PUBLISHED);
+  for(const k in DEFAULTS){
+    if(C[k]===undefined)C[k]=clone(DEFAULTS[k]);
+    else if(!Array.isArray(DEFAULTS[k])&&typeof DEFAULTS[k]==='object')
+      for(const j in DEFAULTS[k]) if(C[k][j]===undefined)C[k][j]=clone(DEFAULTS[k][j]);
+  }
+}
+
+/* ---------- field builders ---------- */
+function field(type,get,set,opts){
+  opts=opts||{};
+  const lab=el('label',{class:'f'},el('span',{text:opts.label||''}));
+  let inp;
+  if(type==='area')inp=el('textarea',{rows:opts.rows||3});
+  else if(type==='select'){inp=el('select');opts.options.forEach(o=>inp.append(el('option',{value:o[0],text:o[1]})));}
+  else inp=el('input',{type:type==='num'?'number':type==='dt'?'datetime-local':'text'});
+  if(opts.rtl){inp.dir='rtl';inp.lang='ar';}
+  if(opts.ph)inp.placeholder=opts.ph;
+  inp.value=get();
+  inp.oninput=inp.onchange=()=>{set(type==='num'?Number(inp.value):inp.value);save();if(opts.on)opts.on(inp.value);};
+  lab.append(inp);return lab;
+}
+/* field descriptors for list items */
+const F={
+  self:(label,o)=>Object.assign({label,type:'text',get:(a,i)=>a[i],set:(a,i,v)=>{a[i]=v;}},o),
+  key:(k,label,o)=>Object.assign({label,type:'text',get:(a,i)=>a[i][k]==null?'':a[i][k],set:(a,i,v)=>{a[i][k]=v;}},o),
+  idx:(j,label,o)=>Object.assign({label,type:'text',get:(a,i)=>a[i][j],set:(a,i,v)=>{a[i][j]=v;}},o)
+};
+
+/* ---------- generic list editor ---------- */
+function listEd(host,getArr,fields,mk,opts){
+  opts=opts||{};
+  host.innerHTML='';
+  const arr=getArr();
+  if(opts.search){
+    const q=el('input',{type:'search',placeholder:'🔍 Search…'});
+    q.oninput=()=>host.querySelectorAll('details.item').forEach(d=>{d.style.display=d.firstChild.textContent.toLowerCase().includes(q.value.toLowerCase())?'':'none';});
+    host.append(q);
+  }
+  const changed=()=>{if(opts.onChange)opts.onChange();save();};
+  const rerender=()=>listEd(host,getArr,fields,mk,opts);
+  arr.forEach((_,i)=>{
+    const sum=el('summary');
+    const setSum=()=>{sum.textContent=(i+1)+'. '+(String(fields[0].get(arr,i)).replace(/\s+/g,' ').slice(0,80)||'(empty)');};
+    setSum();
+    const grid=el('div',{class:opts.grid||''});
+    fields.forEach((f,fi)=>grid.append(field(f.type,()=>f.get(arr,i),v=>{f.set(arr,i,v);if(fi===0)setSum();if(opts.onChange)opts.onChange();},
+      {label:f.label,rows:f.rows,options:f.options,rtl:f.rtl,ph:f.ph})));
+    const mv=d=>()=>{const j=i+d;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]];changed();rerender();};
+    const ctl=el('div',{class:'ctl'},
+      el('button',{class:'b alt sm',onclick:mv(-1),text:'↑ Up'}),
+      el('button',{class:'b alt sm',onclick:mv(1),text:'↓ Down'}),
+      el('button',{class:'b alt sm',onclick:()=>{arr.splice(i+1,0,clone(arr[i]));changed();rerender();},text:'⧉ Duplicate'}),
+      el('button',{class:'b del sm',onclick:()=>{if(confirm('Delete this item?')){arr.splice(i,1);changed();rerender();}},text:'✕ Delete'}));
+    host.append(el('details',{class:'item'},sum,el('div',{class:'body'},grid,ctl)));
+  });
+  host.append(el('div',{class:'bar'},el('button',{class:'b',onclick:()=>{arr.push(mk());changed();rerender();const all=host.querySelectorAll('details.item');if(all.length)all[all.length-1].open=true;},text:'+ Add new'}),
+    el('span',{class:'hint',text:arr.length+' items'})));
+}
+function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields,mk,opts);return h;}
+
+/* ---------- tabs ---------- */
+const TABS=[
+  ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],
+  ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
+  ['proposal','💍 Proposal'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+];
+let cur='texts';
+function go(t){cur=t;draw();window.scrollTo(0,0);}
+function draw(){
+  const nav=$('#tabs');nav.innerHTML='';
+  TABS.forEach(t=>nav.append(el('button',{class:t[0]===cur?'on':'',onclick:()=>go(t[0]),text:t[1]})));
+  const m=$('#main');m.innerHTML='';
+  VIEWS[cur](m);
+}
+function head(m,t,h){m.append(el('h2',{text:t}));if(h)m.append(el('p',{class:'hint',text:h}));}
+function textField(m,key,label,area,rows){
+  m.append(field(area?'area':'text',()=>C.text[key]==null?'':C.text[key],v=>{C.text[key]=v;},{label,rows}));
+}
+
+/* ---------- views ---------- */
+const VIEWS={};
+
+VIEWS.texts=m=>{
+  head(m,'Page texts','Every heading, paragraph and button on the main page. You can use <br> for a line break.');
+  [['pageTitle','Browser tab title'],['roseName','Rose screen: name'],['roseText','Rose screen: tap hint'],
+   ['mainTitle','Main title'],['subtitle','Subtitle'],['playlistTitle','Playlist heading'],['intro','Intro paragraph',1,5],
+   ['letter','Opening letter',1,5],['heartNote','Heart hint (under the heart)'],
+   ['galleryTitle','Gallery heading'],['galleryButton','Gallery button'],['galleryMore','Gallery footer note'],
+   ['openTitle','“Open When” heading'],['openHint','“Open When” hint'],
+   ['surprisesTitle','Surprises heading'],['surprisesHint','Surprises hint'],
+   ['playTitle','Games heading'],['playHint','Games hint'],
+   ['lastTitle','“One Last Thing” heading'],['lastHint','“One Last Thing” hint'],['questionButton','Question button'],
+   ['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
+   ['careMessage','Message shown after that button',1,4],['secretMessage','Secret message (double-tap anywhere)',1,4],
+   ['birthdayTitle','Birthday scene title'],['finaleTitle','Finale (“I LOVE YOU”) title'],
+   ['birthdayBanner','Countdown text on her birthday'],
+   ['loveDays','“Days together” counter text. Use {d} days, {h} hours, {m} minutes']
+  ].forEach(x=>textField(m,x[0],x[1],x[2],x[3]));
+};
+
+/* photos (uploaded straight to the live site) */
+async function shrink(file,max,q){
+  const bmp=await createImageBitmap(file);
+  const s=Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',q));
+}
+async function uploadPhoto(file){
+  const blob=await shrink(file,1600,0.85);
+  const j=await api('upload',{method:'POST',body:blob,headers:{'content-type':'image/jpeg'}});
+  return j.src;
+}
+VIEWS.photos=m=>{
+  head(m,'Photos & captions','Add, replace, reorder or delete photos and edit the caption shown under each one. New photos are shrunk and uploaded to the site right away; they appear to her after you press Publish live.');
+  const host=el('div');m.append(host);
+  const add=el('input',{type:'file',accept:'image/*',multiple:'multiple',style:'display:none'});
+  add.onchange=async()=>{
+    status('Uploading photos…');
+    for(const f of add.files){try{const n=await uploadPhoto(f);C.memories.push({src:n,text:''});save();}catch(e){status('Could not add '+f.name+': '+e.message,true);}}
+    render();status('Photos uploaded ✓ — press Publish live to show them');
+  };
+  function render(){
+    host.innerHTML='';
+    C.memories.forEach((mem,i)=>{
+      const img=el('img',{alt:'',src:mem.src});
+      const rep=el('input',{type:'file',accept:'image/*',style:'display:none'});
+      rep.onchange=async()=>{if(!rep.files[0])return;try{status('Uploading…');mem.src=await uploadPhoto(rep.files[0]);img.src=mem.src;save();status('Photo replaced ✓ — press Publish live');}catch(e){status('Upload failed: '+e.message,true);}};
+      const mv=d=>()=>{const j=i+d;if(j<0||j>=C.memories.length)return;[C.memories[i],C.memories[j]]=[C.memories[j],C.memories[i]];save();render();};
+      host.append(el('div',{class:'photo'},img,el('div',{class:'r'},
+        el('span',{class:'tag',text:'#'+(i+1)+' · '+mem.src}),
+        field('area',()=>mem.text,v=>{mem.text=v;},{label:'Caption (shown under the photo)',rows:3}),
+        el('div',{class:'ctl'},
+          el('button',{class:'b alt sm',onclick:mv(-1),text:'↑'}),el('button',{class:'b alt sm',onclick:mv(1),text:'↓'}),
+          el('button',{class:'b alt sm',onclick:()=>rep.click(),text:'Replace photo'}),rep,
+          el('button',{class:'b del sm',onclick:()=>{if(confirm('Remove this photo from the gallery?')){C.memories.splice(i,1);save();render();}},text:'✕ Remove'})))));
+    });
+    host.append(el('div',{class:'bar'},el('button',{class:'b',onclick:()=>add.click(),text:'+ Add photos'}),add,el('span',{class:'hint',text:C.memories.length+' photos'})));
+  }
+  render();
+};
+
+VIEWS.playlist=m=>{
+  head(m,'Playlist','The first song plays after she taps the rose. Each “File” must be uploaded to the website folder with exactly that name.');
+  m.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name (e.g. reflections.m4a)')],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));
+  m.append(el('h3',{text:'Special songs'}));
+  m.append(field('text',()=>C.settings.cineSongFile,v=>{C.settings.cineSongFile=v;},{label:'Cinematic / proposal song file'}));
+  m.append(el('div',{class:'grid2'},
+    field('num',()=>C.settings.cineSongStart,v=>{C.settings.cineSongStart=v;},{label:'Love-meter moment: start at (seconds)'}),
+    field('num',()=>C.settings.proposalSongStart,v=>{C.settings.proposalSongStart=v;},{label:'When she taps YES: start at (seconds)'})));
+};
+
+VIEWS.when=m=>{
+  head(m,'“Open When…” letters','Each envelope she can open. You can use <br> in the message.');
+  m.append(listBox(()=>C.envelopes,[F.key('title','Title (e.g. When you miss me)'),F.key('emoji','Emoji'),F.key('body','Message',{type:'area',rows:4})],
+    ()=>({emoji:'💌',title:'When…',body:''})));
+};
+
+VIEWS.poetry=m=>{
+  head(m,'Birthday poetry','These lines appear one after another on her birthday cinema. Add or edit as you like.');
+  m.append(listBox(()=>C.poetryLines,[F.self('Line')],()=>''));
+};
+
+VIEWS.surprises=m=>{
+  head(m,'Surprises','Messages inside the little surprise tiles.');
+  m.append(el('h3',{text:'💓 Heart taps (after how many taps it appears)'}));
+  const ms=Object.keys(C.heartMilestones).map(k=>({n:Number(k),t:C.heartMilestones[k]}));
+  const sync=()=>{const o={};ms.slice().sort((a,b)=>a.n-b.n).forEach(x=>{o[x.n]=x.t;});C.heartMilestones=o;};
+  m.append(listBox(()=>ms,[F.key('t','Message',{type:'area',rows:2}),F.key('n','After this many taps',{type:'num'})],()=>({n:50,t:''}),{onChange:sync,grid:'grid2'}));
+  m.append(el('h3',{text:'🎟️ Scratch cards'}));
+  m.append(listBox(()=>C.scratch,[F.self('Message',{type:'area',rows:2})],()=>'',{search:true}));
+  m.append(el('h3',{text:'💐 Bouquet (10 blooms look best)'}));
+  m.append(listBox(()=>C.bouquet,[F.idx(1,'Message',{type:'area',rows:2}),F.idx(0,'Emoji')],()=>['🌸',''],{grid:'grid2'}));
+  m.append(el('h3',{text:'📜 My promises'}));
+  m.append(listBox(()=>C.promises,[F.idx(1,'Promise',{type:'area',rows:2}),F.idx(0,'Emoji')],()=>['💞',''],{grid:'grid2'}));
+  m.append(el('h3',{text:'🏆 Win-game messages'}));
+  m.append(listBox(()=>C.celebration,[F.self('Message',{type:'area',rows:2})],()=>''));
+  m.append(el('h3',{text:'💫 Love-meter cinema lines (time in seconds · text)'}));
+  m.append(listBox(()=>C.cinemaLines,[F.idx(1,'Text'),F.idx(0,'Appears at (seconds)',{type:'num'})],()=>[0,''],{grid:'grid2'}));
+};
+
+const quizFields=()=>[
+  F.key('q','Question',{type:'area',rows:2}),
+  {label:'Option 1',type:'text',get:(a,i)=>a[i].o[0]||'',set:(a,i,v)=>{a[i].o[0]=v;}},
+  {label:'Option 2',type:'text',get:(a,i)=>a[i].o[1]||'',set:(a,i,v)=>{a[i].o[1]=v;}},
+  {label:'Option 3',type:'text',get:(a,i)=>a[i].o[2]||'',set:(a,i,v)=>{a[i].o[2]=v;}},
+  {label:'Which option is correct?',type:'select',options:[['0','Option 1'],['1','Option 2'],['2','Option 3']],get:(a,i)=>String(a[i].a),set:(a,i,v)=>{a[i].a=Number(v);}},
+  F.key('fun','Fun note after a right answer (optional)')
+];
+function msgsEditor(m,key,title){
+  m.append(el('h3',{text:title}));
+  m.append(listBox(()=>C[key],[F.self('Message',{type:'text'})],()=>''));
+}
+VIEWS.riddles=m=>{
+  head(m,'Funny riddles','Each round picks 20 random riddles from this list. The correct answer is shuffled automatically.');
+  m.append(listBox(()=>C.riddles,quizFields(),()=>({q:'',o:['','',''],a:0}),{search:true,grid:'grid2'}));
+  msgsEditor(m,'riddleMsgs','End-of-quiz messages (best · middle · lowest score)');
+  msgsEditor(m,'funnyRight','Messages after a right answer');
+  msgsEditor(m,'funnyWrong','Messages after a wrong answer');
+};
+VIEWS.sweet=m=>{
+  head(m,'Sweet quiz','Love trivia. Each round picks 20 random questions from this list.');
+  m.append(listBox(()=>C.sweet,quizFields(),()=>({q:'',o:['','',''],a:0}),{search:true,grid:'grid2'}));
+  msgsEditor(m,'sweetMsgs','End-of-quiz messages (best · middle · lowest score)');
+};
+
+const sceneFields=()=>[
+  F.key('text','English / Roman text',{type:'area',rows:3}),
+  F.key('ar','Arabic line (optional, shown above the text)',{rtl:true}),
+  F.key('dur','How long it stays (milliseconds)',{type:'num',get:(a,i)=>a[i].dur||5000}),
+  {label:'Show big?',type:'select',options:[['false','Normal'],['true','Big']],get:(a,i)=>String(!!a[i].big),set:(a,i,v)=>{a[i].big=v==='true';}}
+];
+VIEWS.proposal=m=>{
+  head(m,'Proposal','The story, the question and the Yes scenes.');
+  textField(m,'proposalTitle','Question title');
+  textField(m,'proposalSub','Text under the question',true,2);
+  textField(m,'proposalYes','“Yes” button');
+  textField(m,'proposalFinal','Final screen title');
+  m.append(el('h3',{text:'Story before the question'}));
+  m.append(listBox(()=>C.proposalScenes,sceneFields(),()=>({text:'',dur:5000}),{grid:'grid2'}));
+  m.append(el('h3',{text:'Scenes after she taps YES'}));
+  m.append(listBox(()=>C.yesScenes,sceneFields(),()=>({text:'',dur:5000}),{grid:'grid2'}));
+  m.append(el('h3',{text:'The runaway “No” button texts (in order)'}));
+  m.append(listBox(()=>C.noTexts,[F.self('Text')],()=>''));
+};
+
+VIEWS.settings=m=>{
+  head(m,'Dates & message delivery');
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'].map((n,i)=>[String(i+1),n]);
+  m.append(el('div',{class:'card'},el('h3',{text:'🎂 Her birthday'}),el('div',{class:'grid2'},
+    field('num',()=>C.settings.birthdayDay,v=>{C.settings.birthdayDay=v;},{label:'Day'}),
+    field('select',()=>String(C.settings.birthdayMonth),v=>{C.settings.birthdayMonth=Number(v);},{label:'Month',options:months}))));
+  m.append(el('div',{class:'card'},el('h3',{text:'💞 “Days together” counter'}),
+    el('p',{class:'hint',text:'Leave empty to hide the counter.'}),
+    field('dt',()=>C.settings.loveStart||'',v=>{C.settings.loveStart=v;},{label:'Start date and time'})));
+  m.append(el('div',{class:'card'},el('h3',{text:'📬 How her answer / messages reach you'}),
+    el('p',{class:'hint',text:'These two are stored privately on the server (never visible in the page source). ntfy gives instant phone alerts: install the ntfy app and subscribe to the same topic. Discord needs a webhook URL from your own private channel.'}),
+    field('text',()=>C.settings.ntfyTopic,v=>{C.settings.ntfyTopic=v;},{label:'ntfy topic (keep it long and secret)'}),
+    field('text',()=>C.settings.discordWebhook,v=>{C.settings.discordWebhook=v;},{label:'Discord webhook URL (optional)'}),
+    field('text',()=>C.settings.instagram,v=>{C.settings.instagram=v;},{label:'Instagram username (fallback “Open DM” button)'}),
+    field('text',()=>C.settings.whatsapp,v=>{C.settings.whatsapp=v;},{label:'WhatsApp number with country code, no + (optional)'})));
+};
+
+/* ---------- publish ---------- */
+function download(blob,name){const a=el('a',{href:URL.createObjectURL(blob),download:name});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);}
+const contentJs=()=>'window.SITE_CONTENT = '+JSON.stringify(C,null,2)+';\n';
+function privateOf(){return {ntfyTopic:C.settings.ntfyTopic||'',discordWebhook:C.settings.discordWebhook||''};}
+async function publish(){
+  clearTimeout(saveT);const b=$('#pubTop');b.disabled=true;status('Publishing…');
+  try{
+    await api('save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({content:C,private:privateOf()})});
+    dirty=false;b.style.background='';
+    try{localStorage.setItem('ifraDraft',JSON.stringify(C));}catch(e){}
+    status('Published ✓ Live now '+new Date().toLocaleTimeString());
+  }catch(e){if(e.message!=='auth')status('Publish failed: '+e.message,true);}
+  b.disabled=false;
+}
+function preview(){
+  try{localStorage.setItem('ifraDraft',JSON.stringify(C));}catch(e){}
+  window.open('index.html?preview=1','_blank');
+}
+VIEWS.publish=m=>{
+  head(m,'Publish your changes');
+  m.append(el('div',{class:'card'},
+    el('p',{text:'Your edits are saved as a draft in this browser while you work. Nothing changes for her until you press Publish live.'}),
+    el('div',{class:'bar'},
+      el('button',{class:'b alt',onclick:preview,text:'👁 Preview draft'}),
+      el('button',{class:'b',onclick:publish,text:'🚀 Publish live'}),
+      el('button',{class:'b alt',onclick:()=>download(new Blob([contentJs()],{type:'text/javascript'}),'content-backup.js'),text:'Download backup'}))));
+  m.append(el('div',{class:'card'},el('h3',{text:'Start over'}),
+    el('p',{class:'hint',text:'Discard your draft and reload what is live right now.'}),
+    el('button',{class:'b alt',onclick:()=>{if(confirm('Discard all unpublished edits?')){localStorage.removeItem('ifraDraft');location.reload();}},text:'Discard draft'}),
+    el('p',{class:'hint',style:'margin-top:16px',text:'Or put the whole site back to its original built-in content (your photos stay stored but are removed from the gallery).'}),
+    el('button',{class:'b del',onclick:async()=>{if(!confirm('Reset the live site to the original content?'))return;try{await api('reset',{method:'POST'});localStorage.removeItem('ifraDraft');location.reload();}catch(e){if(e.message!=='auth')status(e.message,true);}},text:'Reset live site to original'})));
+};
+
+async function start(){
+  loadDraft();
+  try{
+    const p=await api('private');
+    ['ntfyTopic','discordWebhook'].forEach(k=>{ if(!C.settings[k]) C.settings[k]=p[k]||''; });
+  }catch(e){ if(e.message==='auth')return; }
+  draw();
+}
+</script>
+</body>
+</html>
