@@ -817,6 +817,41 @@ const WHATSAPP_NUMBER = SITE.settings.whatsapp;
 /* ---- HOW MESSAGES REACH YOU: set ntfy / Discord / Instagram in the admin panel ---- */
 const NOTIFY_ON = !!SITE.settings.notifyOn;
 const INSTAGRAM_USERNAME = SITE.settings.instagram;
+const TELEGRAM_USERNAME = String(SITE.settings.telegram || '').replace(/^@/, '').trim();
+const EMAIL_ADDRESS = String(SITE.settings.email || '').trim();
+const SMS_NUMBER = String(SITE.settings.sms || '').replace(/[^\d+]/g, '');
+const WB_PREFIX = 'A message from Ifra 💌\n\n';
+
+function openLink(url, newTab) {
+  if (newTab) window.open(url, '_blank'); else window.location.href = url;
+}
+// copy to clipboard (works inside a tap on phones and desktops)
+function copyText(t) {
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = t; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    } catch (e) { }
+  };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).catch(fallback); return; }
+  } catch (e) { }
+  fallback();
+}
+// Every extra way she can reach you (only the ones you filled in, in the admin panel)
+function contactChannels() {
+  const list = [];
+  const wa = String(WHATSAPP_NUMBER || '').replace(/\D/g, '');
+  const ig = String(INSTAGRAM_USERNAME || '').replace(/^@/, '').trim();
+  if (wa) list.push({ emoji: '💬', label: 'WhatsApp', go: t => openLink('https://wa.me/' + wa + '?text=' + encodeURIComponent(t), true) });
+  if (ig) list.push({ emoji: '📸', label: 'Instagram', go: t => { copyText(t); openLink('https://ig.me/m/' + encodeURIComponent(ig), true); toast('Message copied. Paste it in the chat 💬', 4000); } });
+  if (TELEGRAM_USERNAME) list.push({ emoji: '✈️', label: 'Telegram', go: t => { copyText(t); openLink('https://t.me/' + encodeURIComponent(TELEGRAM_USERNAME), true); toast('Message copied. Paste it in the chat 💬', 4000); } });
+  if (EMAIL_ADDRESS) list.push({ emoji: '✉️', label: 'Email', go: t => openLink('mailto:' + EMAIL_ADDRESS + '?subject=' + encodeURIComponent('A message from Ifra 💌') + '&body=' + encodeURIComponent(t), false) });
+  if (SMS_NUMBER) list.push({ emoji: '📱', label: 'Text message', go: t => openLink('sms:' + SMS_NUMBER + (/iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?') + 'body=' + encodeURIComponent(t), false) });
+  if (navigator.share) list.push({ emoji: '🔗', label: 'Other apps', go: async t => { try { await navigator.share({ text: t }); } catch (e) { } } });
+  return list;
+}
 
 // Her answer / messages are sent through a server function, so your Discord webhook
 // and ntfy topic never appear in the page source (set them in the admin panel).
@@ -1491,6 +1526,25 @@ FUN.writeback = body => {
     <textarea id="wbText" maxlength="500" placeholder="Words from the heart..."></textarea>
     <div class="fun-btn" id="wbSend">Send it my way 💌</div>`;
   if (writebackPrefill) { byId('wbText').value = writebackPrefill; writebackPrefill = ''; }
+  const chans = contactChannels();
+  if (chans.length) {
+    const alt = document.createElement('div');
+    alt.className = 'wb-alt';
+    alt.innerHTML = '<div class="wb-alt-title">Or send it with</div><div class="wb-row"></div>';
+    const row = alt.querySelector('.wb-row');
+    chans.forEach(c => {
+      const chip = document.createElement('div');
+      chip.className = 'wb-chip'; chip.setAttribute('role', 'button'); chip.tabIndex = 0; chip.setAttribute('data-kb', '');
+      chip.textContent = c.emoji + ' ' + c.label;
+      chip.onclick = () => {
+        const t = byId('wbText').value.trim();
+        if (!t) { toast('Write a few words first ✍️'); return; }
+        c.go(WB_PREFIX + t);
+      };
+      row.appendChild(chip);
+    });
+    body.appendChild(alt);
+  }
   byId('wbSend').onclick = async () => {
     const t = byId('wbText').value.trim();
     if (!t) { toast('Write a few words first ✍️'); return; }
@@ -1973,18 +2027,20 @@ function openProposal() {
         status.textContent = ok ? 'Your answer has reached me. I am smiling from ear to ear 😊'
           : auto ? 'It could not be sent just now, so please tell me yourself 💌'
           : 'Now tell me your answer yourself, my love 💌';
-        if (!ok) {
+        {
           const m = document.createElement('div');
-          m.className = 'pp-yes small'; m.setAttribute('role', 'button'); m.tabIndex = 0; m.setAttribute('data-kb', '');
-          m.textContent = 'Message him 💌';
+          m.className = ok ? 'pp-no static' : 'pp-yes small'; m.setAttribute('role', 'button'); m.tabIndex = 0; m.setAttribute('data-kb', '');
+          m.textContent = ok ? 'Message me too 💌' : 'Message him 💌';
           m.onclick = () => { writebackPrefill = SITE.text.proposalYes; closeProposal(); openFun('writeback'); };
           btns.appendChild(m);
-          if (INSTAGRAM_USERNAME) {
+        }
+        if (!ok && INSTAGRAM_USERNAME) {
+          {
             const ig = document.createElement('div');
             ig.className = 'pp-no static'; ig.setAttribute('role', 'button'); ig.tabIndex = 0; ig.setAttribute('data-kb', '');
             ig.textContent = 'Open Instagram DM';
             ig.onclick = () => {
-              try { navigator.clipboard.writeText(SITE.text.proposalYes); } catch (e) { }
+              copyText(SITE.text.proposalYes);
               window.open('https://ig.me/m/' + encodeURIComponent(INSTAGRAM_USERNAME), '_blank');
               toast('Message copied. Paste it in the chat 💬', 3500);
             };

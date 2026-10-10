@@ -366,6 +366,11 @@ VIEWS.settings=m=>{
     field('text',()=>C.settings.discordWebhook,v=>{C.settings.discordWebhook=v;},{label:'Discord webhook URL (optional)'}),
     field('text',()=>C.settings.instagram,v=>{C.settings.instagram=v;},{label:'Instagram username (fallback “Open DM” button)'}),
     field('text',()=>C.settings.whatsapp,v=>{C.settings.whatsapp=v;},{label:'WhatsApp number with country code, no + (optional)'})));
+  m.append(el('div',{class:'card'},el('h3',{text:'💬 More ways she can message you'}),
+    el('p',{class:'hint',text:'Fill in any you like. In “Write Back To Me” (and after she says yes) she gets a button for each one you add, plus the phone’s share menu. Leave a field empty to hide that option. Instagram and WhatsApp are set above.'}),
+    field('text',()=>C.settings.telegram||'',v=>{C.settings.telegram=v;},{label:'Telegram username (without @)'}),
+    field('text',()=>C.settings.email||'',v=>{C.settings.email=v;},{label:'Email address'}),
+    field('text',()=>C.settings.sms||'',v=>{C.settings.sms=v;},{label:'Phone number for text messages (with country code, e.g. +923001234567)'})));
 };
 
 /* ---------- publish ---------- */

@@ -2389,3 +2389,37 @@ body.sunset {
 @media (prefers-reduced-motion: reduce) {
   .proposal-btn, .pp-yes, .pp-ring { animation: none; }
 }
+
+
+/* 💬 extra ways to message him (Write Back) */
+.wb-alt {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 182, 193, 0.3);
+}
+
+.wb-alt-title { font-size: 0.8rem; color: #ffcad4; margin-bottom: 10px; }
+
+.wb-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wb-chip {
+  padding: 9px 16px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  color: #ffdce3;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.25s ease, transform 0.2s ease;
+}
+
+.wb-chip:hover, .wb-chip:focus-visible { background: rgba(255, 77, 109, 0.2); outline: none; }
+.wb-chip:active { transform: scale(0.95); }
