@@ -1367,8 +1367,7 @@ function playCinematic() {
   function close() {
     if (closed || performance.now() - openedAt < 1200) return;
     closed = true;
-    if (answered) stopCineSong();
-    else if (proposalResume) music.play().catch(() => { });
+    stopCineSong();
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', size);
     document.removeEventListener('keydown', onKey);
