@@ -170,7 +170,7 @@ function listEd(host,getArr,fields,mk,opts){
     const setSum=()=>{sum.textContent=(i+1)+'. '+(String(fields[0].get(arr,i)).replace(/\s+/g,' ').slice(0,80)||'(empty)');};
     setSum();
     const grid=el('div',{class:opts.grid||''});
-    fields.forEach((f,fi)=>grid.append(field(f.type,()=>f.get(arr,i),v=>{f.set(arr,i,v);if(fi===0)setSum();if(opts.onChange)opts.onChange();},
+    fields.forEach((f,fi)=>grid.append(f.render?f.render(arr,i):field(f.type,()=>f.get(arr,i),v=>{f.set(arr,i,v);if(fi===0)setSum();if(opts.onChange)opts.onChange();},
       {label:f.label,rows:f.rows,options:f.options,rtl:f.rtl,ph:f.ph})));
     const mv=d=>()=>{const j=i+d;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]];changed();rerender();};
     const ctl=el('div',{class:'ctl'},
@@ -187,7 +187,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 
 /* ---------- tabs ---------- */
 const TABS=[
-  ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],
+  ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
   ['proposal','💍 Proposal'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
@@ -217,7 +217,7 @@ VIEWS.texts=m=>{
    ['surprisesTitle','Surprises heading'],['surprisesHint','Surprises hint'],
    ['playTitle','Games heading'],['playHint','Games hint'],
    ['lastTitle','“One Last Thing” heading'],['lastHint','“One Last Thing” hint'],['questionButton','Question button'],
-   ['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
+   ['storyButton','“Our Story” button (above the proposal button)'],['remindButton','“Remind me before my birthday” button'],['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
    ['careMessage','Message shown after that button',1,4],['secretMessage','Secret message (double-tap anywhere)',1,4],
    ['birthdayTitle','Birthday scene title'],['finaleTitle','Finale (“I LOVE YOU”) title'],
    ['birthdayBanner','Countdown text on her birthday'],
@@ -267,14 +267,114 @@ VIEWS.photos=m=>{
   render();
 };
 
+/* ---------- audio uploads (songs & voice messages) ---------- */
+const AUDIO_EXT=['m4a','mp4','mp3','aac','wav','ogg','opus','webm','weba'];
+const extOf=n=>(String(n).split('.').pop()||'').toLowerCase();
+const rid=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,'0')).join('');
+async function uploadMedia(blob,ext,onProg){
+  if(AUDIO_EXT.indexOf(ext)<0)throw new Error('Unsupported file type .'+ext+' (use m4a, mp3, wav, ogg, aac or webm)');
+  const CH=3*1024*1024,id=rid(),total=Math.ceil(blob.size/CH);
+  if(total>60)throw new Error('File too large (max about 180 MB)');
+  let src='';
+  for(let n=0;n<total;n++){
+    const j=await api('media-chunk?id='+id+'&n='+n+'&total='+total+'&size='+blob.size+'&ext='+ext,{method:'POST',body:blob.slice(n*CH,(n+1)*CH),headers:{'content-type':'application/octet-stream'}});
+    src=j.src; if(onProg)onProg((n+1)/total);
+  }
+  return src;
+}
+function pickFiles(accept,multiple,cb){
+  const i=el('input',{type:'file',accept:accept,style:'display:none'});
+  if(multiple)i.multiple=true;
+  i.onchange=()=>{if(i.files.length)cb([...i.files]);i.remove();};
+  document.body.append(i);i.click();
+}
+/* voice widget: upload a file, record in the browser, or remove */
+function voiceWidget(get,set){
+  const box=el('div',{class:'f'},el('span',{style:'display:block;font-size:12px;color:var(--mut);margin-bottom:3px',text:'Your voice for this page (optional)'}));
+  const info=el('div',{class:'hint'});
+  const audio=el('audio',{controls:'controls',style:'width:100%;margin:6px 0'});
+  let rec=null,chunks=[],stream=null;
+  const refresh=()=>{
+    const v=get();
+    info.textContent=v?'Voice attached ✓':'No voice yet';
+    if(v){audio.src=v;audio.style.display='';}else{audio.removeAttribute('src');audio.style.display='none';}
+  };
+  const finish=async(blob,ext)=>{
+    try{info.textContent='Uploading… 0%';const url=await uploadMedia(blob,ext,p=>{info.textContent='Uploading… '+Math.round(p*100)+'%';});set(url);save();refresh();}
+    catch(e){info.textContent='Upload failed: '+e.message;}
+  };
+  const up=el('button',{class:'b alt sm',text:'⬆ Upload audio file',onclick:()=>pickFiles('audio/*,.m4a,.mp3,.wav,.ogg,.aac,.webm',false,fs=>finish(fs[0],extOf(fs[0].name)))});
+  const recBtn=el('button',{class:'b alt sm',text:'🎙 Record now'});
+  recBtn.onclick=async()=>{
+    if(rec){rec.stop();return;}
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      rec=new MediaRecorder(stream);chunks=[];
+      rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      rec.onstop=()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        const type=rec.mimeType||'audio/webm';rec=null;recBtn.textContent='🎙 Record now';
+        const blob=new Blob(chunks,{type});
+        finish(blob,/mp4|aac/.test(type)?'m4a':/ogg/.test(type)?'ogg':'webm');
+        if(/webm|ogg/.test(type))setTimeout(()=>{info.textContent+=' (Recorded as '+type.split(';')[0]+': plays on Android/Chrome. For iPhones, record with your phone’s Voice Memos app and upload the .m4a instead.)';},300);
+      };
+      rec.start();recBtn.textContent='⏹ Stop recording';info.textContent='Recording… speak now';
+    }catch(e){info.textContent='Could not use the microphone: '+e.message;}
+  };
+  const rm=el('button',{class:'b del sm',text:'✕ Remove',onclick:()=>{set('');save();refresh();}});
+  box.append(info,audio,el('div',{class:'ctl'},up,recBtn,rm));
+  refresh();return box;
+}
+
 VIEWS.playlist=m=>{
   head(m,'Playlist','The first song plays after she taps the rose. Each “File” must be uploaded to the website folder with exactly that name.');
-  m.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name (e.g. reflections.m4a)')],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));
+  const songHost=el('div');m.append(songHost);
+  const drawSongs=()=>{songHost.innerHTML='';songHost.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name or uploaded address')],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));};
+  drawSongs();
+  const upInfo=el('span',{class:'hint'});
+  m.append(el('div',{class:'bar'},el('button',{class:'b',text:'⬆ Upload songs from this phone / PC',onclick:()=>pickFiles('audio/*,.m4a,.mp3,.wav,.ogg,.aac',true,async fs=>{
+    for(const f of fs){
+      try{
+        upInfo.textContent='Uploading '+f.name+'… 0%';
+        const url=await uploadMedia(f,extOf(f.name),p=>{upInfo.textContent='Uploading '+f.name+'… '+Math.round(p*100)+'%';});
+        C.songs.push({label:f.name.replace(/\.[^.]+$/,''),file:url});save();drawSongs();
+        upInfo.textContent='Uploaded ✓ '+f.name+' (press Publish live to add it for her)';
+      }catch(e){upInfo.textContent='Failed: '+e.message;}
+    }
+  })}),upInfo));
+  m.append(el('p',{class:'hint',text:'Uploaded songs are stored on the site automatically and appear in her playlist after you press Publish live. Rename them above if you like. Tip: m4a or mp3 files work on every phone.'}));
   m.append(el('h3',{text:'Special songs'}));
   m.append(field('text',()=>C.settings.cineSongFile,v=>{C.settings.cineSongFile=v;},{label:'Cinematic / proposal song file'}));
   m.append(el('div',{class:'grid2'},
     field('num',()=>C.settings.cineSongStart,v=>{C.settings.cineSongStart=v;},{label:'Love-meter moment: start at (seconds)'}),
     field('num',()=>C.settings.proposalSongStart,v=>{C.settings.proposalSongStart=v;},{label:'When she taps YES: start at (seconds)'})));
+};
+
+VIEWS.story=m=>{
+  head(m,'Our Story','A cinematic story with pages. Write as many pages as you like. The button appears above the proposal button as soon as there is at least one page. Blank line = new paragraph.');
+  C.story=C.story||{pages:[]};const S=C.story;S.pages=S.pages||[];
+  const songOpts=C.songs.map(s=>[s.file,s.label]);
+  if(!songOpts.some(o=>o[0]===S.songFile))songOpts.unshift([S.songFile||'',(S.songFile||'(none)')]);
+  m.append(el('div',{class:'card'},el('h3',{text:'🎶 Background song'}),
+    el('div',{class:'grid2'},
+      field('select',()=>S.songFile||'',v=>{S.songFile=v;},{label:'Song that plays while she reads',options:songOpts}),
+      field('num',()=>S.songStart||0,v=>{S.songStart=v;},{label:'Start the song at (seconds)'})),
+    el('p',{class:'hint',text:'Example: 1 minute 35 seconds = 95. The song fades in from that moment and loops.'})));
+  m.append(el('div',{class:'card'},el('h3',{text:'🎬 First and last screen'}),
+    field('text',()=>S.coverTitle||'',v=>{S.coverTitle=v;},{label:'Cover title'}),
+    field('text',()=>S.coverSubtitle||'',v=>{S.coverSubtitle=v;},{label:'Cover subtitle'}),
+    field('text',()=>S.endTitle||'',v=>{S.endTitle=v;},{label:'Last screen title'}),
+    field('area',()=>S.endText||'',v=>{S.endText=v;},{label:'Last screen text',rows:3})));
+  m.append(el('h3',{text:'📄 Pages'}));
+  const photoOpts=[['','No photo']].concat(C.memories.map((x,i)=>[x.src,'Photo #'+(i+1)+(x.text?' · '+x.text.slice(0,30):'')]));
+  const sceneOpts=[['auto','Automatic (changes page by page)'],['stars','Starry night + shooting stars'],['petals','Falling rose petals'],['fireflies','Fireflies'],['hearts','Floating hearts'],['aurora','Soft aurora glow']];
+  m.append(listBox(()=>S.pages,[
+    F.key('heading','Page heading (e.g. The day I first saw you)'),
+    F.key('text','Page text',{type:'area',rows:9}),
+    F.key('scene','Moving background',{type:'select',options:sceneOpts,get:(a,i)=>a[i].scene||'auto'}),
+    F.key('photo','Photo behind the text (from your gallery)',{type:'select',options:photoOpts,get:(a,i)=>a[i].photo||''}),
+    {label:'Voice',render:(a,i)=>voiceWidget(()=>a[i].voice||'',v=>{a[i].voice=v;})}
+  ],()=>({heading:'',text:'',scene:'auto',photo:'',voice:''}),{search:true}));
 };
 
 VIEWS.when=m=>{
@@ -351,12 +451,36 @@ VIEWS.proposal=m=>{
   m.append(listBox(()=>C.noTexts,[F.self('Text')],()=>''));
 };
 
+function remindersCard(m){
+  const card=el('div',{class:'card'},el('h3',{text:'🔔 Birthday reminder notifications'}));
+  card.append(el('p',{class:'hint',text:'She taps “Remind me before my birthday” on the site once. After that her phone gets a notification on the days you choose (sent every morning at 9:00 Pakistan time). On iPhone she must first add the site to her Home Screen. {days} and {daysText} (“5 days”) are filled in automatically.'}));
+  card.append(field('text',()=>C.settings.reminderDays||'',v=>{C.settings.reminderDays=v;},{label:'Send on these days-left numbers (comma separated, 0 = birthday itself)'}));
+  card.append(field('text',()=>C.settings.reminderTitle||'',v=>{C.settings.reminderTitle=v;},{label:'Title'}));
+  card.append(field('area',()=>C.settings.reminderBody||'',v=>{C.settings.reminderBody=v;},{label:'Message',rows:2}));
+  card.append(field('text',()=>C.settings.reminderTodayTitle||'',v=>{C.settings.reminderTodayTitle=v;},{label:'Title on the birthday itself'}));
+  card.append(field('area',()=>C.settings.reminderTodayBody||'',v=>{C.settings.reminderTodayBody=v;},{label:'Message on the birthday itself',rows:2}));
+  card.append(field('text',()=>C.settings.timezone||'Asia/Karachi',v=>{C.settings.timezone=v;},{label:'Time zone (e.g. Asia/Karachi)'}));
+  const info=el('p',{class:'hint',text:'Checking…'});
+  const test=el('button',{class:'b alt',text:'🔔 Send a test notification now'});
+  test.onclick=async()=>{
+    test.disabled=true;
+    try{
+      const r=await api('push-test',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({settings:C.settings})});
+      info.textContent='Sent to '+r.result.sent+' device(s). Preview: “'+r.preview.title+'”.'+(r.result.total===0?' Nobody has turned on reminders yet.':'');
+    }catch(e){if(e.message!=='auth')info.textContent='Failed: '+e.message;}
+    test.disabled=false;
+  };
+  card.append(el('div',{class:'bar'},test),info);
+  api('push-info').then(r=>{info.textContent=r.subscribers+' device(s) subscribed · '+r.daysLeft+' days until the birthday';}).catch(()=>{info.textContent='';});
+  m.append(card);
+}
 VIEWS.settings=m=>{
   head(m,'Dates & message delivery');
   const months=['January','February','March','April','May','June','July','August','September','October','November','December'].map((n,i)=>[String(i+1),n]);
   m.append(el('div',{class:'card'},el('h3',{text:'🎂 Her birthday'}),el('div',{class:'grid2'},
     field('num',()=>C.settings.birthdayDay,v=>{C.settings.birthdayDay=v;},{label:'Day'}),
     field('select',()=>String(C.settings.birthdayMonth),v=>{C.settings.birthdayMonth=Number(v);},{label:'Month',options:months}))));
+  remindersCard(m);
   m.append(el('div',{class:'card'},el('h3',{text:'💞 “Days together” counter'}),
     el('p',{class:'hint',text:'Leave empty to hide the counter.'}),
     field('dt',()=>C.settings.loveStart||'',v=>{C.settings.loveStart=v;},{label:'Start date and time'})));

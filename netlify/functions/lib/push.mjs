@@ -1,0 +1,67 @@
+// Web-push helpers: VAPID keys (created automatically once), subscriptions, sending.
+import webpush from 'web-push';
+
+export async function getVapid(store) {
+  let v = null;
+  try { v = await store.get('push/vapid.json', { type: 'json' }); } catch (e) { }
+  if (!v || !v.publicKey || !v.privateKey) {
+    v = webpush.generateVAPIDKeys();
+    await store.setJSON('push/vapid.json', v);
+  }
+  webpush.setVapidDetails(process.env.URL || 'mailto:admin@example.com', v.publicKey, v.privateKey);
+  return v;
+}
+
+export async function getSubs(store) {
+  try { return (await store.get('push/subs.json', { type: 'json' })) || []; } catch (e) { return []; }
+}
+
+export async function sendToAll(store, payload) {
+  await getVapid(store);
+  const subs = await getSubs(store);
+  const keep = [];
+  let sent = 0, failed = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 60 * 60 * 12 });
+      sent++; keep.push(s);
+    } catch (e) {
+      if (e && (e.statusCode === 404 || e.statusCode === 410)) { /* subscription expired: drop it */ }
+      else { failed++; keep.push(s); }
+    }
+  }
+  if (keep.length !== subs.length) await store.setJSON('push/subs.json', keep);
+  return { sent, failed, removed: subs.length - keep.length, total: subs.length };
+}
+
+export const DEFAULTS = {
+  timezone: 'Asia/Karachi', birthdayDay: 4, birthdayMonth: 1,
+  reminderDays: '30,21,14,10,7,5,3,2,1,0',
+  reminderTitle: '🎂 {daysText} until your birthday, Ifra',
+  reminderBody: 'Something special is waiting for you on our little website 💌',
+  reminderTodayTitle: '🎉 Happy Birthday, Ifra! 🎂',
+  reminderTodayBody: 'Open our website, there is a surprise made only for you ❤️'
+};
+
+// whole days from "today" (in the chosen time zone) to the next birthday
+export function daysLeft(month, day, tz, now = new Date()) {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  } catch (e) {
+    parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  }
+  const g = t => Number(parts.find(p => p.type === t).value);
+  const today = Date.UTC(g('year'), g('month') - 1, g('day'));
+  let next = Date.UTC(g('year'), month - 1, day);
+  if (next < today) next = Date.UTC(g('year') + 1, month - 1, day);
+  return Math.round((next - today) / 86400000);
+}
+
+export function buildMessage(settings, days) {
+  const s = Object.assign({}, DEFAULTS, settings || {});
+  const daysText = days === 1 ? '1 day' : days + ' days';
+  const fill = t => String(t).replace(/\{daysText\}/g, daysText).replace(/\{days\}/g, String(days));
+  if (days === 0) return { title: fill(s.reminderTodayTitle), body: fill(s.reminderTodayBody) };
+  return { title: fill(s.reminderTitle), body: fill(s.reminderBody) };
+}

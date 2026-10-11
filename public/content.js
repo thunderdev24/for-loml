@@ -7,7 +7,13 @@ window.SITE_CONTENT = {
     "instagram": "tayyab_shahid24",
     "cineSongFile": "reflections.m4a",
     "cineSongStart": 36,
-    "proposalSongStart": 38
+    "proposalSongStart": 38,
+    "timezone": "Asia/Karachi",
+    "reminderDays": "30,21,14,10,7,5,3,2,1,0",
+    "reminderTitle": "🎂 {daysText} until your birthday, Ifra",
+    "reminderBody": "Something special is waiting for you on our little website 💌",
+    "reminderTodayTitle": "🎉 Happy Birthday, Ifra! 🎂",
+    "reminderTodayBody": "Open our website, there is a surprise made only for you ❤️"
   },
   "text": {
     "heartNote": "Touch the heart, and listen... 💗",
@@ -42,7 +48,9 @@ window.SITE_CONTENT = {
     "secretMessage": "Yeh raaz sirf tumhare liye hai 💌<br> Agar duniya bhi khafa ho jaye,<br> main hamesha tumhare sath khara rahunga.",
     "birthdayTitle": "Happy Birthday<br>Ifra 🎂❤️",
     "finaleTitle": "I LOVE YOU ❤️",
-    "pageTitle": "For Ifra Malik ❤️"
+    "pageTitle": "For Ifra Malik ❤️",
+    "storyButton": "📖 Read Our Story",
+    "remindButton": "🔔 Remind me before my birthday"
   },
   "poetryLines": [
     "Ifra… 🌙",
@@ -1260,5 +1268,14 @@ window.SITE_CONTENT = {
       "title": "When sleep will not come",
       "body": "Recite your evening adhkar, take a slow breath, and leave your worries with Allah. The same moon watches over us both. Goodnight. 🌙"
     }
-  ]
+  ],
+  "story": {
+    "songFile": "bewajah.m4a",
+    "songStart": 0,
+    "coverTitle": "Our Story",
+    "coverSubtitle": "Turn the page, my love",
+    "endTitle": "To be continued…",
+    "endText": "Every day with you is a new page I never want to finish. 🤍",
+    "pages": []
+  }
 };

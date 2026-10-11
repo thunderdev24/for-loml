@@ -2077,3 +2077,338 @@ function openProposal() {
   q('#ppClose').addEventListener('click', closeProposal);
   proposalStop = closeProposal;
 }
+
+
+/* =====================================================
+   📖 OUR STORY  (cinematic story pages, background song, optional voice)
+   Everything is written in the admin panel > "Our Story".
+   ===================================================== */
+const STORY = SITE.story || { pages: [] };
+(function () {
+  const b = document.getElementById('storyBtn');
+  const ok = (STORY.pages || []).some(p => p && (p.heading || p.text || p.voice));
+  if (b && ok) b.style.display = '';
+})();
+
+let storyStop = null;
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+const STORY_SCENES = ['stars', 'petals', 'fireflies', 'hearts', 'aurora'];
+
+/* little particle engine for the moving backgrounds */
+function storyEngine(cv) {
+  const ctx = cv.getContext('2d');
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, mode = 'stars', parts = [], raf = 0, shoot = null, born = 0, running = true;
+
+  function resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  const R = (a, b) => a + Math.random() * (b - a);
+  function spawn(m, anywhere) {
+    const x = R(0, W);
+    if (m === 'stars') return { x, y: R(0, H), r: R(0.4, 1.7), ph: R(0, 6.3), sp: R(0.6, 2) };
+    if (m === 'petals') return { x, y: anywhere ? R(-20, H) : -20, vy: R(0.5, 1.3), ph: R(0, 6.3), rot: R(0, 6.3), vr: R(-0.03, 0.03), s: R(6, 13) };
+    if (m === 'fireflies') return { x, y: R(0, H), vx: R(-0.25, 0.25), vy: R(-0.25, 0.25), ph: R(0, 6.3), r: R(1.6, 3.6) };
+    if (m === 'hearts') return { x, y: anywhere ? R(0, H + 40) : H + 30, vy: R(0.4, 1.2), ph: R(0, 6.3), s: R(7, 20), a: R(0.35, 0.85) };
+    return { x, y: R(0, H), r: R(0.4, 1.3), ph: R(0, 6.3), sp: R(0.6, 2) }; // aurora's stars
+  }
+  function setMode(m) {
+    mode = m; born = performance.now();
+    const base = Math.min(95, Math.max(24, (W * H) / 11000));
+    const n = Math.round((reduce ? base * 0.4 : base) * (m === 'aurora' ? 0.5 : 1));
+    parts = []; for (let i = 0; i < n; i++) parts.push(spawn(m, true));
+  }
+  function heart(x, y, s) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.3);
+    ctx.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3);
+    ctx.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s);
+    ctx.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3);
+    ctx.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3);
+    ctx.fill();
+  }
+  function frame(t) {
+    if (!running) return;
+    raf = requestAnimationFrame(frame);
+    ctx.clearRect(0, 0, W, H);
+    const fade = Math.min(1, (t - born) / 900);
+    ctx.globalAlpha = fade;
+    if (mode === 'aurora') {
+      for (let k = 0; k < 3; k++) {
+        const cx = W * (0.25 + 0.25 * k) + Math.sin(t / 3800 + k * 2) * W * 0.18;
+        const cy = H * (0.3 + 0.12 * k) + Math.cos(t / 4500 + k) * H * 0.1;
+        const rad = Math.max(W, H) * 0.55;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        const col = ['120,80,255', '255,90,170', '70,200,220'][k];
+        g.addColorStop(0, 'rgba(' + col + ',0.28)'); g.addColorStop(1, 'rgba(' + col + ',0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+    }
+    for (const p of parts) {
+      if (mode === 'stars' || mode === 'aurora') {
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + 0.55 * Math.abs(Math.sin(t / 900 * p.sp + p.ph))) * fade + ')';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.3); ctx.fill();
+      } else if (mode === 'petals') {
+        p.y += p.vy; p.x += Math.sin(t / 1200 + p.ph) * 0.6; p.rot += p.vr;
+        if (p.y > H + 20) Object.assign(p, spawn('petals', false));
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = 'rgba(255,' + Math.round(110 + 50 * Math.sin(p.ph)) + ',150,0.8)';
+        ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.55, 0, 0, 6.3); ctx.fill(); ctx.restore();
+      } else if (mode === 'fireflies') {
+        p.x += p.vx + Math.sin(t / 1500 + p.ph) * 0.25; p.y += p.vy + Math.cos(t / 1700 + p.ph) * 0.25;
+        if (p.x < -10) p.x = W + 10; if (p.x > W + 10) p.x = -10; if (p.y < -10) p.y = H + 10; if (p.y > H + 10) p.y = -10;
+        const a = 0.25 + 0.75 * Math.abs(Math.sin(t / 1100 + p.ph));
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 6);
+        g.addColorStop(0, 'rgba(255,236,150,' + a + ')'); g.addColorStop(1, 'rgba(255,236,150,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 6, 0, 6.3); ctx.fill();
+      } else if (mode === 'hearts') {
+        p.y -= p.vy; p.x += Math.sin(t / 1000 + p.ph) * 0.5;
+        if (p.y < -30) Object.assign(p, spawn('hearts', false));
+        ctx.fillStyle = 'rgba(255,90,135,' + (p.a * Math.min(1, p.y / (H * 0.35))) + ')';
+        heart(p.x, p.y, p.s);
+      }
+    }
+    // an occasional shooting star on the starry scenes
+    if ((mode === 'stars' || mode === 'aurora') && !reduce) {
+      if (!shoot && Math.random() < 0.004) shoot = { x: R(W * 0.2, W), y: R(0, H * 0.4), l: R(70, 140), v: R(7, 11), a: 1 };
+      if (shoot) {
+        const g = ctx.createLinearGradient(shoot.x, shoot.y, shoot.x + shoot.l, shoot.y - shoot.l * 0.45);
+        g.addColorStop(0, 'rgba(255,255,255,' + shoot.a + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.beginPath();
+        ctx.moveTo(shoot.x, shoot.y); ctx.lineTo(shoot.x + shoot.l, shoot.y - shoot.l * 0.45); ctx.stroke();
+        shoot.x -= shoot.v; shoot.y += shoot.v * 0.45; shoot.a -= 0.018;
+        if (shoot.a <= 0) shoot = null;
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  setMode('stars');
+  raf = requestAnimationFrame(frame);
+  return {
+    setMode,
+    stop() { running = false; cancelAnimationFrame(raf); window.removeEventListener('resize', resize); }
+  };
+}
+
+function openStory() {
+  if (storyStop) return;
+  const pages = (STORY.pages || []).filter(p => p && (p.heading || p.text || p.voice));
+  if (!pages.length) { toast('The story is still being written 🤍', 3200); return; }
+  const slides = [{ kind: 'cover' }]
+    .concat(pages.map(p => Object.assign({ kind: 'page' }, p)), [{ kind: 'end' }]);
+
+  /* --- music: pause the playlist, start the chosen song at the chosen second --- */
+  const resume = !music.paused;
+  music.pause();
+  const startAt = Number(STORY.songStart) || 0;
+  const song = new Audio();
+  song.preload = 'auto';
+  song.src = STORY.songFile || CINE_SONG_FILE;
+  song.volume = 0;
+  const seek = () => { try { song.currentTime = startAt; } catch (e) { } };
+  if (song.readyState >= 1) seek(); else song.addEventListener('loadedmetadata', seek, { once: true });
+  song.addEventListener('ended', () => { seek(); song.play().catch(() => { }); });
+  song.play().then(() => fadeAudio(song, 0.8, 2500)).catch(() => { });
+
+  /* voice player (unlocked now, inside her tap, so phones let it play later) */
+  const voice = new Audio();
+  voice.preload = 'auto';
+  voice.src = SILENT_WAV;
+  voice.play().then(() => voice.pause()).catch(() => { });
+
+  /* --- build the overlay --- */
+  const ov = document.createElement('div');
+  ov.className = 'story';
+  ov.innerHTML =
+    '<div class="story-bg a"></div><div class="story-bg b"></div>' +
+    '<div class="story-photo"></div><canvas class="story-cv"></canvas><div class="story-vig"></div>' +
+    '<div class="story-prog"><i></i></div>' +
+    '<button class="story-x" aria-label="Close story">&times;</button>' +
+    '<div class="story-stage"><div class="story-card"></div></div>' +
+    '<button class="story-voice" style="display:none"></button>' +
+    '<div class="story-nav"><button class="story-btn-nav back">‹ Back</button><span class="story-count"></span><button class="story-btn-nav next">Next ›</button></div>';
+  document.body.appendChild(ov);
+  document.body.classList.add('story-on');
+  const $ = s => ov.querySelector(s);
+  const card = $('.story-card'), bgA = $('.story-bg.a'), bgB = $('.story-bg.b');
+  const photo = $('.story-photo'), prog = $('.story-prog i'), count = $('.story-count');
+  const bBack = $('.back'), bNext = $('.next'), bVoice = $('.story-voice');
+  const engine = storyEngine($('.story-cv'));
+  requestAnimationFrame(() => ov.classList.add('show'));
+
+  let i = 0, closed = false, topBg = false, curScene = '';
+  function setScene(name) {
+    if (name === curScene) return;
+    curScene = name;
+    const next = topBg ? bgA : bgB, prev = topBg ? bgB : bgA;
+    next.className = 'story-bg sc-' + name + ' ' + (topBg ? 'a' : 'b') + ' on';
+    prev.classList.remove('on');
+    topBg = !topBg;
+    engine.setMode(name);
+  }
+  function para(text) {
+    const wrap = document.createDocumentFragment();
+    String(text || '').split(/\n\s*\n/).forEach((chunk, k) => {
+      if (!chunk.trim()) return;
+      const p = document.createElement('p');
+      p.className = 'story-p'; p.style.animationDelay = (0.35 + k * 0.28) + 's';
+      chunk.split('\n').forEach((line, j) => { if (j) p.appendChild(document.createElement('br')); p.appendChild(document.createTextNode(line)); });
+      wrap.appendChild(p);
+    });
+    return wrap;
+  }
+  function stopVoice() { try { voice.pause(); } catch (e) { } }
+  function voiceUI() {
+    bVoice.textContent = voice.paused ? '🎙 Play voice message' : '⏸ Pause voice message';
+  }
+  voice.addEventListener('play', () => { if (voice.src.indexOf('data:') === 0) return; fadeAudio(song, 0.22, 800); voiceUI(); });
+  voice.addEventListener('pause', () => { if (!closed) fadeAudio(song, 0.8, 1200); voiceUI(); });
+  voice.addEventListener('ended', () => { if (!closed) fadeAudio(song, 0.8, 1200); voiceUI(); });
+  bVoice.addEventListener('click', () => { if (voice.paused) voice.play().catch(() => { }); else voice.pause(); });
+
+  function render() {
+    const s = slides[i];
+    card.innerHTML = '';
+    card.scrollTop = 0;
+    const auto = STORY_SCENES[(i + 1) % STORY_SCENES.length];
+    let scene = s.kind === 'cover' ? 'stars' : s.kind === 'end' ? 'hearts' : (s.scene && s.scene !== 'auto' ? s.scene : auto);
+    if (STORY_SCENES.indexOf(scene) < 0) scene = 'stars';
+    setScene(scene);
+
+    if (s.kind === 'cover') {
+      const h = document.createElement('h1'); h.className = 'story-title'; h.textContent = STORY.coverTitle || 'Our Story';
+      const p = document.createElement('p'); p.className = 'story-sub'; p.textContent = STORY.coverSubtitle || '';
+      const o = document.createElement('div'); o.className = 'story-orn'; o.textContent = '❦';
+      card.append(o, h, p);
+      card.classList.add('center');
+    } else if (s.kind === 'end') {
+      const h = document.createElement('h2'); h.className = 'story-h'; h.textContent = STORY.endTitle || 'The End';
+      card.append(h, para(STORY.endText || ''));
+      const c = document.createElement('button'); c.className = 'story-close-btn'; c.textContent = 'Close 🤍';
+      c.addEventListener('click', close); card.append(c);
+      card.classList.add('center');
+    } else {
+      card.classList.remove('center');
+      if (s.heading) { const h = document.createElement('h2'); h.className = 'story-h'; h.textContent = s.heading; card.append(h); }
+      card.append(para(s.text));
+    }
+    // optional photo behind the page
+    if (s.kind === 'page' && s.photo) {
+      photo.style.backgroundImage = 'url("' + String(s.photo).replace(/"/g, '%22') + '")';
+      photo.classList.remove('on'); void photo.offsetWidth; photo.classList.add('on');
+    } else photo.classList.remove('on');
+    // voice
+    stopVoice();
+    if (s.kind === 'page' && s.voice) {
+      bVoice.style.display = '';
+      voice.src = s.voice;
+      voice.play().catch(() => { });
+      voiceUI();
+    } else bVoice.style.display = 'none';
+
+    bBack.style.visibility = i === 0 ? 'hidden' : 'visible';
+    bNext.style.visibility = i === slides.length - 1 ? 'hidden' : 'visible';
+    bNext.textContent = i === 0 ? 'Begin ›' : 'Next ›';
+    count.textContent = i === 0 || i === slides.length - 1 ? '' : i + ' / ' + (slides.length - 2);
+    prog.style.width = (i / (slides.length - 1) * 100) + '%';
+  }
+  function go(n) {
+    if (n < 0 || n >= slides.length || n === i && card.childNodes.length) return;
+    i = n;
+    card.classList.remove('in');
+    setTimeout(() => { if (closed) return; render(); requestAnimationFrame(() => card.classList.add('in')); }, 260);
+  }
+  bNext.addEventListener('click', () => go(i + 1));
+  bBack.addEventListener('click', () => go(i - 1));
+  render(); requestAnimationFrame(() => card.classList.add('in'));
+
+  function close() {
+    if (closed) return;
+    closed = true;
+    engine.stop();
+    fadeAudio(song, 0, 1300);
+    fadeAudio(voice, 0, 500);
+    ov.classList.remove('show');
+    setTimeout(() => ov.remove(), 700);
+    document.body.classList.remove('story-on');
+    document.removeEventListener('keydown', onKey);
+    if (resume) setTimeout(() => { music.play().catch(() => { }); }, 1400);
+    storyStop = null;
+  }
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') go(i + 1);
+    else if (e.key === 'ArrowLeft') go(i - 1);
+  };
+  document.addEventListener('keydown', onKey);
+  $('.story-x').addEventListener('click', close);
+  let tx = null;
+  ov.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  ov.addEventListener('touchend', e => {
+    if (tx == null) return;
+    const dx = e.changedTouches[0].clientX - tx; tx = null;
+    if (Math.abs(dx) > 60) go(i + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+  storyStop = close;
+}
+
+/* =====================================================
+   🔔 BIRTHDAY REMINDERS (web push notifications)
+   ===================================================== */
+function b64ToU8(s) {
+  const pad = '='.repeat((4 - s.length % 4) % 4);
+  const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(raw.length);
+  for (let k = 0; k < raw.length; k++) out[k] = raw.charCodeAt(k);
+  return out;
+}
+const REMIND_LABEL = (document.getElementById('remindBtn') || {}).textContent || '';
+function remindOn() {
+  const b = document.getElementById('remindBtn');
+  if (!b) return;
+  b.textContent = '✅ Birthday reminders are on';
+  b.classList.add('on');
+}
+(function () {
+  const b = document.getElementById('remindBtn');
+  if (!b) return;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if (!canPush && !ios) { b.style.display = 'none'; return; }
+  if (canPush && Notification.permission === 'granted' && localStorage.getItem('ifraRemind') === '1') remindOn();
+})();
+async function enableReminders() {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    if (ios && !standalone) toast('On iPhone: tap Share ⬆️, choose “Add to Home Screen”, open the site from your Home Screen, then tap this button again 💕', 10000);
+    else toast('This browser cannot show reminders. Try Chrome on your phone 💕', 5000);
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('No problem. You can allow notifications later in your browser settings 🤍', 4500); return; }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    const kr = await fetch('/api/push/key');
+    if (!kr.ok) throw new Error('key');
+    const key = (await kr.json()).key;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
+    const r = await fetch('/api/push/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    if (!r.ok) throw new Error('save');
+    localStorage.setItem('ifraRemind', '1');
+    remindOn();
+    toast('Reminders are on! I will tell you how many days are left 🎂💕', 5000);
+  } catch (e) {
+    toast('Could not turn reminders on this time. Please try again 🤍', 4500);
+  }
+}

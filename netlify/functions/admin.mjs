@@ -2,6 +2,7 @@
 // Set ADMIN_PASSWORD in Netlify > Site configuration > Environment variables.
 import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
+import { sendToAll, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
 
 const store = () => getStore('ifra-site');
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -78,6 +79,43 @@ export default async (req) => {
     const name = 'memory-' + Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex') + '.' + ext;
     await s.set('photo/' + name, data, { metadata: { type } });
     return json({ ok: true, src: '/api/photo/' + name });
+  }
+
+  if (route === 'media-chunk' && req.method === 'POST') {
+    const q = new URL(req.url).searchParams;
+    const id = q.get('id') || '';
+    const n = Number(q.get('n')), total = Number(q.get('total')), size = Number(q.get('size'));
+    const ext = (q.get('ext') || '').toLowerCase();
+    const TYPES = { m4a: 'audio/mp4', mp4: 'audio/mp4', mp3: 'audio/mpeg', aac: 'audio/aac', wav: 'audio/wav',
+                    ogg: 'audio/ogg', opus: 'audio/ogg', webm: 'audio/webm', weba: 'audio/webm' };
+    const CH = 3 * 1024 * 1024;
+    if (!/^[a-f0-9]{16,32}$/.test(id) || !TYPES[ext]) return json({ error: 'Unsupported audio type (use m4a, mp3, wav, ogg, aac or webm)' }, 415);
+    if (!(n >= 0 && total >= 1 && total <= 60 && n < total && size > 0 && size <= total * CH)) return json({ error: 'Bad chunk info' }, 400);
+    const data = await req.arrayBuffer();
+    if (!data.byteLength || data.byteLength > CH) return json({ error: 'Chunk too large' }, 413);
+    await s.set('media/' + id + '/' + n, data);
+    if (n === total - 1) {
+      await s.setJSON('media/' + id + '/meta', { type: TYPES[ext], size, chunkSize: CH, total, at: Date.now() });
+    }
+    return json({ ok: true, src: '/api/media/' + id });
+  }
+
+  if (route === 'push-info' && req.method === 'GET') {
+    const subs = await getSubs(s);
+    let content = null;
+    try { content = await s.get('content.json', { type: 'json' }); } catch (e) { }
+    const st = Object.assign({}, DEFAULTS, (content && content.settings) || {});
+    return json({ subscribers: subs.length, daysLeft: daysLeft(Number(st.birthdayMonth), Number(st.birthdayDay), st.timezone) });
+  }
+
+  if (route === 'push-test' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const st = Object.assign({}, DEFAULTS, body.settings || {});
+    const days = Number.isFinite(Number(body.days)) ? Number(body.days) : daysLeft(Number(st.birthdayMonth), Number(st.birthdayDay), st.timezone);
+    const msg = buildMessage(st, days);
+    const res = await sendToAll(s, { title: msg.title, body: msg.body, url: '/', tag: 'ifra-test' });
+    return json({ ok: true, preview: msg, result: res });
   }
 
   if (route === 'reset' && req.method === 'POST') {

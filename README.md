@@ -1,28 +1,22 @@
-# Ifra site, live-editable on Netlify
+# Ifra site v2 (Netlify)
 
-## Folder layout
-- `public/`  the website (index.html, ifra.js, ifra.css, content.js, site-loader.js, admin.html)
-- `netlify/functions/`  the small backend (saves your edits, stores photos, forwards her answer to you)
-- `package.json`, `netlify.toml`  settings
+## What is new
+- 📖 **Our Story** button above the proposal button: cinematic pages, your heading + text, background song from the second you choose, optional voice per page.
+- 🎶 Upload songs from your phone/PC in the admin (Playlist tab).
+- 🔔 **Birthday reminders**: she taps one button, then gets "X days until your birthday" notifications.
 
-## 1. Add your media
-Copy your existing photos (the `.webp` files) and songs (`Bayaan_1.mp4`, `reflections.m4a`, `makeen.m4a`, `bewajah.m4a`, `majboor.m4a`) into `public/`.
-New photos you add later are uploaded from the admin panel and need no files.
+## Update your GitHub repo
+Upload these (replace the old ones), by dragging the folders into Add file > Upload files:
+- `public/` (all files inside, including the new `sw.js`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png`)
+- `netlify/` (new files: media.mjs, push.mjs, birthday-reminder.mjs, lib/)
+- `package.json` (now includes web-push)
+Keep your songs and photos in `public/` as before. Netlify redeploys by itself.
 
-## 2. Deploy (drag-and-drop will NOT work, the backend needs its package installed)
-Option A, GitHub: push this folder to a GitHub repo, then in Netlify choose "Add new site > Import an existing project".
-Option B, CLI:
-    npm install -g netlify-cli
-    npm install
-    netlify deploy --prod
+## After deploying
+1. Admin > **Our Story**: pick the song (bewajah), set the start second, write pages, add voice. Press **Publish live**.
+2. Admin > **Dates & delivery** > Birthday reminders: choose the days, edit the message, set the birthday date. Press Publish live.
+3. She taps "Remind me before my birthday" on the site. Use "Send a test notification now" to try it.
+4. Notifications are sent every day at 9:00 Pakistan time (04:00 UTC). Change the hour in `netlify/functions/birthday-reminder.mjs` (`schedule`).
 
-## 3. Set your admin password
-Netlify > Site configuration > Environment variables > add `ADMIN_PASSWORD` (a long one). Then redeploy once.
-The admin panel refuses to work until this is set.
-
-## 4. Use it
-Open `https://YOUR-SITE.netlify.app/admin.html`, sign in, edit anything, press "Publish live".
-Her page shows the new content on the next refresh. "Preview" shows your draft before publishing.
-
-## Her answer reaches you
-In the admin panel > "Dates & delivery", enter your ntfy topic and/or Discord webhook. They are stored on the server and never appear in the page source.
+## iPhone note
+iPhones only allow notifications for sites added to the Home Screen (Share > Add to Home Screen, then open it from there).

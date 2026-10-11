@@ -13,6 +13,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="ifra.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ifra 🌹">
 
 </head>
 
@@ -77,6 +82,7 @@
       </p>
     </div>
     <p id="countdown"></p>
+    <button id="remindBtn" class="remind-btn" onclick="enableReminders()" data-t="remindButton">🔔 Remind me before my birthday</button>
 
     <!-- 📸 MEMORIES GALLERY -->
     <div class="gallery-section">
@@ -126,6 +132,7 @@
     <div class="proposal-section">
       <h3 data-t="lastTitle">One Last Thing</h3>
       <p class="letters-hint" data-t="lastHint">There is a question I have been carrying in my heart 💍</p>
+      <button class="proposal-btn story-btn" id="storyBtn" onclick="openStory()" data-t="storyButton" style="display:none">📖 Read Our Story</button>
       <button class="proposal-btn" onclick="openProposal()" data-t="questionButton">💍&nbsp; I Have a Question For You</button>
     </div>
 
