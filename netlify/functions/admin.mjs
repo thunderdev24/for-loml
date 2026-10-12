@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { sendToAll, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
+import { getUsers, newCredentials, ROLES } from './lib/authlib.mjs';
 
 const store = () => getStore('ifra-site');
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -45,6 +46,49 @@ export default async (req) => {
     let priv = null;
     try { priv = await s.get('private.json', { type: 'json' }); } catch (e) { }
     return json(priv || {});
+  }
+
+  // full saved content (the public script hides the private parts once logins are on)
+  if (route === 'content' && req.method === 'GET') {
+    let content = null;
+    try { content = await s.get('content.json', { type: 'json' }); } catch (e) { }
+    return json({ content });
+  }
+
+  // the two logins (me / her): emails are shown, passwords are never sent back
+  if (route === 'users' && req.method === 'GET') {
+    const u = await getUsers(s);
+    const out = {};
+    ROLES.forEach(r => { out[r] = u[r] && u[r].hash ? { email: u[r].email } : null; });
+    return json(out);
+  }
+
+  if (route === 'users' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
+    const users = await getUsers(s);
+    for (const r of ROLES) {
+      const inp = body && body[r];
+      if (!inp) continue;
+      if (inp.remove) { delete users[r]; continue; }
+      const email = String(inp.email || '').trim().toLowerCase();
+      const pw = String(inp.password || '');
+      const label = r === 'me' ? 'Your' : 'Her';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: label + ' email does not look right' }, 400);
+      const old = users[r];
+      if (!old && !pw) return json({ error: label + ' login needs a password' }, 400);
+      if (pw && pw.length < 8) return json({ error: label + ' password must be at least 8 characters' }, 400);
+      const next = { email, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
+      if (pw) Object.assign(next, newCredentials(pw), { ver: next.ver + 1 });
+      else if (old && old.email !== email) next.ver += 1;
+      users[r] = next;
+    }
+    const mails = ROLES.filter(r => users[r]).map(r => users[r].email);
+    if (new Set(mails).size !== mails.length) return json({ error: 'You and her need different emails' }, 400);
+    await s.setJSON('users.json', users);
+    const out = {};
+    ROLES.forEach(r => { out[r] = users[r] ? { email: users[r].email } : null; });
+    return json({ ok: true, users: out });
   }
 
   if (route === 'save' && req.method === 'POST') {
