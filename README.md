@@ -20,3 +20,22 @@ Keep your songs and photos in `public/` as before. Netlify redeploys by itself.
 
 ## iPhone note
 iPhones only allow notifications for sites added to the Home Screen (Share > Add to Home Screen, then open it from there).
+
+## 🔐 Logins (gallery, Our Story, proposal)
+Where the new / changed files go:
+- `public/`: `ifra.js`, `ifra.css`, `site-loader.js`, `admin.html` (replace the old ones)
+- `netlify/functions/`: `auth.mjs` (new), `live.mjs`, `admin.mjs` (replace)
+- `netlify/functions/lib/`: `authlib.mjs` (new)
+
+How to use it:
+1. Deploy, open the admin panel > **Login** tab (🔐 Logins).
+2. Create **your** login and **her** login (email + password of at least 8 characters). Saved instantly, no Publish needed.
+3. Press **Publish live** once on the admin so the server holds a full copy of your photos, story and proposal.
+4. From then on the gallery, Our Story and the proposal ask for an email and password. She stays logged in on her phone.
+- To change an email or password later, open the same tab and save. That person is logged out and logs in again.
+- To turn the login off, remove both logins.
+- Logged in as yourself, the proposal does not send "she said yes" to you, so you can test it freely.
+
+Good to know:
+- The private parts are no longer in the public page data. Your old `content.js` still contains the built-in copy, though; once you have published, you can delete `memories`, `story`, `proposalScenes`, `yesScenes` and `noTexts` from it to keep them out of the source too (this also makes the original-photo filenames in `public/` unlisted).
+- Photos already sitting in `public/` as plain files stay reachable by their exact file name. Photos uploaded through the admin panel have random names that are only revealed after login.
