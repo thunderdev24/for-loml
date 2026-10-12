@@ -50,7 +50,8 @@ window.SITE_CONTENT = {
     "finaleTitle": "I LOVE YOU ❤️",
     "pageTitle": "For Ifra Malik ❤️",
     "storyButton": "📖 Read Our Story",
-    "remindButton": "🔔 Remind me before my birthday"
+    "remindButton": "🔔 Remind me before my birthday",
+    "installButton": "📲 Install the app"
   },
   "poetryLines": [
     "Ifra… 🌙",
@@ -206,797 +207,1054 @@ window.SITE_CONTENT = {
   ],
   "riddles": [
     {
-      "q": "What has hands but can never clap?",
+      "q": "In Valorant, which agent can bring a dead teammate back to life?",
       "o": [
-        "A clock",
-        "A robot",
-        "A statue"
+        "Sage",
+        "Jett",
+        "Cypher"
       ],
-      "a": 0
+      "a": 0,
+      "fun": "Sage, res me pls 😭"
     },
     {
-      "q": "What gets wetter the more it dries?",
+      "q": "How long does a full Spike defuse take in Valorant?",
       "o": [
-        "A sponge",
-        "A towel",
-        "The sun"
+        "3 seconds",
+        "7 seconds",
+        "15 seconds"
       ],
       "a": 1
     },
     {
-      "q": "What can you catch but never throw?",
+      "q": "What do you call killing all five enemies in a single round?",
       "o": [
-        "A ball",
-        "A fish",
-        "A cold"
+        "An Ace",
+        "A Jackpot",
+        "A Bingo"
+      ],
+      "a": 0,
+      "fun": "Pure cinema 🎬"
+    },
+    {
+      "q": "Which agent dashes with Tailwind and throws knives with her ultimate?",
+      "o": [
+        "Sova",
+        "Jett",
+        "Brimstone"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which agent has the Owl Drone and the Recon Bolt?",
+      "o": [
+        "Cypher",
+        "Skye",
+        "Sova"
       ],
       "a": 2
     },
     {
-      "q": "What goes up every year but never comes down?",
+      "q": "Which agent sets up a Turret and an Alarmbot to guard a site?",
       "o": [
-        "Your age",
-        "A kite",
-        "A balloon"
+        "Killjoy",
+        "Chamber",
+        "Neon"
       ],
       "a": 0
     },
     {
-      "q": "What has keys but cannot open a single door?",
+      "q": "What is the highest rank in Valorant?",
       "o": [
-        "A piano",
-        "A janitor",
-        "A lock"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What has a neck but no head?",
-      "o": [
-        "A giraffe",
-        "A bottle",
-        "A sock"
+        "Immortal",
+        "Radiant",
+        "Diamond"
       ],
       "a": 1
     },
     {
-      "q": "What can you break without ever touching it?",
+      "q": "How many rounds does a team need to win a normal Valorant match?",
       "o": [
-        "A glass",
-        "A promise",
-        "A plate"
+        "10",
+        "21",
+        "13"
+      ],
+      "a": 2
+    },
+    {
+      "q": "Which of these maps has THREE bomb sites?",
+      "o": [
+        "Bind",
+        "Haven",
+        "Split"
       ],
       "a": 1
     },
     {
-      "q": "What has many teeth but never bites?",
+      "q": "What do players call a round where the whole team saves money and skips buying guns?",
       "o": [
-        "A comb",
-        "A crocodile",
-        "A grumpy cat"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What has one eye but cannot see?",
-      "o": [
-        "A needle",
-        "A moustache",
-        "A teacup"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What gets bigger the more you take away from it?",
-      "o": [
-        "A hole",
-        "A cake",
-        "A pocket"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What do you call two birds in love?",
-      "o": [
-        "Tweethearts",
-        "Beak buddies",
-        "Wing mates"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What did the stamp say to the envelope?",
-      "o": [
-        "I am stuck on you",
-        "Please do not lick me",
-        "Let us go postal"
-      ],
-      "a": 0
-    },
-    {
-      "q": "Why did the banana go to the doctor?",
-      "o": [
-        "It was not peeling well",
-        "It lost its phone",
-        "It wanted a nap"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What do you call a sleeping bull?",
-      "o": [
-        "A bulldozer",
-        "A cowboy",
-        "A snore-ox"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What kind of room has no doors or windows?",
-      "o": [
-        "A mushroom",
-        "A bathroom",
-        "A classroom"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What is full of holes but still holds water?",
-      "o": [
-        "A bucket",
-        "A sponge",
-        "A net"
+        "A vacation round",
+        "An eco round",
+        "A picnic round"
       ],
       "a": 1
     },
     {
-      "q": "What can fill a whole room without taking up any space?",
+      "q": "Which agent's ultimate is literally called 'Run It Back'?",
       "o": [
-        "Light",
-        "Furniture",
-        "A balloon"
+        "Phoenix",
+        "Reyna",
+        "Raze"
       ],
       "a": 0
     },
     {
-      "q": "What runs all day but never walks?",
+      "q": "Which agent's ultimate is a rocket launcher named Showstopper?",
       "o": [
-        "A river",
-        "A turtle",
-        "A snail"
+        "Breach",
+        "Neon",
+        "Raze"
+      ],
+      "a": 2,
+      "fun": "BOOM 💥"
+    },
+    {
+      "q": "What happens 45 seconds after the Spike is planted?",
+      "o": [
+        "It plays a song",
+        "It explodes",
+        "It gives you money"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which rifle is famous for killing with ONE headshot at any range?",
+      "o": [
+        "Classic",
+        "Vandal",
+        "Ghost"
+      ],
+      "a": 1
+    },
+    {
+      "q": "In Elden Ring, what is the player character called?",
+      "o": [
+        "The Tarnished",
+        "The Chosen",
+        "The Marked"
       ],
       "a": 0
     },
     {
-      "q": "What did the light bulb say to its sweetheart?",
+      "q": "What big red words appear when you die in Elden Ring?",
       "o": [
-        "I love you a watt",
-        "You make me blush",
-        "Let us switch"
+        "Oops!",
+        "Try again, noob",
+        "YOU DIED"
+      ],
+      "a": 2,
+      "fun": "Every gamer knows that pain 😭"
+    },
+    {
+      "q": "What is the name of your ghostly horse in Elden Ring?",
+      "o": [
+        "Epona",
+        "Torrent",
+        "Shadowfax"
+      ],
+      "a": 1
+    },
+    {
+      "q": "What are Elden Ring's checkpoints called?",
+      "o": [
+        "Sites of Grace",
+        "Bonfires",
+        "Save Rooms"
       ],
       "a": 0
     },
     {
-      "q": "Which month do people sleep the least?",
+      "q": "What do you drop when you die in Elden Ring, until you go back and pick them up?",
       "o": [
-        "February",
-        "December",
-        "July"
+        "Gold coins",
+        "Runes",
+        "Your phone"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which boss is the 'Blade of Miquella' who uses the Waterfowl Dance?",
+      "o": [
+        "Margit",
+        "Malenia",
+        "Godrick"
+      ],
+      "a": 1,
+      "fun": "Waterfowl Dance has ended many dreams 😭"
+    },
+    {
+      "q": "Which famous author helped create the world and lore of Elden Ring?",
+      "o": [
+        "George R. R. Martin",
+        "J. K. Rowling",
+        "Stephen King"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What is the giant golden tree at the heart of the Lands Between called?",
+      "o": [
+        "The Erdtree",
+        "Yggdrasil",
+        "The Golden Oak"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What is the healing flask in Elden Ring called?",
+      "o": [
+        "Flask of Chai",
+        "Flask of Cola",
+        "Flask of Crimson Tears"
+      ],
+      "a": 2
+    },
+    {
+      "q": "Which early boss is famous for having other people's arms stitched onto him?",
+      "o": [
+        "Godrick the Grafted",
+        "Rat King",
+        "Pizza Lord"
+      ],
+      "a": 0
+    },
+    {
+      "q": "In Elden Ring memes, a lonely warrior with no girlfriend is called...",
+      "o": [
+        "Solo Tarnished",
+        "Lonely Knight",
+        "Maidenless"
+      ],
+      "a": 2,
+      "fun": "Not anymore, because he has Ifra 😎"
+    },
+    {
+      "q": "What does a Creeper do when it gets close to you in Minecraft?",
+      "o": [
+        "Hugs you",
+        "Hisses and explodes",
+        "Dances"
+      ],
+      "a": 1,
+      "fun": "Aww man 💥"
+    },
+    {
+      "q": "In Among Us, what do you call someone who is acting suspicious?",
+      "o": [
+        "Sus",
+        "Sweet",
+        "Sleepy"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What word appears on screen when you die in GTA?",
+      "o": [
+        "Oops",
+        "Wasted",
+        "Defeated"
+      ],
+      "a": 1
+    },
+    {
+      "q": "What do you win when you finish first in PUBG?",
+      "o": [
+        "A chicken dinner",
+        "A pizza",
+        "A trophy"
       ],
       "a": 0,
-      "fun": "It is the shortest one! 😴"
+      "fun": "Winner winner chicken dinner 🍗"
     },
     {
-      "q": "What belongs to you but is used more by other people?",
+      "q": "Which Mario character is always getting kidnapped?",
       "o": [
-        "Your name",
-        "Your phone",
-        "Your pillow"
+        "Princess Peach",
+        "Luigi",
+        "Toad"
       ],
       "a": 0
     },
     {
-      "q": "What do you call cheese that is not yours?",
+      "q": "What do gamers blame first after losing a match?",
       "o": [
-        "Nacho cheese",
-        "Blue cheese",
-        "Sad cheese"
+        "Their own skill",
+        "Lag",
+        "The weather"
+      ],
+      "a": 1,
+      "fun": "Classic excuse 😆"
+    },
+    {
+      "q": "What do gamers call a player who hides in one spot waiting for kills?",
+      "o": [
+        "A camper",
+        "A pilot",
+        "A gardener"
+      ],
+      "a": 0
+    },
+    {
+      "q": "In gaming, what does 'GG' stand for?",
+      "o": [
+        "Good Game",
+        "Get Going",
+        "Great Grief"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What do gamers call a background character who just repeats the same line forever?",
+      "o": [
+        "NPC",
+        "MVP",
+        "RPG"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Which Pokemon is yellow and says 'Pika Pika'?",
+      "o": [
+        "Charmander",
+        "Pikachu",
+        "Psyduck"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which song do you get 'Rickrolled' with?",
+      "o": [
+        "Despacito",
+        "Baby Shark",
+        "Never Gonna Give You Up"
+      ],
+      "a": 2
+    },
+    {
+      "q": "In the famous meme, a dog sits in a burning room and says...",
+      "o": [
+        "This is fine",
+        "Call the fire brigade",
+        "Pass the chai"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Which dog breed is Doge?",
+      "o": [
+        "Pug",
+        "Shiba Inu",
+        "Husky"
+      ],
+      "a": 1
+    },
+    {
+      "q": "In the viral meme 'Pawri Hori Hai', what is happening?",
+      "o": [
+        "A party",
+        "A cricket match",
+        "A wedding"
       ],
       "a": 0,
-      "fun": "Nacho cheese, get it? 🧀"
+      "fun": "Ye hum hain, ye hamari car hai, aur ye hamari pawri ho rahi hai 🚗🎉"
     },
     {
-      "q": "What has a bed but never sleeps?",
+      "q": "What do people tell someone who has been online for way too long: 'Go touch ___'?",
       "o": [
-        "A river",
-        "A pillow",
-        "A sleepy cat"
+        "Grass",
+        "Water",
+        "Sky"
       ],
       "a": 0
     },
     {
-      "q": "What has a thumb and four fingers but is not alive?",
+      "q": "In the 'Distracted Boyfriend' meme, who is looking at someone else?",
       "o": [
-        "A glove",
-        "A robot",
-        "A statue"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What can travel around the world while staying in a corner?",
-      "o": [
-        "A stamp",
-        "A suitcase",
-        "A cat"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What has words but never speaks?",
-      "o": [
-        "A book",
-        "A parrot",
-        "A radio"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What invention lets you look right through a wall?",
-      "o": [
-        "A window",
-        "X-ray glasses",
-        "A door"
+        "The boyfriend",
+        "The girlfriend",
+        "The dog"
       ],
       "a": 0,
-      "fun": "A window, of course! 🪟"
+      "fun": "Not our story, thankfully 😌"
     },
     {
-      "q": "What goes through cities and fields but never moves?",
+      "q": "In internet slang, what does 'rizz' mean?",
       "o": [
-        "A road",
-        "A train",
-        "A cloud"
+        "Hunger",
+        "Charm",
+        "Money"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which drink solves 90% of desi problems?",
+      "o": [
+        "Cola",
+        "Chai",
+        "Lassi"
+      ],
+      "a": 1,
+      "fun": "Chai is the real final boss ☕"
+    },
+    {
+      "q": "When you ask for pizza, what do desi moms say is waiting at home?",
+      "o": [
+        "Daal chawal",
+        "Pizza",
+        "Cake"
       ],
       "a": 0
     },
     {
-      "q": "What has thirteen hearts but no other organs?",
+      "q": "When I first confessed to you, what did my hands do?",
       "o": [
-        "A deck of cards",
-        "A florist",
-        "A teddy bear"
+        "They fell asleep",
+        "They trembled",
+        "They danced"
       ],
-      "a": 0
+      "a": 1,
+      "fun": "Qasam se, kaamp uthe the 😅"
     },
     {
-      "q": "What has a ring but no finger?",
+      "q": "Once you told me 'shor na karo'. How did I feel?",
       "o": [
-        "A phone",
-        "A pillow",
-        "A sandwich"
-      ],
-      "a": 0
-    },
-    {
-      "q": "Which letter of the alphabet is a hot drink?",
-      "o": [
-        "T",
-        "Z",
-        "X"
+        "Scared that I was disturbing you",
+        "Totally relaxed",
+        "Annoyed"
       ],
       "a": 0,
-      "fun": "T for tea! ☕"
+      "fun": "I overthought it for ages 🙈"
     },
     {
-      "q": "What do you call a fake noodle?",
+      "q": "What small thing did you do for the first time that I still remember?",
       "o": [
-        "An impasta",
-        "A noodle-cat",
-        "A spaghetti ghost"
-      ],
-      "a": 0
-    },
-    {
-      "q": "Why did the scarecrow win an award?",
-      "o": [
-        "He was outstanding in his field",
-        "He had nice shoes",
-        "He scared the judge"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What do you call a bear with no teeth?",
-      "o": [
-        "A gummy bear",
-        "A sad bear",
-        "A teddy"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What kind of tree fits in your hand?",
-      "o": [
-        "A palm",
-        "An oak",
-        "A bonsai taxi"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What type of cheese is made backwards?",
-      "o": [
-        "Edam",
-        "Cheddar",
-        "Brie"
+        "Liked my story",
+        "Sent me a letter",
+        "Called me at 3 AM"
       ],
       "a": 0,
-      "fun": "Edam is \"made\" spelled backwards! 🧀"
+      "fun": "That tiny like started everything 🥹"
     },
     {
-      "q": "What do you call a sleeping dinosaur?",
+      "q": "Whose idea was it to change our profile pictures?",
       "o": [
-        "A dino-snore",
-        "A lazy lizard",
-        "A rock"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What has a head and a tail but no body?",
-      "o": [
-        "A coin",
-        "A teddy bear",
-        "A pillow"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What gets sharper the more you use it?",
-      "o": [
-        "Your brain",
-        "A knife",
-        "A pencil"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What is always coming but never arrives?",
-      "o": [
-        "Tomorrow",
-        "A bus",
-        "Friday"
+        "Yours, Ifra",
+        "A random stranger's",
+        "Mine"
       ],
       "a": 0,
-      "fun": "Tomorrow never comes! 🌅"
+      "fun": "Great idea, Ifra 😌"
     },
     {
-      "q": "What can you hold without ever touching it?",
+      "q": "What did I write for you with all my heart?",
       "o": [
-        "A conversation",
-        "A bubble",
-        "A snowflake"
+        "A grocery list",
+        "An exam paper",
+        "Ashaar (poetry)"
+      ],
+      "a": 2,
+      "fun": "Every single line was true 💌"
+    },
+    {
+      "q": "Which question do couples ask each other a hundred times a day?",
+      "o": [
+        "Khana khaya?",
+        "What is the GDP?",
+        "Who is the president?"
       ],
       "a": 0
     },
     {
-      "q": "What did the big flower say to the little flower?",
+      "q": "When your message pops up, my heart plays like...",
       "o": [
-        "Hi, bud!",
-        "Water me!",
-        "Stay in the sun"
+        "A sleepy sloth",
+        "A clutch 1v5 in Valorant",
+        "A dial-up modem"
       ],
-      "a": 0
+      "a": 1,
+      "fun": "Heart rate: ACE 💓"
     },
     {
-      "q": "What has four legs in the morning, but still cannot walk?",
+      "q": "If Ifra were a Valorant rank, which one would she be?",
       "o": [
-        "A table",
-        "A sleepy elephant",
-        "A snail"
+        "Iron",
+        "Bronze",
+        "Radiant"
       ],
-      "a": 0
+      "a": 2,
+      "fun": "Radiant. Obviously ✨"
     },
     {
-      "q": "What do you call a boomerang that does not come back?",
+      "q": "On our Valorant team, who would I ask for a heal all game?",
       "o": [
-        "A stick",
-        "A bird",
-        "A kite"
+        "A random bot",
+        "Ifra, my personal Sage",
+        "Nobody"
       ],
-      "a": 0
+      "a": 1,
+      "fun": "Sage, res me please 😭💖"
     },
     {
-      "q": "What do clouds wear under their rain jackets?",
+      "q": "What would my Elden Ring be, the thing I search for through every land?",
       "o": [
-        "Thunderwear",
-        "Socks",
-        "Scarves"
+        "Free pizza",
+        "Unlimited Wi-Fi",
+        "Ifra's smile"
       ],
-      "a": 0
+      "a": 2
     },
     {
-      "q": "What comes down but never goes up?",
+      "q": "If I had a Site of Grace in real life, where would it be?",
       "o": [
-        "Rain",
-        "A kite",
-        "A lift"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What did the ocean say to the shore?",
-      "o": [
-        "Nothing, it just waved",
-        "Hello, sand",
-        "Move over"
+        "Wherever Ifra is",
+        "Under my blanket",
+        "In the kitchen"
       ],
       "a": 0,
-      "fun": "It just waved! 🌊"
+      "fun": "Lost Grace Discovered 🌟"
     },
     {
-      "q": "What has a face and two hands but no arms or legs?",
+      "q": "How many times have I re-read your messages?",
       "o": [
-        "A clock",
-        "A snowman",
-        "A scarecrow"
+        "Never",
+        "Too many to count",
+        "Exactly once"
       ],
-      "a": 0
+      "a": 1
     },
     {
-      "q": "What kind of band never plays music?",
+      "q": "Which game boss do I fear more than losing you?",
       "o": [
-        "A rubber band",
-        "A jazz band",
-        "A wedding band"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What can you keep after giving it to someone?",
-      "o": [
-        "Your word",
-        "A cookie",
-        "A pen"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What building has the most stories?",
-      "o": [
-        "A library",
-        "A skyscraper",
-        "A bakery"
+        "None, nothing scares me more than losing you",
+        "Malenia",
+        "Margit"
       ],
       "a": 0,
-      "fun": "A library, full of stories! 📚"
+      "fun": "Okay, Malenia is close 😅"
     },
     {
-      "q": "What do you call a fish wearing a bowtie?",
+      "q": "What do I say instead of 'GG' at the end of every day with you?",
       "o": [
-        "Sofishticated",
-        "Fin-tastic",
-        "Gill-ty"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What do you call a dog magician?",
-      "o": [
-        "A labracadabrador",
-        "A woof wizard",
-        "A bark-ologist"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What has a bottom at the top?",
-      "o": [
-        "Your legs",
-        "A mountain",
-        "A cup"
-      ],
-      "a": 0
-    },
-    {
-      "q": "What is easy to lift but hard to throw far?",
-      "o": [
-        "A feather",
-        "A pebble",
-        "A brick"
+        "Alhamdulillah for you",
+        "Log out",
+        "Ratio"
       ],
       "a": 0
     }
   ],
   "sweet": [
     {
-      "q": "Which flower is the classic symbol of love?",
+      "q": "I am invisible, yet you can feel me in a single glance. I make two hearts beat as one. What am I?",
       "o": [
-        "A rose",
-        "A cactus",
-        "A dandelion"
-      ],
-      "a": 0
-    },
-    {
-      "q": "Which planet is named after the goddess of love?",
-      "o": [
-        "Mars",
-        "Venus",
-        "Pluto"
-      ],
-      "a": 1
-    },
-    {
-      "q": "Which shape do we draw to say \"I love you\" without words?",
-      "o": [
-        "A triangle",
-        "A heart",
-        "A square"
-      ],
-      "a": 1
-    },
-    {
-      "q": "Which bird is a famous symbol of lifelong love?",
-      "o": [
-        "A swan",
-        "A vulture",
-        "A chicken"
-      ],
-      "a": 0
-    },
-    {
-      "q": "How many hearts does an octopus have?",
-      "o": [
-        "One",
-        "Three",
-        "Eight"
+        "Wi-Fi",
+        "Love",
+        "The wind"
       ],
       "a": 1,
-      "fun": "Three hearts, and still room for more love! 🐙"
+      "fun": "Wi-Fi is close, but love connects better 😄"
     },
     {
-      "q": "Which treat is the most famous gift of sweetness?",
+      "q": "I have no voice, yet two people who love each other understand me perfectly. What am I?",
       "o": [
-        "Chocolate",
-        "Broccoli",
-        "Socks"
+        "A look in the eyes",
+        "A radio",
+        "A doorbell"
       ],
       "a": 0
     },
     {
-      "q": "Which famous monument was built as a symbol of eternal love?",
+      "q": "I travel without feet and cross any distance to reach someone's heart. What am I?",
       "o": [
-        "The Taj Mahal",
-        "The Great Wall of China",
-        "The Leaning Tower of Pisa"
-      ],
-      "a": 0
-    },
-    {
-      "q": "Who are the most famous young lovers in Shakespeare’s tale?",
-      "o": [
-        "Romeo and Juliet",
-        "Tom and Jerry",
-        "Salt and Pepper"
-      ],
-      "a": 0
-    },
-    {
-      "q": "About how many times does a calm heart beat each minute?",
-      "o": [
-        "5 to 10",
-        "60 to 100",
-        "500 to 600"
+        "A parcel",
+        "A dua",
+        "A bus"
       ],
       "a": 1
     },
     {
-      "q": "Which season is often called the season of blooming love?",
+      "q": "The more you give me away, the more I grow. What am I?",
       "o": [
-        "Spring",
-        "Monsoon traffic",
-        "Exam week"
+        "Love",
+        "Money",
+        "Cake"
       ],
       "a": 0
     },
     {
-      "q": "What does the colour red traditionally stand for in love?",
+      "q": "I beat all day without running and skip a beat when you smile. What am I?",
       "o": [
-        "Passion",
-        "Hunger",
-        "Sleepiness"
+        "A drum",
+        "A clock",
+        "A heart"
+      ],
+      "a": 2
+    },
+    {
+      "q": "I cost nothing, yet I can change someone's whole day. What am I?",
+      "o": [
+        "A gold coin",
+        "A sincere smile",
+        "A free sample"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I have no beginning and no end, and I am worn on a finger to say 'forever'. What am I?",
+      "o": [
+        "A donut",
+        "A ring",
+        "A hula hoop"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I light the night, watch over lovers from far away, and wear a new face every week. What am I?",
+      "o": [
+        "The moon",
+        "A streetlight",
+        "A bulb"
       ],
       "a": 0
     },
     {
-      "q": "What do we usually send to say \"thinking of you\"?",
+      "q": "I make the farthest distance feel like one step. What am I?",
       "o": [
-        "A kind message",
-        "A parking ticket",
-        "A math test"
+        "Google Maps",
+        "A teleporter",
+        "Love"
       ],
-      "a": 0
+      "a": 2
     },
     {
-      "q": "What do we say to bless a new couple?",
+      "q": "I mend what angry words broke, and I only cost a little pride. What am I?",
       "o": [
-        "Barakallahu lakuma",
-        "Good luck with the bills",
-        "See you at work"
+        "Glue",
+        "A sincere sorry",
+        "Money"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I have two hearts, but they share one rhythm when we are together. What am I?",
+      "o": [
+        "Two people in love",
+        "An octopus",
+        "A twin star"
       ],
       "a": 0,
-      "fun": "May Allah bless you both! 🤍"
+      "fun": "An octopus has three hearts, but they never beat in time with yours 🐙"
     },
     {
-      "q": "Love and mercy between hearts is a beautiful...?",
+      "q": "Even in a crowd of thousands, I search for only one face. What am I?",
       "o": [
-        "Blessing",
-        "Chore",
-        "Deadline"
+        "A camera",
+        "The eyes of someone in love",
+        "A GPS"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I am the first thought of the morning and the last thought before sleep. What am I?",
+      "o": [
+        "Someone you love",
+        "A phone alarm",
+        "Breakfast"
       ],
       "a": 0
     },
     {
-      "q": "What do we say when we are grateful for a lovely day?",
+      "q": "I wait at the door with chai and a smile. What am I?",
       "o": [
-        "Alhamdulillah",
-        "Finally",
+        "A home with you in it",
+        "A waiter",
+        "A neighbour"
+      ],
+      "a": 0
+    },
+    {
+      "q": "I make time stand still and everything else blurry when two people first meet. What am I?",
+      "o": [
+        "A power cut",
+        "A fever",
+        "Falling in love"
+      ],
+      "a": 2
+    },
+    {
+      "q": "I am sent in the morning with two simple words, yet I can light up a whole day. What am I?",
+      "o": [
+        "A kind good-morning message",
+        "A newspaper",
+        "A bill"
+      ],
+      "a": 0
+    },
+    {
+      "q": "I am the sweetest part of 'good night'. What am I?",
+      "o": [
+        "A lullaby for two",
+        "A dua for the person you love",
+        "An alarm clock"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I can be whispered but never silenced, and written but never fully said. What am I?",
+      "o": [
+        "A rumour",
+        "A love letter",
+        "A secret recipe"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Roses are loved for their beauty, but what do they teach us about love?",
+      "o": [
+        "Real love is worth a few thorns",
+        "Never touch anything",
+        "Always buy flowers"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What happens to your heart when you hear the name of the one you love?",
+      "o": [
+        "It naps",
+        "It smiles and speeds up",
+        "It buffers"
+      ],
+      "a": 1
+    },
+    {
+      "q": "I am a bridge you cannot see, but you cross me every time you think of someone far away. What am I?",
+      "o": [
+        "Memory and longing",
+        "A metro line",
+        "A hallway"
+      ],
+      "a": 0
+    },
+    {
+      "q": "I grow when two people listen to each other, and I shrink when they only talk. What am I?",
+      "o": [
+        "Understanding",
+        "A balloon",
+        "Traffic"
+      ],
+      "a": 0
+    },
+    {
+      "q": "What is the best thing to say when words are not enough?",
+      "o": [
+        "Nothing, just stay close",
+        "Bye",
         "Whatever"
       ],
       "a": 0
     },
     {
-      "q": "Which gesture says \"I care\" without any words?",
+      "q": "Which flower is the classic symbol of love?",
       "o": [
-        "A warm hug",
-        "A closed door",
-        "A shrug"
+        "A cactus",
+        "A rose",
+        "A dandelion"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which monument was built as a symbol of eternal love?",
+      "o": [
+        "The Taj Mahal",
+        "The Eiffel Tower",
+        "The Great Wall"
       ],
       "a": 0
     },
     {
-      "q": "Which colour is most often linked with romance?",
+      "q": "What colour traditionally stands for love and passion?",
       "o": [
-        "Pink and red",
+        "Red",
         "Grey",
         "Brown"
       ],
       "a": 0
     },
     {
-      "q": "What do people write when they pour out their heart on paper?",
+      "q": "In a marriage, what matters more than winning an argument?",
       "o": [
-        "A love letter",
-        "A shopping list",
-        "A bill"
+        "Having the last word",
+        "Protecting the peace and the heart",
+        "Being right"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which two words does Surah Ar-Rum use for the love and mercy Allah places between spouses?",
+      "o": [
+        "Sabr and Shukr",
+        "Mawaddah and Rahmah",
+        "Iman and Ihsan"
+      ],
+      "a": 1
+    },
+    {
+      "q": "The Quran calls spouses a 'libaas' for each other. What does it mean?",
+      "o": [
+        "A garment: comfort, protection and closeness",
+        "A passing fashion",
+        "A heavy luggage"
       ],
       "a": 0
     },
     {
-      "q": "Which sweet is often shared on special days?",
+      "q": "What keeps a long relationship strong after the butterflies fade?",
       "o": [
-        "Mithai",
-        "Plain bread",
-        "Raw onion"
+        "Matching outfits",
+        "Respect, patience and friendship",
+        "A bigger TV"
+      ],
+      "a": 1
+    },
+    {
+      "q": "The Prophet ﷺ said the best of you are those who are best to their...",
+      "o": [
+        "Neighbours",
+        "Followers",
+        "Families"
+      ],
+      "a": 2
+    },
+    {
+      "q": "What is the sacred bond of marriage called in Islam?",
+      "o": [
+        "Nikah",
+        "Mehndi",
+        "Walima"
       ],
       "a": 0
     },
     {
-      "q": "Which light do lovers love to watch together?",
+      "q": "What does 'Qubool hai' mean?",
       "o": [
-        "The moon",
-        "A tube light",
-        "A traffic signal"
+        "I accept",
+        "I agree to pay",
+        "See you later"
       ],
       "a": 0
     },
     {
-      "q": "Which is the sweetest way to start a message to someone you love?",
+      "q": "Which prayer asks Allah for guidance before an important decision like marriage?",
       "o": [
-        "Good morning, my dear",
-        "Reply ASAP",
-        "Per my last email"
+        "Taraweeh",
+        "Istikhara",
+        "Eid prayer"
+      ],
+      "a": 1
+    },
+    {
+      "q": "What does 'barakah' mean?",
+      "o": [
+        "A blessing that makes a little feel like plenty",
+        "A small bakery",
+        "A kind of fast food"
       ],
       "a": 0
     },
     {
-      "q": "What is the best thing to share on a rainy evening?",
+      "q": "Which word means a life companion who walks the whole journey with you?",
       "o": [
-        "Hot chai",
-        "A pile of homework",
-        "A flat tyre"
+        "Hamsaya (neighbour)",
+        "Hamshira (sister)",
+        "Humsafar"
+      ],
+      "a": 2
+    },
+    {
+      "q": "I am built with patience, repaired with honesty and protected with kindness. What am I?",
+      "o": [
+        "A sandcastle",
+        "A strong marriage",
+        "A video game"
+      ],
+      "a": 1
+    },
+    {
+      "q": "When two people argue and one says sorry first, who really wins?",
+      "o": [
+        "The loudest",
+        "The relationship",
+        "The Wi-Fi"
+      ],
+      "a": 1
+    },
+    {
+      "q": "What does 'growing old together' truly mean?",
+      "o": [
+        "Choosing each other in every season of life",
+        "Owning matching walking sticks",
+        "Visiting the same doctor"
       ],
       "a": 0
     },
     {
-      "q": "What grows when it is shared with someone you love?",
+      "q": "Which of these is a green flag in a person?",
       "o": [
-        "Happiness",
-        "Laundry",
-        "Traffic"
+        "Respects your dreams and your boundaries",
+        "Checks your phone daily",
+        "Disappears for days"
       ],
       "a": 0
     },
     {
-      "q": "Which sound is a love song made of?",
+      "q": "Which lasts when things get hard: love or infatuation?",
       "o": [
-        "Melody and heartfelt words",
-        "A car horn",
-        "A blender"
+        "Infatuation",
+        "Neither",
+        "Love"
+      ],
+      "a": 2
+    },
+    {
+      "q": "Which is the strongest foundation for a family?",
+      "o": [
+        "A big house",
+        "Trust and sabr (patience)",
+        "Expensive gifts"
+      ],
+      "a": 1
+    },
+    {
+      "q": "A house is made of bricks. A home is made of...",
+      "o": [
+        "Marble",
+        "Love, peace and sukoon",
+        "Paint"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which quality do mature couples value over looks?",
+      "o": [
+        "Good character (akhlaq)",
+        "Number of followers",
+        "A fast car"
       ],
       "a": 0
     },
     {
-      "q": "Which gift lasts longer than flowers?",
+      "q": "What is the best way to handle a quarrel?",
       "o": [
-        "A cherished memory",
-        "A coupon",
-        "A receipt"
+        "Listen first, speak softly",
+        "Go silent for a week",
+        "Post it online"
       ],
       "a": 0
     },
     {
-      "q": "What is a heartfelt dua for someone you love?",
+      "q": "What is the true meaning of 'I choose you'?",
       "o": [
-        "May Allah keep you happy",
-        "May your phone die",
-        "May it rain on you"
+        "Choosing each other every day, even on hard days",
+        "Having no problems at all",
+        "Liking the same colour"
       ],
       "a": 0
     },
     {
-      "q": "Which word means a quiet, comforting peace?",
+      "q": "What do the words 'qurrata a'yun' in the famous dua for spouses mean?",
       "o": [
-        "Sukoon",
-        "Chaos",
-        "Rush hour"
+        "A bright lamp",
+        "The coolness and delight of the eyes",
+        "A small oven"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which is the language every heart understands, in every country?",
+      "o": [
+        "Kindness",
+        "Grammar",
+        "Sarcasm"
       ],
       "a": 0
     },
     {
-      "q": "What is the kindest thing to say when someone is sad?",
+      "q": "Who is my dua, my habit and my every tomorrow?",
       "o": [
-        "I am here for you",
-        "Not my problem",
-        "Get over it"
+        "Ifra",
+        "My phone",
+        "My pillow"
       ],
       "a": 0
     },
     {
-      "q": "Which bloom is called the queen of flowers?",
+      "q": "Who holds the admin access to my heart?",
       "o": [
-        "The rose",
-        "The cactus",
-        "The weed"
+        "Nobody",
+        "Ifra",
+        "Everyone"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Which word best describes you to me?",
+      "o": [
+        "The most beautiful part of my life",
+        "A passing guest",
+        "An ordinary day"
       ],
       "a": 0
     },
     {
-      "q": "What do we call a small, sweet surprise given with love?",
+      "q": "What is the one gift I wish I could give you?",
       "o": [
-        "A tohfa",
-        "A penalty",
-        "A pop quiz"
+        "Every happiness in the world",
+        "A voucher",
+        "A pen"
       ],
       "a": 0
     },
     {
-      "q": "Which star do wishes traditionally ride on?",
+      "q": "When I look at the moon, who do I think of?",
       "o": [
-        "A shooting star",
-        "A street lamp",
-        "A drone"
+        "The milkman",
+        "You, Ifra",
+        "The astronaut"
+      ],
+      "a": 1
+    },
+    {
+      "q": "What do I ask Allah for most when I think of you?",
+      "o": [
+        "That your smile never fades",
+        "A new phone",
+        "More sleep"
       ],
       "a": 0
     },
     {
-      "q": "A truly beautiful heart is full of...?",
+      "q": "What would I like to say to you every day for the rest of my life?",
       "o": [
-        "Kindness and mercy",
-        "Excuses",
-        "Static"
+        "Ifra, you are my peace",
+        "Pass the salt",
+        "Open the door"
+      ],
+      "a": 0
+    },
+    {
+      "q": "How do I feel when I think about our future, InshaAllah?",
+      "o": [
+        "Hopeful and thankful",
+        "Bored",
+        "Sleepy"
       ],
       "a": 0
     }
@@ -1216,9 +1474,9 @@ window.SITE_CONTENT = {
     ]
   ],
   "riddleMsgs": [
-    "A riddle master with a heart of gold! 👑",
-    "Clever and charming, a lovely combination! 💖",
-    "Every riddle is just curiosity in disguise. Try again! 😄"
+    "Radiant rank! A true riddle master 👑🎮",
+    "Solid score! Almost Radiant, one more round 💖",
+    "Bot lobby detected 😄 Play again and rank up!"
   ],
   "sweetMsgs": [
     "You know love like a poet. 💖",
@@ -1272,6 +1530,8 @@ window.SITE_CONTENT = {
   "story": {
     "songFile": "bewajah.m4a",
     "songStart": 0,
+    "songVolume": 80,
+    "duckVolume": 8,
     "coverTitle": "Our Story",
     "coverSubtitle": "Turn the page, my love",
     "endTitle": "To be continued…",

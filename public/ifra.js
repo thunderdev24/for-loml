@@ -2195,6 +2195,53 @@ function storyEngine(cv) {
   };
 }
 
+/* Volume control for the story song.
+   Phones running iOS ignore audio.volume completely, so there the song is routed through a
+   Web Audio gain node instead. If even that is not possible, the song simply pauses while the
+   voice message plays. Everywhere else the normal audio.volume is used. */
+const IS_IOS_DEVICE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function makeLevel(a) {
+  let nativeOk = true;
+  try { const probe = new Audio(); probe.volume = 0.5; nativeOk = probe.volume === 0.5; } catch (e) { }
+  let ctx = null, gain = null;
+  if (!nativeOk || IS_IOS_DEVICE) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC && new URL(a.src, location.href).origin === location.origin) {
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
+        ctx = new AC();
+        const node = ctx.createMediaElementSource(a);
+        gain = ctx.createGain();
+        gain.gain.value = 0;
+        node.connect(gain); gain.connect(ctx.destination);
+        if (ctx.resume) ctx.resume().catch(() => { });
+      }
+    } catch (e) { ctx = null; gain = null; }
+  }
+  if (!gain && nativeOk) a.volume = 0;
+  return {
+    wake() { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => { }); },
+    /* flag: 'duck' = a voice message is playing, 'close' = fade out and stop */
+    set(to, ms, flag) {
+      if (gain) {
+        const t = ctx.currentTime;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(to, t + ms / 1000);
+        if (flag === 'close') setTimeout(() => { try { a.pause(); } catch (e) { } }, ms + 60);
+      } else if (nativeOk) {
+        fadeAudio(a, to, ms);
+        if (flag === 'close' && to > 0) setTimeout(() => { try { a.pause(); } catch (e) { } }, ms + 60);
+      } else if (flag === 'duck' || flag === 'close') {
+        try { a.pause(); } catch (e) { }
+      } else {
+        a.play().catch(() => { });
+      }
+    },
+    close() { if (ctx) { try { ctx.close(); } catch (e) { } } }
+  };
+}
+
 function openStory() {
   if (storyStop) return;
   const pages = (STORY.pages || []).filter(p => p && (p.heading || p.text || p.voice));
@@ -2209,11 +2256,16 @@ function openStory() {
   const song = new Audio();
   song.preload = 'auto';
   song.src = STORY.songFile || CINE_SONG_FILE;
-  song.volume = 0;
+  /* volumes come from the admin panel > Our Story (percent: 0 = silent, 100 = full) */
+  const pct = (v, d) => { v = (v === '' || v == null) ? d : Number(v); if (!isFinite(v)) v = d; return Math.max(0, Math.min(100, v)) / 100; };
+  const SONG_LEVEL = pct(STORY.songVolume, 80);
+  const DUCK_LEVEL = pct(STORY.duckVolume, 8);
+  const lvl = makeLevel(song);
+  let restoreT = 0;
   const seek = () => { try { song.currentTime = startAt; } catch (e) { } };
   if (song.readyState >= 1) seek(); else song.addEventListener('loadedmetadata', seek, { once: true });
   song.addEventListener('ended', () => { seek(); song.play().catch(() => { }); });
-  song.play().then(() => fadeAudio(song, 0.8, 2500)).catch(() => { });
+  song.play().then(() => lvl.set(SONG_LEVEL, 2500)).catch(() => { });
 
   /* voice player (unlocked now, inside her tap, so phones let it play later) */
   const voice = new Audio();
@@ -2266,10 +2318,18 @@ function openStory() {
   function voiceUI() {
     bVoice.textContent = voice.paused ? '🎙 Play voice message' : '⏸ Pause voice message';
   }
-  voice.addEventListener('play', () => { if (voice.src.indexOf('data:') === 0) return; fadeAudio(song, 0.22, 800); voiceUI(); });
-  voice.addEventListener('pause', () => { if (!closed) fadeAudio(song, 0.8, 1200); voiceUI(); });
-  voice.addEventListener('ended', () => { if (!closed) fadeAudio(song, 0.8, 1200); voiceUI(); });
-  bVoice.addEventListener('click', () => { if (voice.paused) voice.play().catch(() => { }); else voice.pause(); });
+  /* song goes quiet under your voice, and comes back a moment after it stops
+     (the short wait avoids a loud jump when the voice just changes between pages) */
+  const isSilentUnlock = () => voice.src.indexOf('data:') === 0;
+  const duck = () => { clearTimeout(restoreT); lvl.set(DUCK_LEVEL, 600, 'duck'); };
+  const unduck = () => {
+    clearTimeout(restoreT);
+    restoreT = setTimeout(() => { if (!closed && voice.paused) lvl.set(SONG_LEVEL, 1500); }, 600);
+  };
+  voice.addEventListener('play', () => { if (isSilentUnlock()) return; duck(); voiceUI(); });
+  voice.addEventListener('pause', () => { if (!closed && !isSilentUnlock()) unduck(); voiceUI(); });
+  voice.addEventListener('ended', () => { if (!closed && !isSilentUnlock()) unduck(); voiceUI(); });
+  bVoice.addEventListener('click', () => { lvl.wake(); if (voice.paused) voice.play().catch(() => { }); else voice.pause(); });
 
   function render() {
     const s = slides[i];
@@ -2331,7 +2391,9 @@ function openStory() {
     if (closed) return;
     closed = true;
     engine.stop();
-    fadeAudio(song, 0, 1300);
+    clearTimeout(restoreT);
+    lvl.set(0, 1300, 'close');
+    setTimeout(() => lvl.close(), 1700);
     fadeAudio(voice, 0, 500);
     ov.classList.remove('show');
     setTimeout(() => ov.remove(), 700);
@@ -2347,6 +2409,7 @@ function openStory() {
   };
   document.addEventListener('keydown', onKey);
   $('.story-x').addEventListener('click', close);
+  ov.addEventListener('click', () => lvl.wake());
   let tx = null;
   ov.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
   ov.addEventListener('touchend', e => {
@@ -2410,5 +2473,50 @@ async function enableReminders() {
     toast('Reminders are on! I will tell you how many days are left 🎂💕', 5000);
   } catch (e) {
     toast('Could not turn reminders on this time. Please try again 🤍', 4500);
+  }
+}
+
+
+/* =====================================================
+   📲 INSTALL THE APP (works on PC, Android and iPhone)
+   Installs the site like a real app: own icon, own window, opens offline.
+   ===================================================== */
+let deferredInstall = null;
+(function () {
+  const b = document.getElementById('installBtn');
+  const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => { }); });
+  }
+  if (!b) return;
+  if (standalone) { b.style.display = 'none'; return; }   // already running as the installed app
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null;
+    b.textContent = '✅ App installed';
+    toast('Installed! Open it from your home screen or desktop 🌹', 5000);
+    setTimeout(() => { b.style.display = 'none'; }, 3000);
+  });
+})();
+async function installApp() {
+  if (deferredInstall) {
+    const p = deferredInstall;
+    deferredInstall = null;
+    try {
+      p.prompt();
+      const r = await p.userChoice;
+      if (r && r.outcome === 'accepted') toast('Installing… 🌹', 3500);
+    } catch (e) { }
+    return;
+  }
+  const ua = navigator.userAgent;
+  if (/Instagram|FBAN|FBAV|Line\/|Snapchat|MicroMessenger|WhatsApp/i.test(ua)) {
+    toast('Open this page in Chrome or Safari first (menu ⋮ then “Open in browser”), then tap this button again 💕', 9000);
+  } else if (IS_IOS_DEVICE) {
+    toast('On iPhone: tap the Share button ⬆️, then choose “Add to Home Screen” 📲', 9000);
+  } else if (/Firefox/i.test(ua) && !/Android/i.test(ua)) {
+    toast('Firefox on PC cannot install web apps. Please open this page in Chrome or Edge 💕', 8000);
+  } else {
+    toast('Open your browser menu (⋮) and choose “Install app” or “Add to Home screen” 📲', 8000);
   }
 }

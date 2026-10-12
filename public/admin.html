@@ -204,6 +204,20 @@ function textField(m,key,label,area,rows){
   m.append(field(area?'area':'text',()=>C.text[key]==null?'':C.text[key],v=>{C.text[key]=v;},{label,rows}));
 }
 
+/* slider that stores a whole number 0-100 */
+function rangeField(get,set,opts){
+  const lab=el('label',{class:'f'});
+  const out=el('b',{text:get()+'%'});
+  const sp=el('span',{text:opts.label+'  '});sp.append(out);
+  const inp=el('input',{type:'range',min:'0',max:'100',step:'1'});
+  inp.style.padding='0';
+  inp.value=get();
+  inp.oninput=inp.onchange=()=>{out.textContent=inp.value+'%';set(Number(inp.value));save();};
+  lab.append(sp,inp);
+  if(opts.hint)lab.append(el('small',{class:'hint',text:opts.hint}));
+  return lab;
+}
+
 /* ---------- views ---------- */
 const VIEWS={};
 
@@ -217,7 +231,7 @@ VIEWS.texts=m=>{
    ['surprisesTitle','Surprises heading'],['surprisesHint','Surprises hint'],
    ['playTitle','Games heading'],['playHint','Games hint'],
    ['lastTitle','“One Last Thing” heading'],['lastHint','“One Last Thing” hint'],['questionButton','Question button'],
-   ['storyButton','“Our Story” button (above the proposal button)'],['remindButton','“Remind me before my birthday” button'],['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
+   ['storyButton','“Our Story” button (above the proposal button)'],['remindButton','“Remind me before my birthday” button'],['installButton','“Install the app” button'],['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
    ['careMessage','Message shown after that button',1,4],['secretMessage','Secret message (double-tap anywhere)',1,4],
    ['birthdayTitle','Birthday scene title'],['finaleTitle','Finale (“I LOVE YOU”) title'],
    ['birthdayBanner','Countdown text on her birthday'],
@@ -360,6 +374,12 @@ VIEWS.story=m=>{
       field('select',()=>S.songFile||'',v=>{S.songFile=v;},{label:'Song that plays while she reads',options:songOpts}),
       field('num',()=>S.songStart||0,v=>{S.songStart=v;},{label:'Start the song at (seconds)'})),
     el('p',{class:'hint',text:'Example: 1 minute 35 seconds = 95. The song fades in from that moment and loops.'})));
+  if(S.songVolume==null)S.songVolume=80;
+  if(S.duckVolume==null)S.duckVolume=8;
+  m.append(el('div',{class:'card'},el('h3',{text:'🔊 Music volume'}),
+    rangeField(()=>S.songVolume,v=>{S.songVolume=v;},{label:'Song volume while she reads',hint:'0 = silent, 100 = full volume. Around 60–80 is comfortable.'}),
+    rangeField(()=>S.duckVolume,v=>{S.duckVolume=v;},{label:'Song volume while YOUR VOICE message plays',hint:'How quiet the song gets under your voice. 0 = song stops completely, 5–10 = a soft whisper behind your voice, 22 = the old level. It slides back up by itself when your voice ends.'}),
+    el('p',{class:'hint',text:'Tip: press Preview, open the story and play a voice message to hear it. Change the number until it feels right, then Publish live.'})));
   m.append(el('div',{class:'card'},el('h3',{text:'🎬 First and last screen'}),
     field('text',()=>S.coverTitle||'',v=>{S.coverTitle=v;},{label:'Cover title'}),
     field('text',()=>S.coverSubtitle||'',v=>{S.coverSubtitle=v;},{label:'Cover subtitle'}),
@@ -406,6 +426,20 @@ VIEWS.surprises=m=>{
   m.append(listBox(()=>C.cinemaLines,[F.idx(1,'Text'),F.idx(0,'Appears at (seconds)',{type:'num'})],()=>[0,''],{grid:'grid2'}));
 };
 
+function packBar(m,key,label){
+  m.append(el('div',{class:'card'},el('h3',{text:'📦 Built-in '+label+' pack'}),
+    el('p',{class:'hint',text:'What is live on the site can be older than the newest built-in pack. Replace your list with the built-in one, or only add the built-in ones you do not have yet. Then press Publish live.'}),
+    el('div',{class:'bar'},
+      el('button',{class:'b',text:'♻ Replace my list with the built-in pack',onclick:()=>{
+        const n=(DEFAULTS[key]||[]).length;
+        if(!n){status('No built-in pack found. Upload the new content.js first.',true);return;}
+        if(!confirm('Replace your current list ('+C[key].length+' items) with the built-in pack ('+n+' items)?'))return;
+        C[key]=clone(DEFAULTS[key]);save();draw();status('Built-in pack loaded ('+n+' items). Press Publish live.');}}),
+      el('button',{class:'b alt',text:'➕ Add missing built-in ones',onclick:()=>{
+        const have=new Set(C[key].map(x=>x.q));let n=0;
+        (DEFAULTS[key]||[]).forEach(x=>{if(!have.has(x.q)){C[key].push(clone(x));n++;}});
+        save();draw();status(n+' added. Press Publish live.');}}))));
+}
 const quizFields=()=>[
   F.key('q','Question',{type:'area',rows:2}),
   {label:'Option 1',type:'text',get:(a,i)=>a[i].o[0]||'',set:(a,i,v)=>{a[i].o[0]=v;}},
@@ -419,14 +453,16 @@ function msgsEditor(m,key,title){
   m.append(listBox(()=>C[key],[F.self('Message',{type:'text'})],()=>''));
 }
 VIEWS.riddles=m=>{
-  head(m,'Funny riddles','Each round picks 20 random riddles from this list. The correct answer is shuffled automatically.');
+  head(m,'Funny riddles','Games (Valorant, Elden Ring and more), memes, and “me and her” questions. Each round picks 20 random ones from this list. The correct answer is shuffled automatically.');
+  packBar(m,'riddles','funny riddles');
   m.append(listBox(()=>C.riddles,quizFields(),()=>({q:'',o:['','',''],a:0}),{search:true,grid:'grid2'}));
   msgsEditor(m,'riddleMsgs','End-of-quiz messages (best · middle · lowest score)');
   msgsEditor(m,'funnyRight','Messages after a right answer');
   msgsEditor(m,'funnyWrong','Messages after a wrong answer');
 };
 VIEWS.sweet=m=>{
-  head(m,'Sweet quiz','Love trivia. Each round picks 20 random questions from this list.');
+  head(m,'Sweet quiz','Romantic and mature riddles. Each round picks 20 random questions from this list.');
+  packBar(m,'sweet','sweet riddles');
   m.append(listBox(()=>C.sweet,quizFields(),()=>({q:'',o:['','',''],a:0}),{search:true,grid:'grid2'}));
   msgsEditor(m,'sweetMsgs','End-of-quiz messages (best · middle · lowest score)');
 };
