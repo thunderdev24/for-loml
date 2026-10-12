@@ -8,6 +8,8 @@ window.SITE_CONTENT = {
     "cineSongFile": "reflections.m4a",
     "cineSongStart": 36,
     "proposalSongStart": 38,
+    "loveSongFile": "",
+    "loveSongStart": 0,
     "timezone": "Asia/Karachi",
     "reminderDays": "30,21,14,10,7,5,3,2,1,0",
     "reminderTitle": "🎂 {daysText} until your birthday, Ifra",
@@ -51,7 +53,11 @@ window.SITE_CONTENT = {
     "pageTitle": "For Ifra Malik ❤️",
     "storyButton": "📖 Read Our Story",
     "remindButton": "🔔 Remind me before my birthday",
-    "installButton": "📲 Install the app"
+    "installButton": "📲 Install the app",
+    "installBannerTitle": "Keep this on your phone 🌹",
+    "installBannerText": "Install the app: it gets its own icon and opens in one tap, even without internet.",
+    "installBannerYes": "Install",
+    "installBannerNo": "Not now"
   },
   "poetryLines": [
     "Ifra… 🌙",

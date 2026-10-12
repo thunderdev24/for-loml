@@ -2553,3 +2553,51 @@ body.story-on { overflow: hidden; }
   -webkit-tap-highlight-color: transparent;
 }
 .gallery-lock:hover, .gallery-lock:focus-visible { background: rgba(255, 77, 109, 0.14); outline: none; }
+
+/* =====================================================
+   📲 INSTALL SUGGESTION BANNER
+   ===================================================== */
+.install-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  width: min(94vw, 430px);
+  transform: translate(-50%, 140%);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  text-align: left;
+  background: linear-gradient(160deg, rgba(58, 10, 36, 0.97), rgba(24, 4, 16, 0.97));
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 77, 109, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+}
+.install-banner.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.install-banner .ib-ic { font-size: 1.9rem; flex: none; }
+.install-banner .ib-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.install-banner .ib-tx b { font-size: 0.92rem; font-weight: 500; color: #ffdce3; }
+.install-banner .ib-tx span { font-size: 0.76rem; line-height: 1.4; color: #ffcad4; opacity: 0.9; }
+.install-banner .ib-btns { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.install-banner button {
+  margin: 0;
+  width: auto;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  border-radius: 40px;
+  box-shadow: 0 6px 14px rgba(255, 77, 109, 0.3);
+}
+.install-banner button:hover { transform: none; }
+.install-banner button.ib-no {
+  background: transparent;
+  box-shadow: none;
+  color: #ffb6c1;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+@media (max-width: 480px) { .install-banner button { width: auto; } }
+@media (prefers-reduced-motion: reduce) { .install-banner { transition: opacity 0.3s ease; transform: translate(-50%, 0); } }

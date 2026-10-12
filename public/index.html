@@ -196,6 +196,19 @@
   </div>
   <div id="toast" class="toast"></div>
 
+  <!-- 📲 INSTALL SUGGESTION (shown a few seconds after she opens the rose) -->
+  <div id="installBanner" class="install-banner" role="dialog" aria-live="polite" aria-hidden="true">
+    <div class="ib-ic">📲</div>
+    <div class="ib-tx">
+      <b data-t="installBannerTitle">Keep this on your phone 🌹</b>
+      <span id="ibText" data-t="installBannerText">Install the app: it gets its own icon and opens in one tap, even without internet.</span>
+    </div>
+    <div class="ib-btns">
+      <button id="ibYes" type="button" onclick="installFromBanner()" data-t="installBannerYes">Install</button>
+      <button id="ibNo" type="button" class="ib-no" onclick="dismissInstallBanner()" data-t="installBannerNo">Not now</button>
+    </div>
+  </div>
+
   <!-- 🖼️ FULL GALLERY -->
   <div id="galleryOverlay" class="gallery-overlay" aria-hidden="true">
     <div class="gallery-head">

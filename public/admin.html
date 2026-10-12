@@ -231,7 +231,8 @@ VIEWS.texts=m=>{
    ['surprisesTitle','Surprises heading'],['surprisesHint','Surprises hint'],
    ['playTitle','Games heading'],['playHint','Games hint'],
    ['lastTitle','“One Last Thing” heading'],['lastHint','“One Last Thing” hint'],['questionButton','Question button'],
-   ['storyButton','“Our Story” button (above the proposal button)'],['remindButton','“Remind me before my birthday” button'],['installButton','“Install the app” button'],['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
+   ['storyButton','“Our Story” button (above the proposal button)'],
+   ['installBannerTitle','Install suggestion: title'],['installBannerText','Install suggestion: text',1,2],['installBannerYes','Install suggestion: install button'],['installBannerNo','Install suggestion: “not now” button'],['remindButton','“Remind me before my birthday” button'],['installButton','“Install the app” button'],['foreverButton','“Forever Yours” button'],['careButton','“How much I care” button'],
    ['careMessage','Message shown after that button',1,4],['secretMessage','Secret message (double-tap anywhere)',1,4],
    ['birthdayTitle','Birthday scene title'],['finaleTitle','Finale (“I LOVE YOU”) title'],
    ['birthdayBanner','Countdown text on her birthday'],
@@ -357,6 +358,14 @@ VIEWS.playlist=m=>{
     }
   })}),upInfo));
   m.append(el('p',{class:'hint',text:'Uploaded songs are stored on the site automatically and appear in her playlist after you press Publish live. Rename them above if you like. Tip: m4a or mp3 files work on every phone.'}));
+  m.append(el('h3',{text:'💞 Love song (plays when she taps “Forever Yours”)'}));
+  const loveOpts=[['','(none: no song)']].concat(C.songs.map(s=>[s.file,s.label]));
+  if(C.settings.loveSongFile&&!loveOpts.some(o=>o[0]===C.settings.loveSongFile))loveOpts.push([C.settings.loveSongFile,C.settings.loveSongFile]);
+  m.append(el('div',{class:'card'},
+    el('div',{class:'grid2'},
+      field('select',()=>C.settings.loveSongFile||'',v=>{C.settings.loveSongFile=v;},{label:'Song from your playlist',options:loveOpts}),
+      field('num',()=>C.settings.loveSongStart||0,v=>{C.settings.loveSongStart=v;},{label:'Start the song at (seconds)'})),
+    el('p',{class:'hint',text:'Upload songs in the playlist above first, then pick one here. Example: 1 minute 35 seconds = 95. Her normal music pauses while it plays and comes back when she closes the “I LOVE YOU” screen. Press Publish live afterwards.'})));
   m.append(el('h3',{text:'Special songs'}));
   m.append(field('text',()=>C.settings.cineSongFile,v=>{C.settings.cineSongFile=v;},{label:'Cinematic / proposal song file'}));
   m.append(el('div',{class:'grid2'},

@@ -184,6 +184,8 @@ function dropPetals() {
   }, 3300);
 
   setTimeout(() => { if (rose) rose.remove(); }, 4000);
+  setTimeout(prepareLoveSong, 4500);                                   // start loading her love song quietly
+  setTimeout(() => { installBannerReady = true; tryInstallBanner(); }, 8000);   // then suggest installing the app
 }
 
 const music = document.getElementById("bgMusic");
@@ -414,10 +416,12 @@ function showFinale() {
   finale.classList.add('show');
   finale.style.pointerEvents = "auto";
   fireworks();
+  startLoveSong();            // inside her tap, so phones allow the sound
 }
 
 function hideFinale() {
   const finale = document.getElementById('finale');
+  stopLoveSong();
   finale.classList.remove('show');
   finale.classList.add('hide');
   setTimeout(() => {
@@ -2609,9 +2613,10 @@ let deferredInstall = null;
   }
   if (!b) return;
   if (standalone) { b.style.display = 'none'; return; }   // already running as the installed app
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; tryInstallBanner(); });
   window.addEventListener('appinstalled', () => {
     deferredInstall = null;
+    hideInstallBanner();
     b.textContent = '✅ App installed';
     toast('Installed! Open it from your home screen or desktop 🌹', 5000);
     setTimeout(() => { b.style.display = 'none'; }, 3000);
@@ -2638,6 +2643,111 @@ async function installApp() {
   } else {
     toast('Open your browser menu (⋮) and choose “Install app” or “Add to Home screen” 📲', 8000);
   }
+}
+
+
+/* =====================================================
+   💞 LOVE SONG: plays when she taps "Forever Yours"
+   Choose the file (and where it starts) in admin > Playlist > Love song.
+   Her normal music pauses while it plays and comes back when she closes the finale.
+   ===================================================== */
+let loveAudio = null, loveResume = false, loveFile = '';
+function loveSongOn() { return !!String((SITE.settings || {}).loveSongFile || '').trim(); }
+function loveStart() { return Math.max(0, Number((SITE.settings || {}).loveSongStart) || 0); }
+function loveVolume() {
+  const v = (SITE.settings || {}).loveSongVolume;
+  return Math.max(0, Math.min(1, (v == null || v === '' ? 85 : Number(v)) / 100));
+}
+function prepareLoveSong() {
+  if (!loveSongOn()) return;
+  const f = String(SITE.settings.loveSongFile).trim();
+  if (loveAudio && loveFile === f) return;
+  if (loveAudio) { try { loveAudio.pause(); } catch (e) { } }
+  loveFile = f;
+  loveAudio = new Audio();
+  loveAudio.preload = 'auto';
+  loveAudio.src = f;
+  // loop from the chosen second, not from 0:00
+  loveAudio.addEventListener('ended', () => {
+    try { loveAudio.currentTime = loveStart(); } catch (e) { }
+    loveAudio.play().catch(() => { });
+  });
+  loveAudio.addEventListener('error', () => {
+    if (loveResume) { loveResume = false; music.play().catch(() => { }); }
+  });
+}
+function startLoveSong() {
+  if (!loveSongOn()) return;
+  prepareLoveSong();
+  const a = loveAudio;
+  clearInterval(a._f);
+  if (!a.paused) return;                        // already playing
+  loveResume = !music.paused;
+  music.pause();
+  a.muted = false;
+  a.volume = 0;
+  const from = loveStart();
+  const seek = () => { try { a.currentTime = from; } catch (e) { } };
+  if (a.readyState >= 1) seek(); else a.addEventListener('loadedmetadata', seek, { once: true });
+  a.play().then(() => fadeAudio(a, loveVolume(), 2500)).catch(() => {
+    if (loveResume) { loveResume = false; music.play().catch(() => { }); }
+  });
+}
+function stopLoveSong() {
+  if (!loveAudio || loveAudio.paused) return;
+  fadeAudio(loveAudio, 0, 1400);
+  if (loveResume) { loveResume = false; setTimeout(() => { music.play().catch(() => { }); }, 1500); }
+}
+
+/* =====================================================
+   📲 INSTALL SUGGESTION: a small banner a few seconds after she opens the rose
+   - Android / PC (Chrome, Edge): one tap opens the real install window
+   - iPhone: shows the "Share > Add to Home Screen" steps
+   - WhatsApp / Instagram in-app browser: asks her to open the page in Chrome / Safari
+   If she taps "Not now" it stays away for 3 days. Never shown once installed.
+   ===================================================== */
+let installBannerReady = false;
+const INSTALL_SNOOZE_MS = 3 * 86400e3;
+const IN_APP_BROWSER = /Instagram|FBAN|FBAV|Line\/|Snapchat|MicroMessenger|WhatsApp|TikTok/i.test(navigator.userAgent);
+function isStandalone() {
+  return window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+}
+function installSnoozed() {
+  try { const t = Number(localStorage.getItem('ifraInstallNo')) || 0; return t && Date.now() - t < INSTALL_SNOOZE_MS; } catch (e) { return false; }
+}
+function hideInstallBanner() {
+  const b = document.getElementById('installBanner');
+  if (!b) return;
+  b.classList.remove('show');
+  b.setAttribute('aria-hidden', 'true');
+}
+function tryInstallBanner() {
+  const b = document.getElementById('installBanner');
+  if (!b || !installBannerReady || b.classList.contains('show') || b._shown) return;
+  if (isStandalone() || installSnoozed() || /[?&]preview=1/.test(location.search)) return;
+  const yes = document.getElementById('ibYes'), no = document.getElementById('ibNo'), tx = document.getElementById('ibText');
+  if (deferredInstall) {
+    /* normal install window is ready: keep the texts from the admin panel */
+  } else if (IN_APP_BROWSER) {
+    tx.textContent = 'Open this page in Chrome or Safari (menu ⋮ then “Open in browser”) to install it as an app 💕';
+    yes.style.display = 'none'; no.textContent = 'Got it';
+  } else if (IS_IOS_DEVICE) {
+    tx.innerHTML = 'Tap the Share button <b style="display:inline">⬆️</b>, then “Add to Home Screen” 📲';
+    yes.style.display = 'none'; no.textContent = 'Got it';
+  } else {
+    return;               // this browser cannot install (yet): stay quiet; it tries again when the browser says it can
+  }
+  b._shown = true;
+  b.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => b.classList.add('show'));
+}
+function dismissInstallBanner() {
+  try { localStorage.setItem('ifraInstallNo', String(Date.now())); } catch (e) { }
+  hideInstallBanner();
+}
+function installFromBanner() {
+  hideInstallBanner();
+  installApp();
 }
 
 /* 🔐 if she logged in before, load the private parts again (runs last, after everything above exists) */
