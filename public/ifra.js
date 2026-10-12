@@ -1,4 +1,74 @@
 const SITE = window.SITE;
+
+/* =====================================================
+   🔐 LOGIN (gallery, Our Story and the proposal)
+   Only active when logins were set up in the admin panel.
+   ===================================================== */
+const AUTH = {
+  loaded: false, role: null, after: null,
+  ok() { return !window.SITE_LOCKED || this.loaded; },
+  token() { try { return (JSON.parse(localStorage.getItem('ifraAuth') || 'null') || {}).token || ''; } catch (e) { return ''; } },
+  save(token, role) { try { localStorage.setItem('ifraAuth', JSON.stringify({ token, role })); } catch (e) { } this.role = role; },
+  clear() { try { localStorage.removeItem('ifraAuth'); } catch (e) { } this.loaded = false; this.role = null; },
+  // fetch the private parts of the site with the saved token
+  async load() {
+    const t = this.token();
+    if (!t) return false;
+    let r;
+    try { r = await fetch('/api/auth/protected', { headers: { Authorization: 'Bearer ' + t }, cache: 'no-store' }); }
+    catch (e) { return false; }                      // offline: stay locked, keep the token
+    if (r.status === 401) { this.clear(); return false; }
+    if (!r.ok) return false;
+    const j = await r.json().catch(() => ({}));
+    try { this.role = (JSON.parse(localStorage.getItem('ifraAuth') || '{}') || {}).role || null; } catch (e) { }
+    applyProtected(j.data);
+    this.loaded = true;
+    refreshLockedUI();
+    return true;
+  }
+};
+function requireLogin(cb) {
+  if (AUTH.ok()) { cb(); return; }
+  AUTH.after = cb;
+  openFun('login');
+}
+async function doLogin(email, password) {
+  const r = await fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Could not log in');
+  AUTH.save(j.token, j.role);
+  if (!(await AUTH.load())) throw new Error('Logged in, but the page could not load. Please try again.');
+}
+function refreshLockedUI() {
+  renderGallery();
+  refreshStoryBtn();
+}
+// put the private data (from the server, or the built-in copy) into the page
+function applyProtected(p) {
+  p = p || {};
+  const d = window.SITE_PROT_DEFAULT || {};
+  ['memories', 'story', 'proposalScenes', 'yesScenes', 'noTexts'].forEach(k => {
+    SITE[k] = p[k] !== undefined ? p[k] : d[k];
+  });
+  ['proposalTitle', 'proposalSub', 'proposalYes', 'proposalFinal'].forEach(k => {
+    const v = (p.text && p.text[k] !== undefined) ? p.text[k] : (d.text || {})[k];
+    if (v !== undefined) SITE.text[k] = v;
+  });
+  if (!SITE.memories) SITE.memories = [];
+  if (!SITE.noTexts || !SITE.noTexts.length) SITE.noTexts = ['No'];
+  galleryItems = SITE.memories.filter(m => m.src && m.src.trim());
+  galleryBuilt = false; galleryTiles = []; galleryCols = 0;
+  const wrap = document.getElementById('galleryMasonry');
+  if (wrap) wrap.innerHTML = '';
+  STORY = SITE.story || { pages: [] };
+  PROPOSAL_SCENES = SITE.proposalScenes || [];
+  PROPOSAL_YES_SCENES = SITE.yesScenes || [];
+  NO_TEXTS = SITE.noTexts;
+}
+
 function showMessage() {
   document.getElementById('msg').style.display = 'block';
   document.getElementById('letter').classList.add('show');
@@ -436,11 +506,9 @@ window.addEventListener('load', autoScaleCard);
 window.addEventListener('resize', autoScaleCard);
 
 /* 🖼️ GALLERY & LIGHTBOX LOGIC */
-const memories = SITE.memories;
-
 /* ---------- GALLERY (responsive, works on phone / tablet / PC) ---------- */
 // Only real photos (the empty "future memories" placeholders are skipped)
-const galleryItems = memories.filter(m => m.src && m.src.trim());
+let galleryItems = (SITE.memories || []).filter(m => m.src && m.src.trim());
 const PREVIEW_COUNT = 4;
 let currentLightboxIndex = 0;
 let galleryBuilt = false;
@@ -450,6 +518,20 @@ function renderGallery() {
   const grid = document.getElementById('galleryGrid');
   if (!grid) return;
   grid.innerHTML = '';
+
+  if (!AUTH.ok()) {
+    // logins are on and she has not logged in yet
+    const lock = document.createElement('div');
+    lock.className = 'gallery-lock';
+    lock.setAttribute('role', 'button'); lock.tabIndex = 0; lock.setAttribute('data-kb', '');
+    lock.textContent = '🔒 Log in to see our memories';
+    lock.onclick = () => requireLogin(openGallery);
+    grid.appendChild(lock);
+    const lb = document.getElementById('openGalleryBtn');
+    if (lb) lb.textContent = 'Log in to open the gallery 🔐';
+    autoScaleCard();
+    return;
+  }
 
   galleryItems.slice(0, PREVIEW_COUNT).forEach((mem, i) => {
     const img = document.createElement('img');
@@ -538,6 +620,7 @@ function buildGallery() {
 }
 
 function openGallery() {
+  if (!AUTH.ok()) { requireLogin(openGallery); return; }
   buildGallery();
   const o = document.getElementById('galleryOverlay');
   o.classList.add('show');
@@ -1518,6 +1601,37 @@ function celebrate(extra, stat) {
   celeStop = close;
 }
 
+/* ---------- 🔐 LOGIN WINDOW ---------- */
+FUN.login = body => {
+  body.innerHTML = `<h3>Just for us 🔐</h3>
+    <p class="fun-sub">Please log in to continue.</p>
+    <input id="lgEmail" class="fun-input" type="email" autocomplete="username" placeholder="Email" autocapitalize="off" spellcheck="false">
+    <input id="lgPass" class="fun-input" type="password" autocomplete="current-password" placeholder="Password">
+    <p class="fun-sub" id="lgErr" style="min-height:1.4em;margin:8px 0 0"></p>
+    <div class="fun-btn" id="lgGo">Log in 💌</div>`;
+  const err = byId('lgErr'), go = byId('lgGo');
+  let busy = false;
+  async function submit() {
+    if (busy) return;
+    const email = byId('lgEmail').value.trim(), pw = byId('lgPass').value;
+    if (!email || !pw) { err.textContent = 'Enter your email and password'; return; }
+    busy = true; err.textContent = ''; go.textContent = 'Checking…';
+    try {
+      await doLogin(email, pw);
+      const cb = AUTH.after; AUTH.after = null;
+      closeFun();
+      if (cb) setTimeout(cb, 350);
+    } catch (e) {
+      err.textContent = e.message;
+      go.textContent = 'Log in 💌';
+    }
+    busy = false;
+  }
+  go.onclick = submit;
+  ['lgEmail', 'lgPass'].forEach(id => byId(id).addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+  setTimeout(() => { try { byId('lgEmail').focus(); } catch (e) { } }, 350);
+};
+
 /* ---------- 💌 WRITE BACK TO ME ---------- */
 let writebackPrefill = '';
 FUN.writeback = body => {
@@ -1763,16 +1877,17 @@ function _sparkleBlocked() {
    then the question. "No" runs away; "Yes" opens fireworks, duas
    and a message straight to you (see the admin panel).
    ===================================================== */
-const PROPOSAL_SCENES = SITE.proposalScenes;
+let PROPOSAL_SCENES = SITE.proposalScenes || [];
 
-const PROPOSAL_YES_SCENES = SITE.yesScenes;
+let PROPOSAL_YES_SCENES = SITE.yesScenes || [];
 
-const NO_TEXTS = SITE.noTexts;
+let NO_TEXTS = SITE.noTexts || ['No'];
 
 let proposalStop = null, proposalSent = false;
 
 function openProposal() {
   if (proposalStop) return;
+  if (!AUTH.ok()) { requireLogin(openProposal); return; }
   const ov = document.createElement('div');
   ov.className = 'cine proposal';
   ov.innerHTML =
@@ -1996,6 +2111,7 @@ function openProposal() {
     const msg = '💍✨ IFRA SAID YES! ✨💍\nAlhamdulillah!\n\nShe tried to press "No" ' + noCount +
       ' time' + (noCount === 1 ? '' : 's') + ' before choosing love 😂❤️\nTime: ' + new Date().toLocaleString();
     if (proposalSent) return Promise.resolve(true);
+    if (AUTH.role === 'me') return Promise.resolve(true);   // you testing the proposal: do not message yourself
     return sendToHim(msg).then(ok => { if (ok) proposalSent = true; return ok; });
   }
 
@@ -2083,12 +2199,14 @@ function openProposal() {
    📖 OUR STORY  (cinematic story pages, background song, optional voice)
    Everything is written in the admin panel > "Our Story".
    ===================================================== */
-const STORY = SITE.story || { pages: [] };
-(function () {
+let STORY = SITE.story || { pages: [] };
+refreshStoryBtn();
+function refreshStoryBtn() {
   const b = document.getElementById('storyBtn');
   const ok = (STORY.pages || []).some(p => p && (p.heading || p.text || p.voice));
-  if (b && ok) b.style.display = '';
-})();
+  // while logins are on and she has not logged in, show the button so it can ask for the login
+  if (b) b.style.display = (ok || (window.SITE_LOCKED && !AUTH.loaded)) ? '' : 'none';
+}
 
 let storyStop = null;
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
@@ -2244,6 +2362,7 @@ function makeLevel(a) {
 
 function openStory() {
   if (storyStop) return;
+  if (!AUTH.ok()) { requireLogin(openStory); return; }
   const pages = (STORY.pages || []).filter(p => p && (p.heading || p.text || p.voice));
   if (!pages.length) { toast('The story is still being written 🤍', 3200); return; }
   const slides = [{ kind: 'cover' }]
@@ -2520,3 +2639,6 @@ async function installApp() {
     toast('Open your browser menu (⋮) and choose “Install app” or “Add to Home screen” 📲', 8000);
   }
 }
+
+/* 🔐 if she logged in before, load the private parts again (runs last, after everything above exists) */
+if (window.SITE_LOCKED) { AUTH.load(); }

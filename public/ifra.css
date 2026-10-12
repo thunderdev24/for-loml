@@ -2524,3 +2524,32 @@ body.story-on { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .story-bg.sc-aurora, .story-photo.on, .story-p, .story-h, .story-title, .story-sub, .story-orn { animation: none; opacity: 1; }
 }
+
+/* 🔐 login window + locked gallery */
+.fun-input {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  outline: none;
+}
+.fun-input:focus { border-color: #ff8fa3; }
+
+.gallery-lock {
+  grid-column: 1 / -1;
+  padding: 34px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 182, 193, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffcad4;
+  font-style: italic;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.gallery-lock:hover, .gallery-lock:focus-visible { background: rgba(255, 77, 109, 0.14); outline: none; }

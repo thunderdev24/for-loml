@@ -2,13 +2,29 @@
    Everything on the site comes from window.SITE; edit it with admin.html. */
 (function () {
   var base = window.SITE_CONTENT || {};
+  var preview = /[?&]preview=1/.test(location.search);
+  var locked = !!window.SITE_LOCK && !preview;   // logins are on: photos / story / proposal need a login
+  var PROT = ['memories', 'story', 'proposalScenes', 'yesScenes', 'noTexts'];
+  var PROT_TEXT = ['proposalTitle', 'proposalSub', 'proposalYes', 'proposalFinal'];
+  window.SITE_LOCKED = locked;
+  if (locked) {
+    // keep the built-in copies aside; they are only used after a successful login
+    var stash = { text: {} };
+    base.text = base.text || {};
+    PROT.forEach(function (k) { if (base[k] !== undefined) { stash[k] = base[k]; delete base[k]; } });
+    PROT_TEXT.forEach(function (k) { if (base.text[k] !== undefined) { stash.text[k] = base.text[k]; delete base.text[k]; } });
+    window.SITE_PROT_DEFAULT = stash;
+  }
   var C = window.SITE_LIVE || base;          // content saved from the admin panel wins
   Object.keys(base).forEach(function (k) {   // fill anything missing with the defaults
     if (C[k] === undefined) C[k] = base[k];
     else if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k]))
       Object.keys(base[k]).forEach(function (j) { if (C[k][j] === undefined) C[k][j] = base[k][j]; });
   });
-  var preview = /[?&]preview=1/.test(location.search);
+  if (locked) {
+    // empty placeholders so the page works until she logs in
+    C.memories = []; C.story = { pages: [] }; C.proposalScenes = []; C.yesScenes = []; C.noTexts = ['No'];
+  }
   if (preview) {
     try {
       var d = JSON.parse(localStorage.getItem('ifraDraft') || 'null');
