@@ -1,11 +1,13 @@
 /* Ifra site service worker:
    1) shows the birthday reminders (push notifications)
    2) lets the site be installed as an app and keep working offline */
-const VERSION = 'ifra-v2';
+const VERSION = 'ifra-v3';
 const SHELL = ['/', '/index.html', '/ifra.css', '/ifra.js', '/content.js', '/site-loader.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 const MEDIA_RE = /\.(m4a|mp3|mp4|wav|ogg|oga|aac|opus|webm)$/i;
 const FILE_RE = /\.(webp|jpe?g|png|gif|svg|ico|avif|woff2?)$/i;
-const MAX_MEDIA = 40 * 1024 * 1024;   // do not store a single song bigger than this
+const MAX_MEDIA = 25 * 1024 * 1024;   // do not store a single song bigger than this
+/* weak phones (2 GB RAM or less) only stream songs; they do not keep a second copy */
+const LOW_END = !!(self.navigator && self.navigator.deviceMemory && self.navigator.deviceMemory <= 2);
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -29,14 +31,14 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
 
   if (url.origin !== location.origin) {
-    if (/(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) event.respondWith(staleWhileRevalidate(req));
+    if (/(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) event.respondWith(cacheFirst(req));
     return;
   }
   const p = url.pathname;
   if (p.indexOf('/api/') === 0 && p !== '/api/live.js') return;   // push, admin, uploads: always live
   if (p.indexOf('/admin') === 0) return;
   if (MEDIA_RE.test(p)) { event.respondWith(media(event, req, url)); return; }
-  if (FILE_RE.test(p)) { event.respondWith(staleWhileRevalidate(req)); return; }
+  if (FILE_RE.test(p)) { event.respondWith(cacheFirst(req)); return; }
   event.respondWith(networkFirst(req));
 });
 
@@ -58,15 +60,14 @@ async function networkFirst(req) {
   }
 }
 
-/* photos, fonts: instant from the cache, refreshed quietly in the background */
-async function staleWhileRevalidate(req) {
+/* photos, fonts: straight from the cache when we have them (no second download every time) */
+async function cacheFirst(req) {
   const cache = await caches.open(VERSION);
   const hit = await cache.match(req);
-  const net = fetch(req).then(res => {
-    if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(() => { });
-    return res;
-  }).catch(() => null);
-  return hit || (await net) || Response.error();
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(() => { });
+  return res;
 }
 
 /* songs and voice messages: phones ask for them in small pieces (Range requests).
@@ -78,7 +79,7 @@ async function media(event, req, url) {
   const hit = await cache.match(key);
   const range = req.headers.get('range');
   if (hit) return range ? sliceRange(hit, range) : hit;
-  event.waitUntil(fillMedia(cache, key));
+  if (!LOW_END) event.waitUntil(fillMedia(cache, key));
   return fetch(req);
 }
 function fillMedia(cache, key) {
@@ -92,8 +93,8 @@ function fillMedia(cache, key) {
   }).catch(() => { }).then(() => { filling.delete(key); });
 }
 async function sliceRange(res, range) {
-  const buf = await res.clone().arrayBuffer();
-  const size = buf.byteLength;
+  const blob = await res.clone().blob();   // a Blob is not copied into memory, unlike an ArrayBuffer
+  const size = blob.size;
   const m = /bytes=(\d*)-(\d*)/.exec(range || '');
   if (!m || (m[1] === '' && m[2] === '')) return res;
   let start, end;
@@ -101,7 +102,7 @@ async function sliceRange(res, range) {
   else { start = Number(m[1]); end = m[2] === '' ? size - 1 : Number(m[2]); }
   if (!(start >= 0) || start >= size) return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
   end = Math.min(end, size - 1);
-  return new Response(buf.slice(start, end + 1), {
+  return new Response(blob.slice(start, end + 1), {
     status: 206,
     headers: {
       'Content-Type': res.headers.get('Content-Type') || 'audio/mp4',
