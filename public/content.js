@@ -1543,5 +1543,157 @@ window.SITE_CONTENT = {
     "endTitle": "To be continued…",
     "endText": "Every day with you is a new page I never want to finish. 🤍",
     "pages": []
+  },
+  "games": [
+    {
+      "id": "wish",
+      "group": "surprises",
+      "emoji": "🌠",
+      "label": "Make a Wish",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "scratch",
+      "group": "surprises",
+      "emoji": "🎟️",
+      "label": "Scratch Cards",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "bouquet",
+      "group": "surprises",
+      "emoji": "💐",
+      "label": "Your Bouquet",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "quiz",
+      "group": "surprises",
+      "emoji": "😄",
+      "label": "Funny Riddles",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "questions": 20
+      }
+    },
+    {
+      "id": "sweet",
+      "group": "surprises",
+      "emoji": "🧠",
+      "label": "Sweet Quiz",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "questions": 20
+      }
+    },
+    {
+      "id": "promises",
+      "group": "surprises",
+      "emoji": "📜",
+      "label": "My Promises",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "meter",
+      "group": "surprises",
+      "emoji": "💗",
+      "label": "Love Meter",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "writeback",
+      "group": "surprises",
+      "emoji": "💌",
+      "label": "Write Back To Me",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "catch",
+      "group": "play",
+      "emoji": "🧺",
+      "label": "Catch Hearts",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "seconds": 30
+      }
+    },
+    {
+      "id": "match",
+      "group": "play",
+      "emoji": "🃏",
+      "label": "Memory Match",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "ttt",
+      "group": "play",
+      "emoji": "❌",
+      "label": "Tic-Tac-Love",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "gtr",
+      "group": "play",
+      "emoji": "🏎️",
+      "label": "GT-R R34",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "distance": 1000,
+        "hearts": 15
+      }
+    },
+    {
+      "id": "flight",
+      "group": "play",
+      "emoji": "🕊️",
+      "label": "Love Flight",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "gates": 10
+      }
+    },
+    {
+      "id": "breaker",
+      "group": "play",
+      "emoji": "🧱",
+      "label": "Love Breaker",
+      "on": true,
+      "minutes": 0,
+      "rest": 0,
+      "opt": {
+        "lives": 3
+      }
+    }
+  ],
+  "gameMsgs": {
+    "timeUpTitle": "Time is up ⏳",
+    "timeUpText": "That was so much fun! Come back and play again soon 💕",
+    "restText": "This game is resting 🌙 You can play it again in {min} min."
   }
 };

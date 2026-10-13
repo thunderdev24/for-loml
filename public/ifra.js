@@ -1,3 +1,45 @@
+/* ⚡ LITE MODE for weak phones (2 GB RAM and similar).
+   Turns on by itself when the phone reports 2 GB of memory or less, or after the page
+   closed by itself twice in a row right after opening. It removes the heavy extras
+   (stars, floating names, blur, moving background, sparkle trail) and keeps everything else.
+   Force it on with  yoursite/?lite=1  and off with  ?lite=0  (the choice is remembered). */
+const LITE = (function () {
+  let on = false;
+  try {
+    const q = new URLSearchParams(location.search).get('lite');
+    if (q === '1') localStorage.setItem('ifraLite', '1');
+    if (q === '0') { localStorage.setItem('ifraLite', '0'); localStorage.setItem('ifraFails', '0'); }
+    const forced = localStorage.getItem('ifraLite');
+    let fails = Number(localStorage.getItem('ifraFails') || 0);
+    if (localStorage.getItem('ifraBoot') === '1') fails++;           // last time it never got to relax
+    localStorage.setItem('ifraFails', String(fails));
+    localStorage.setItem('ifraBoot', '1');
+    setTimeout(() => { try { localStorage.removeItem('ifraBoot'); localStorage.setItem('ifraFails', '0'); } catch (e) { } }, 20000);
+    window.addEventListener('pagehide', () => { try { localStorage.removeItem('ifraBoot'); } catch (e) { } });
+    const weak = !!(navigator.deviceMemory && navigator.deviceMemory <= 2);
+    on = forced === '1' || (forced !== '0' && (weak || fails >= 2));
+  } catch (e) { }
+  if (on) {
+    document.documentElement.classList.add('lite');
+    const st = document.createElement('style');
+    st.id = 'liteCss';
+    st.textContent = `
+html.lite body{animation:none!important;background-attachment:scroll!important;background-size:170% 170%!important;background-position:50% 35%!important}
+html.lite .star,html.lite .float-name,html.lite .shooting-star{display:none!important}
+html.lite *,html.lite *::before,html.lite *::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html.lite .card{background:rgba(46,10,28,.92)!important;box-shadow:0 10px 26px rgba(0,0,0,.5)!important}
+html.lite #roseScreen{box-shadow:none!important}
+html.lite #roseScreen::before,html.lite #roseScreen::after{display:none!important}
+html.lite .flower{filter:none!important;animation:roseBloomIn 1.2s ease backwards!important}
+html.lite .flower::before{animation:none!important;opacity:.8}
+html.lite .petal{will-change:auto!important;box-shadow:inset 0 -5px 8px rgba(60,0,22,.45),inset 0 3px 5px rgba(255,255,255,.25)!important}
+html.lite #roseScreen.opened .rose-name{animation:liteName 1.4s ease 1.2s forwards!important;filter:none!important;text-shadow:0 0 14px rgba(255,70,125,.9)!important}
+@keyframes liteName{from{opacity:0;transform:translateY(-50%)}to{opacity:1;transform:translateY(-50%)}}`;
+    document.head.appendChild(st);
+  }
+  return on;
+})();
+
 const SITE = window.SITE;
 
 /* =====================================================
@@ -83,7 +125,7 @@ function showMessage() {
 function toggleMode() { document.body.classList.toggle('sunset') }
 
 function heartRain() {
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < (LITE ? 10 : 30); i++) {
     const h = document.createElement('div');
     h.className = 'rain-heart';
     h.innerHTML = '❤️';
@@ -123,8 +165,7 @@ function floatingNames() {
 }
 
 // Initialize floating elements
-floatingNames();
-floatingLove();
+if (!LITE) { floatingNames(); floatingLove(); }
 
 let _lastMove = 0;
 document.addEventListener('mousemove', e => {
@@ -153,7 +194,7 @@ document.addEventListener('dblclick', () => {
 })
 
 // Star Background
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < (LITE ? 0 : 60); i++) {
   const s = document.createElement('div')
   s.className = 'star'
   s.style.left = Math.random() * 100 + 'vw'
@@ -189,6 +230,7 @@ function dropPetals() {
 }
 
 const music = document.getElementById("bgMusic");
+if (LITE) music.preload = 'metadata';
 
 /* Phones only allow audio inside a real tap, so music starts from the rose tap.
    (The old muted "pre-unlock" could pause the song right after the tap, so it was removed.) */
@@ -283,7 +325,7 @@ function fireCornerPoppers() {
     document.body.appendChild(p);
     setTimeout(() => p.remove(), 2000);
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < (LITE ? 12 : 40); i++) {
       const c = document.createElement('div');
       c.className = 'confetti';
       c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
@@ -385,7 +427,7 @@ setInterval(() => {
 }, 1000);
 
 function heartBurst() {
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < (LITE ? 10 : 28); i++) {
     const h = document.createElement('div');
     h.className = 'heart-burst';
     h.innerHTML = '❤️';
@@ -398,7 +440,7 @@ function heartBurst() {
 }
 
 function fireworks() {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < (LITE ? 14 : 40); i++) {
     const f = document.createElement('div');
     f.className = 'firework';
     f.innerHTML = '🎆';
@@ -673,7 +715,7 @@ function openLightbox(imgSrc, text, index) {
   lightbox.classList.add('show');
 
   // Preload neighbours so swiping feels instant
-  [1, -1].forEach(d => {
+  (LITE ? [] : [1, -1]).forEach(d => {
     const n = galleryItems[(index + d + galleryItems.length) % galleryItems.length];
     const pre = new Image();
     pre.src = n.src;
@@ -853,6 +895,7 @@ const LOVE_START = SITE.settings.loveStart ? new Date(SITE.settings.loveStart) :
 
 /* 🌠 Shooting stars every now and then */
 (function () {
+  if (LITE) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   function shoot() {
     if (!document.hidden) {
@@ -991,20 +1034,115 @@ function shuffle(a) {
   return a;
 }
 
+/* ---------- 🎮 GAME SETTINGS (admin panel > Games) ----------
+   show / hide, rename, order, play-time limit, rest time and difficulty come from SITE.games */
+const GAME_TIMED = ['catch', 'match', 'ttt', 'gtr', 'flight', 'breaker', 'quiz', 'sweet'];
+const GM = Object.assign({
+  timeUpTitle: 'Time is up ⏳',
+  timeUpText: 'That was so much fun! Come back and play again soon 💕',
+  restText: 'This game is resting 🌙 You can play it again in {min} min.'
+}, SITE.gameMsgs || {});
+function gameCfg(id) {
+  const a = SITE.games;
+  return (Array.isArray(a) && a.find(g => g && g.id === id)) || {};
+}
+function gameOpt(id, key, def, min, max) {
+  const o = gameCfg(id).opt || {};
+  let v = (o[key] === '' || o[key] == null) ? def : Number(o[key]);
+  if (!isFinite(v)) v = def;
+  return Math.max(min, Math.min(max, Math.round(v)));
+}
+function applyGameTiles() {
+  const list = Array.isArray(SITE.games) ? SITE.games : [];
+  const tiles = {};
+  document.querySelectorAll('.s-tile').forEach(t => { tiles[t.dataset.fun] = t; });
+  list.forEach(g => {
+    const t = g && tiles[g.id];
+    if (!t) return;
+    if (t._orig === undefined) {
+      const sp = t.querySelector('span');
+      t._orig = { emoji: sp ? sp.textContent : '', label: t.textContent.replace(sp ? sp.textContent : '', '').trim() };
+    }
+    const emoji = String(g.emoji || '').trim() || t._orig.emoji;
+    const label = String(g.label || '').trim() || t._orig.label;
+    t.textContent = '';
+    const sp = document.createElement('span');
+    sp.textContent = emoji;
+    t.appendChild(sp);
+    t.appendChild(document.createTextNode(label));
+    t.style.display = g.on === false ? 'none' : '';
+    t.parentNode.appendChild(t);              // keeps the order chosen in the admin panel
+  });
+  document.querySelectorAll('.tile-grid').forEach(grid => {
+    const sec = grid.closest('.surprises-section');
+    if (!sec) return;
+    const kids = Array.from(grid.children);
+    sec.style.display = kids.length && kids.every(k => k.style.display === 'none') ? 'none' : '';
+  });
+}
+applyGameTiles();
+
+function restLeft(id) {
+  try { return Math.max(0, Number(localStorage.getItem('ifraRest_' + id) || 0) - Date.now()); } catch (e) { return 0; }
+}
+let funClock = null;
+function stopFunClock() {
+  if (funClock) { clearInterval(funClock.t); if (funClock.el) funClock.el.remove(); funClock = null; }
+}
+function startFunClock(name, cfg) {
+  const mins = Number(cfg.minutes) || 0;
+  if (!GAME_TIMED.includes(name) || mins <= 0) return;
+  const modal = byId('funModal');
+  const badge = document.createElement('div');
+  badge.style.cssText = 'position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:5;font:600 13px Poppins,sans-serif;color:#ffd6e4;background:rgba(0,0,0,.55);padding:4px 12px;border-radius:14px;pointer-events:none';
+  modal.appendChild(badge);
+  const end = Date.now() + mins * 60000;
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    badge.textContent = '⏳ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+    if (left <= 0) timesUp(name, cfg);
+  };
+  funClock = { t: setInterval(tick, 1000), el: badge };
+  tick();
+}
+function timesUp(name, cfg) {
+  stopFunClock();
+  runCleanup();
+  const rest = Number(cfg.rest) || 0;
+  if (rest > 0) { try { localStorage.setItem('ifraRest_' + name, String(Date.now() + rest * 60000)); } catch (e) { } }
+  const body = byId('funBody');
+  body.innerHTML = `<h3>${GM.timeUpTitle}</h3>
+    <p class="fun-sub">${GM.timeUpText}</p>` +
+    (rest > 0 ? `<p class="fun-sub">${String(GM.restText).replace('{min}', rest)}</p>` : '') +
+    `<div class="fun-btn" id="tuClose">Close 💕</div>` +
+    (rest > 0 ? '' : ` <div class="fun-btn" id="tuAgain">Play again 🔄</div>`);
+  byId('tuClose').onclick = () => closeFun();
+  const again = byId('tuAgain');
+  if (again) again.onclick = () => openFun(name);
+  burstCenter(12);
+}
+
 function openFun(name) {
   if (!FUN[name]) return;
+  const cfg = gameCfg(name);
+  if (cfg.on === false) return;
+  const wait = restLeft(name);
+  if (wait > 0) { toast(String(GM.restText).replace('{min}', Math.max(1, Math.ceil(wait / 60000))), 3800); return; }
   runCleanup();
+  stopFunClock();
   const body = byId('funBody');
   body.innerHTML = '';
   FUN[name](body);
   const m = byId('funModal');
   m.classList.add('show');
   m.setAttribute('aria-hidden', 'false');
+  startFunClock(name, cfg);
 }
 function runCleanup() { if (funCleanup) { funCleanup(); funCleanup = null; } }
 function closeFun(event) {
   if (event && event.target !== byId('funModal')) return;
   runCleanup();
+  stopFunClock();
   const m = byId('funModal');
   m.classList.remove('show');
   m.setAttribute('aria-hidden', 'true');
@@ -1197,7 +1335,7 @@ const RIDDLE_POOL = SITE.riddles;
 
 
 FUN.quiz = body => runQuiz(body, {
-  title: 'Funny Riddles 😄', label: 'Riddle', pool: RIDDLE_POOL, rounds: 20,
+  title: 'Funny Riddles 😄', label: 'Riddle', pool: RIDDLE_POOL, rounds: gameOpt('quiz', 'questions', 20, 5, 60),
   msgs: SITE.riddleMsgs
 });
 
@@ -1207,7 +1345,7 @@ const SWEET_POOL = SITE.sweet;
 
 
 FUN.sweet = body => runQuiz(body, {
-  title: 'Sweet Quiz 🧠', label: 'Question', pool: SWEET_POOL, rounds: 20,
+  title: 'Sweet Quiz 🧠', label: 'Question', pool: SWEET_POOL, rounds: gameOpt('sweet', 'questions', 20, 5, 60),
   msgs: SITE.sweetMsgs
 });
 
@@ -1292,7 +1430,7 @@ let cineAudio = null, cineResume = false, cineUnlocked = false;
 function prepareCineSong() {
   if (cineAudio) return;
   cineAudio = new Audio();
-  cineAudio.preload = 'auto';
+  cineAudio.preload = LITE ? 'metadata' : 'auto';
   cineAudio.src = CINE_SONG_FILE;
   cineAudio.addEventListener('error', () => {
     if (cineResume) { music.play().catch(() => { }); cineResume = false; }
@@ -1349,7 +1487,7 @@ function playCinematic() {
 
   const cv = ov.querySelector('canvas'), ctx = cv.getContext('2d');
   const textEl = ov.querySelector('.cine-text'), infEl = ov.querySelector('.cine-inf');
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const dpr = (LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
   let W = 0, H = 0, S = 1;
   function size() {
     W = window.innerWidth; H = window.innerHeight;
@@ -1522,7 +1660,7 @@ function celebrate(extra, stat) {
   requestAnimationFrame(() => ov.classList.add('show'));
 
   const cv = ov.querySelector('canvas'), ctx = cv.getContext('2d');
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const dpr = (LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
   let W = 0, H = 0;
   function size() {
     W = window.innerWidth; H = window.innerHeight;
@@ -1684,12 +1822,13 @@ FUN.writeback = body => {
 /* ---------- 🧺 GAME 1: CATCH THE HEARTS ---------- */
 FUN.catch = body => {
   const W = 300, H = 380;
+  const ROUND = gameOpt('catch', 'seconds', 30, 10, 300), K = ROUND / 30;   // K scales the score targets
   body.innerHTML = `<h3>Catch the Hearts 💖</h3>
-    <p class="fun-sub" id="cInfo">Catch the falling hearts 💖 and avoid the broken ones 💔 (30 seconds)</p>
+    <p class="fun-sub" id="cInfo">Catch the falling hearts 💖 and avoid the broken ones 💔 (${ROUND} seconds)</p>
     <canvas id="cCv" class="game-cv" width="${W}" height="${H}"></canvas>
     <div class="fun-btn" id="cStart">Start ▶️</div>`;
   const cv = byId('cCv'), ctx = cv.getContext('2d');
-  let raf = 0, last = 0, score = 0, time = 30, spawn = 0, items = [], bx = W / 2;
+  let raf = 0, last = 0, score = 0, time = ROUND, spawn = 0, items = [], bx = W / 2;
 
   function setX(clientX) {
     const r = cv.getBoundingClientRect();
@@ -1704,7 +1843,7 @@ FUN.catch = body => {
   document.addEventListener('keydown', onKey);
 
   function start() {
-    score = 0; time = 30; items = []; spawn = 0;
+    score = 0; time = ROUND; items = []; spawn = 0;
     byId('cStart').style.display = 'none';
     byId('cInfo').textContent = 'Glide the basket with your finger or mouse 🧺';
     last = performance.now();
@@ -1714,8 +1853,8 @@ FUN.catch = body => {
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now; time -= dt; spawn -= dt;
     if (spawn <= 0) {
-      spawn = Math.max(0.35, 0.8 - (30 - time) * 0.012);
-      items.push({ x: 20 + Math.random() * (W - 40), y: -20, v: 110 + Math.random() * 90 + (30 - time) * 3, bad: Math.random() < 0.22 });
+      spawn = Math.max(0.35, 0.8 - (ROUND - time) * 0.012);
+      items.push({ x: 20 + Math.random() * (W - 40), y: -20, v: 110 + Math.random() * 90 + (ROUND - time) * 3, bad: Math.random() < 0.22 });
     }
     ctx.clearRect(0, 0, W, H);
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -1738,14 +1877,14 @@ FUN.catch = body => {
     raf = requestAnimationFrame(loop);
   }
   function end() {
-    const msg = score >= 25 ? 'Beautiful! You caught every heart that fell for you 💖'
-      : score >= 12 ? 'Well caught. Hearts always find their way to you 💕'
+    const msg = score >= 25 * K ? 'Beautiful! You caught every heart that fell for you 💖'
+      : score >= 12 * K ? 'Well caught. Hearts always find their way to you 💕'
       : 'Hearts are delicate to catch 😉 Try once more!';
     byId('cInfo').textContent = 'Score: ' + score + '. ' + msg;
     const b = byId('cStart');
     b.textContent = 'Play again ▶️'; b.style.display = '';
-    if (score >= 15) setTimeout(() => celebrate('You caught every falling heart, just as you once caught mine.', '💖 ' + score + ' hearts caught'), 600);
-    else if (score >= 12) burstCenter(18);
+    if (score >= 15 * K) setTimeout(() => celebrate('You caught every falling heart, just as you once caught mine.', '💖 ' + score + ' hearts caught'), 600);
+    else if (score >= 12 * K) burstCenter(18);
   }
   byId('cStart').onclick = start;
   funCleanup = () => { cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); };
@@ -1853,7 +1992,935 @@ FUN.ttt = body => {
   funCleanup = () => { alive = false; };
 };
 
+/* ---------- 🏎️ GAME 4: NISSAN GT-R R34 MIDNIGHT RUN ---------- */
+FUN.gtr = body => {
+  const W = 300, H = 280;
+  const GTR_M = gameOpt('gtr', 'distance', 1000, 200, 10000), GTR_H = gameOpt('gtr', 'hearts', 15, 3, 100);
+  body.innerHTML = `<h3>Skyline GT-R R34 🏎️</h3>
+    <p class="fun-sub" id="gtrInfo">Cruise the midnight highway in the legendary R34! Catch 💖 & hit 🚀 NITRO! (Goal: ${GTR_M}m or ${GTR_H} 💖)</p>
+    <div style="position:relative; width:${W}px; margin:0 auto;">
+      <canvas id="gtrCv" class="game-cv" width="${W}" height="${H}" style="cursor:pointer;"></canvas>
+    </div>
+    <div class="game-controls-row">
+      <button class="game-ctrl-btn" id="gtrLeft">◀ Left</button>
+      <button class="game-ctrl-btn nitro-btn" id="gtrNitro">🚀 NITRO</button>
+      <button class="game-ctrl-btn" id="gtrRight">Right ▶</button>
+    </div>
+    <div class="fun-btn" id="gtrStart">Start Engine 🏎️</div>`;
+
+  const cv = byId('gtrCv'), ctx = cv.getContext('2d');
+  let raf = 0, last = 0, running = false, alive = true;
+  let carX = W / 2, carTargetX = W / 2;
+  const carY = H - 65;
+  const carW = 32, carH = 62;
+
+  let distance = 0;       // target 1000m
+  let hearts = 0;         // target 15
+  let nitro = 100;        // 0 to 100
+  let isNitro = false;
+  let invulnerable = 0;   // seconds of invulnerability
+  let roadOffset = 0;
+  let traffic = [];
+  let pickups = [];
+  let particles = [];
+  let spawnTimer = 0;
+  let pickupTimer = 0;
+  let steerDir = 0;
+
+  function safeRoundRect(c, x, y, w, h, r) {
+    if (c.roundRect) {
+      c.beginPath(); c.roundRect(x, y, w, h, r); c.fill();
+    } else {
+      c.beginPath(); c.rect(x, y, w, h); c.fill();
+    }
+  }
+
+  // Pointer / Touch drag controls
+  function setCarFromClientX(clientX) {
+    if (!running) return;
+    const r = cv.getBoundingClientRect();
+    const x = (clientX - r.left) * (W / r.width);
+    carTargetX = Math.max(55, Math.min(W - 55, x));
+  }
+  cv.addEventListener('pointermove', e => { if (e.buttons > 0) setCarFromClientX(e.clientX); });
+  cv.addEventListener('pointerdown', e => {
+    if (!running) start();
+    else setCarFromClientX(e.clientX);
+  });
+
+  // Button controls
+  const btnL = byId('gtrLeft'), btnR = byId('gtrRight'), btnN = byId('gtrNitro');
+  const onLDown = e => { e.preventDefault(); steerDir = -1; };
+  const onRDown = e => { e.preventDefault(); steerDir = 1; };
+  const onUp = e => { e.preventDefault(); steerDir = 0; };
+  btnL.addEventListener('pointerdown', onLDown);
+  btnL.addEventListener('pointerup', onUp);
+  btnL.addEventListener('pointerleave', onUp);
+  btnR.addEventListener('pointerdown', onRDown);
+  btnR.addEventListener('pointerup', onUp);
+  btnR.addEventListener('pointerleave', onUp);
+
+  const toggleNitro = on => { isNitro = on && nitro > 5; };
+  btnN.addEventListener('pointerdown', e => { e.preventDefault(); toggleNitro(true); });
+  btnN.addEventListener('pointerup', e => { e.preventDefault(); toggleNitro(false); });
+  btnN.addEventListener('pointerleave', e => { e.preventDefault(); toggleNitro(false); });
+
+  // Keyboard controls
+  const onKey = e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { steerDir = -1; e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { steerDir = 1; e.preventDefault(); }
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { toggleNitro(true); e.preventDefault(); }
+  };
+  const onKeyUp = e => {
+    if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && steerDir === -1) steerDir = 0;
+    if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && steerDir === 1) steerDir = 0;
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') toggleNitro(false);
+  };
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('keyup', onKeyUp);
+
+  function start() {
+    if (running) return;
+    running = true; distance = 0; hearts = 0; nitro = 100;
+    isNitro = false; invulnerable = 0; traffic = []; pickups = []; particles = [];
+    carX = W / 2; carTargetX = W / 2; steerDir = 0;
+    byId('gtrStart').style.display = 'none';
+    byId('gtrInfo').textContent = 'Hold NITRO for 280+ km/h! Dodge traffic & catch hearts 💖';
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+
+  // Draw authentic Nissan Skyline GT-R R34 (Bayside Blue)
+  function drawGTR(c, x, y, nitroOn, invuln) {
+    if (invuln > 0 && Math.floor(invuln * 14) % 2 === 0) return; // Flash effect when hit
+    c.save();
+    c.translate(x, y);
+
+    // Subtle drift rotation
+    const tilt = (carTargetX - carX) * 0.035;
+    c.rotate(Math.max(-0.16, Math.min(0.16, tilt)));
+
+    // Forward Xenon Light Beams
+    const beamG = c.createLinearGradient(0, -carH / 2, 0, -carH / 2 - 100);
+    beamG.addColorStop(0, 'rgba(224, 242, 254, 0.4)');
+    beamG.addColorStop(0.3, 'rgba(186, 230, 253, 0.18)');
+    beamG.addColorStop(1, 'rgba(186, 230, 253, 0)');
+    c.fillStyle = beamG;
+    c.beginPath();
+    c.moveTo(-carW / 2 + 4, -carH / 2);
+    c.lineTo(-carW / 2 - 20, -carH / 2 - 100);
+    c.lineTo(carW / 2 + 20, -carH / 2 - 100);
+    c.lineTo(carW / 2 - 4, -carH / 2);
+    c.closePath();
+    c.fill();
+
+    // Shadow
+    c.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    safeRoundRect(c, -carW / 2 - 2, -carH / 2 + 2, carW + 4, carH, 8);
+
+    // 4 Wide Sports Wheels / Tires
+    c.fillStyle = '#111827';
+    c.fillRect(-carW / 2 - 3, -carH / 2 + 8, 4, 11);  // Front Left
+    c.fillRect(carW / 2 - 1, -carH / 2 + 8, 4, 11);   // Front Right
+    c.fillRect(-carW / 2 - 3, carH / 2 - 19, 4, 12);  // Rear Left
+    c.fillRect(carW / 2 - 1, carH / 2 - 19, 4, 12);   // Rear Right
+
+    // Metallic Bayside Blue Main Body
+    const bodyG = c.createLinearGradient(-carW / 2, 0, carW / 2, 0);
+    bodyG.addColorStop(0, '#103678');
+    bodyG.addColorStop(0.2, '#1d4ed8');
+    bodyG.addColorStop(0.5, '#3b82f6');
+    bodyG.addColorStop(0.8, '#1d4ed8');
+    bodyG.addColorStop(1, '#103678');
+    c.fillStyle = bodyG;
+    safeRoundRect(c, -carW / 2, -carH / 2, carW, carH, 6);
+
+    // Front Bumper Splitter & Aggressive Grille
+    c.fillStyle = '#090d16';
+    c.fillRect(-carW / 2 + 3, -carH / 2, carW - 6, 4);
+
+    // GT-R Front Red/Chrome Badge
+    c.fillStyle = '#ef4444';
+    c.fillRect(-1.5, -carH / 2 + 1, 3, 2);
+
+    // Hood Sculpt / NACA Air Vents
+    c.fillStyle = '#0a1d38';
+    c.fillRect(-carW / 2 + 6, -carH / 2 + 6, 5, 7);
+    c.fillRect(carW / 2 - 11, -carH / 2 + 6, 5, 7);
+    // Center hood crease
+    c.strokeStyle = 'rgba(147, 197, 253, 0.4)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(0, -carH / 2 + 3);
+    c.lineTo(0, -carH / 2 + 18);
+    c.stroke();
+
+    // Twin Xenon Headlights
+    c.fillStyle = '#e0f2fe';
+    safeRoundRect(c, -carW / 2 + 2, -carH / 2 + 1, 5, 4, 2);
+    safeRoundRect(c, carW / 2 - 7, -carH / 2 + 1, 5, 4, 2);
+
+    // Tinted Coupe Cockpit Glass
+    c.fillStyle = '#060a12';
+    safeRoundRect(c, -carW / 2 + 4, -carH / 2 + 19, carW - 8, 27, 4);
+
+    // Windshield diagonal reflection gloss
+    c.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    c.beginPath();
+    c.moveTo(-carW / 2 + 6, -carH / 2 + 20);
+    c.lineTo(-carW / 2 + 12, -carH / 2 + 20);
+    c.lineTo(-carW / 2 + 5, -carH / 2 + 33);
+    c.closePath();
+    c.fill();
+
+    // Coupe Roof (Bayside Blue)
+    c.fillStyle = bodyG;
+    safeRoundRect(c, -carW / 2 + 6, -carH / 2 + 24, carW - 12, 14, 2);
+
+    // Rear Window Glass
+    c.fillStyle = '#060a12';
+    c.fillRect(-carW / 2 + 5, -carH / 2 + 39, carW - 10, 5);
+
+    // Rear Trunk Deck & High GT-R Spoiler / Wing
+    c.fillStyle = '#0b192e';
+    c.fillRect(-carW / 2 + 4, carH / 2 - 11, 3, 7); // Pedestal L
+    c.fillRect(carW / 2 - 7, carH / 2 - 11, 3, 7);  // Pedestal R
+    // Wing blade & endplates
+    c.fillStyle = '#143c74';
+    c.fillRect(-carW / 2 + 1, carH / 2 - 7, carW - 2, 5);
+    c.fillStyle = '#071324';
+    c.fillRect(-carW / 2, carH / 2 - 9, 3, 8);
+    c.fillRect(carW / 2 - 3, carH / 2 - 9, 3, 8);
+
+    // 🔴🔴 SIGNATURE R34 DUAL ROUND TAILLIGHTS 🔴🔴
+    const drawTailCircle = (tx, ty, rOut, rIn) => {
+      c.fillStyle = '#ef4444';
+      c.beginPath(); c.arc(tx, ty, rOut, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fca5a5';
+      c.beginPath(); c.arc(tx, ty, rIn, 0, Math.PI * 2); c.fill();
+    };
+    // Left pair (Outer circle, Inner circle)
+    drawTailCircle(-carW / 2 + 6, carH / 2 - 1, 3.2, 1.5);
+    drawTailCircle(-carW / 2 + 12, carH / 2 - 1, 2.6, 1.2);
+    // Right pair (Inner circle, Outer circle)
+    drawTailCircle(carW / 2 - 12, carH / 2 - 1, 2.6, 1.2);
+    drawTailCircle(carW / 2 - 6, carH / 2 - 1, 3.2, 1.5);
+
+    // Chrome Exhaust Tips
+    c.fillStyle = '#94a3b8';
+    c.fillRect(-carW / 2 + 5, carH / 2, 3, 2);
+    c.fillRect(carW / 2 - 8, carH / 2, 3, 2);
+
+    // NITRO EXHAUST FLAMES
+    if (nitroOn) {
+      const flLen = 15 + Math.random() * 18;
+      const flW = 5 + Math.random() * 3;
+      [-carW / 2 + 6.5, carW / 2 - 6.5].forEach(exX => {
+        // Outer fire
+        c.fillStyle = Math.random() < 0.5 ? '#f97316' : '#ec4899';
+        c.beginPath();
+        c.moveTo(exX - flW / 2, carH / 2 + 2);
+        c.lineTo(exX, carH / 2 + 2 + flLen);
+        c.lineTo(exX + flW / 2, carH / 2 + 2);
+        c.closePath();
+        c.fill();
+        // Inner blue-hot core
+        c.fillStyle = '#38bdf8';
+        c.beginPath();
+        c.moveTo(exX - flW / 4, carH / 2 + 2);
+        c.lineTo(exX, carH / 2 + 2 + flLen * 0.6);
+        c.lineTo(exX + flW / 4, carH / 2 + 2);
+        c.closePath();
+        c.fill();
+      });
+    }
+
+    c.restore();
+  }
+
+  // Draw Traffic Car
+  function drawTrafficCar(c, car) {
+    c.save();
+    c.translate(car.x, car.y);
+    c.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    safeRoundRect(c, -car.w / 2 - 1, -car.h / 2 + 2, car.w + 2, car.h, 6);
+    c.fillStyle = car.color;
+    safeRoundRect(c, -car.w / 2, -car.h / 2, car.w, car.h, 5);
+    // Windows
+    c.fillStyle = '#0f172a';
+    safeRoundRect(c, -car.w / 2 + 3, -car.h / 2 + 13, car.w - 6, car.h - 26, 3);
+    // Roof
+    c.fillStyle = car.color;
+    safeRoundRect(c, -car.w / 2 + 4, -car.h / 2 + 17, car.w - 8, car.h - 34, 2);
+    // Taillights
+    c.fillStyle = '#ef4444';
+    c.fillRect(-car.w / 2 + 2, car.h / 2 - 3, 5, 2);
+    c.fillRect(car.w / 2 - 7, car.h / 2 - 3, 5, 2);
+    c.restore();
+  }
+
+  // Intro preview screen
+  function drawIntro() {
+    ctx.fillStyle = '#0a0d18';
+    ctx.fillRect(0, 0, W, H);
+    // Skyline
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 10, 32, 28); ctx.fillRect(70, 4, 42, 34); ctx.fillRect(180, 8, 38, 30);
+    // Road
+    ctx.fillStyle = '#13141f';
+    ctx.fillRect(35, 38, W - 70, H - 38);
+    ctx.fillStyle = '#06b6d4'; ctx.fillRect(33, 38, 3, H - 38);
+    ctx.fillStyle = '#ec4899'; ctx.fillRect(W - 36, 38, 3, H - 38);
+    // Lane lines
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    [112, 188].forEach(lx => {
+      for (let y = 45; y < H; y += 38) ctx.fillRect(lx - 2, y, 4, 20);
+    });
+    // Parked GT-R R34
+    drawGTR(ctx, W / 2, H / 2 + 15, false, 0);
+    // Intro overlay text
+    ctx.font = 'bold 15px Poppins, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffdce3';
+    ctx.fillText('NISSAN SKYLINE GT-R R34', W / 2, 60);
+    ctx.font = '600 13px Poppins, sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('▶ Tap to Start Engine 🏁', W / 2, 85);
+  }
+  drawIntro();
+
+  // Main Game Loop
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    // Smooth steering input
+    if (steerDir !== 0) carTargetX += steerDir * 230 * dt;
+    carTargetX = Math.max(55, Math.min(W - 55, carTargetX));
+    carX += (carTargetX - carX) * (14 * dt);
+
+    // Nitro handling
+    if (isNitro && nitro > 0) {
+      nitro = Math.max(0, nitro - 28 * dt);
+      if (nitro <= 0) isNitro = false;
+    } else {
+      nitro = Math.min(100, nitro + 6 * dt);
+    }
+
+    const currentSpeedKmH = isNitro ? 284 : 162;
+    const currentSpeedPx = isNitro ? 520 : 280;
+    distance += (currentSpeedKmH * (1000 / 3600)) * dt;
+    roadOffset = (roadOffset + currentSpeedPx * dt) % 38;
+
+    if (invulnerable > 0) invulnerable -= dt;
+
+    // Traffic spawning
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnTimer = Math.max(0.85, 1.7 - (distance / 1200) * 0.7);
+      const lanes = [75, 150, 225];
+      const lx = lanes[Math.floor(Math.random() * lanes.length)];
+      const colors = ['#e11d48', '#f8fafc', '#eab308', '#10b981', '#a855f7'];
+      traffic.push({
+        x: lx, y: -50, w: 30, h: 50,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speed: 110 + Math.random() * 40
+      });
+    }
+
+    // Pickups spawning
+    pickupTimer -= dt;
+    if (pickupTimer <= 0) {
+      pickupTimer = 1.3;
+      const lx = 60 + Math.random() * (W - 120);
+      const isHeart = Math.random() < 0.65;
+      pickups.push({ x: lx, y: -25, isHeart, r: 12 });
+    }
+
+    // Screen Shake when in NITRO
+    let shakeX = 0, shakeY = 0;
+    if (isNitro) {
+      shakeX = (Math.random() - 0.5) * 3;
+      shakeY = (Math.random() - 0.5) * 3;
+    }
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+    ctx.clearRect(-10, -10, W + 20, H + 20);
+
+    // 1. Midnight Background & Road
+    ctx.fillStyle = '#0a0d18';
+    ctx.fillRect(0, 0, W, H);
+
+    // City Skyline at horizon
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, W, 36);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(20, 8, 32, 28); ctx.fillRect(70, 4, 42, 32); ctx.fillRect(135, 12, 28, 24);
+    ctx.fillRect(180, 6, 38, 30); ctx.fillRect(235, 14, 45, 22);
+    ctx.fillStyle = '#fef08a';
+    for (let wy = 10; wy < 32; wy += 7) {
+      ctx.fillRect(78, wy, 3, 3); ctx.fillRect(92, wy, 3, 3);
+      ctx.fillRect(190, wy, 3, 3); ctx.fillRect(202, wy, 3, 3);
+    }
+
+    // Asphalt Road
+    ctx.fillStyle = '#13141f';
+    ctx.fillRect(35, 36, W - 70, H - 36);
+
+    // Neon Guardrails
+    ctx.fillStyle = '#06b6d4'; ctx.fillRect(33, 36, 3, H - 36);
+    ctx.fillStyle = '#ec4899'; ctx.fillRect(W - 36, 36, 3, H - 36);
+
+    // Scrolling Lane Dividers
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    [112, 188].forEach(lx => {
+      for (let y = -38 + roadOffset; y < H; y += 38) {
+        ctx.fillRect(lx - 2, y, 4, 20);
+      }
+    });
+
+    // 2. Pickups
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    pickups = pickups.filter(p => {
+      p.y += currentSpeedPx * dt;
+      if (Math.abs(p.x - carX) < 25 && Math.abs(p.y - carY) < 30) {
+        if (p.isHeart) {
+          hearts++;
+          particles.push({ x: p.x, y: p.y, text: '+1 💖', life: 1 });
+          burstAt(p.x, p.y, 6);
+        } else {
+          nitro = Math.min(100, nitro + 45);
+          particles.push({ x: p.x, y: p.y, text: '+NOS ⚡', life: 1 });
+        }
+        return false;
+      }
+      ctx.font = '20px serif';
+      ctx.fillText(p.isHeart ? '💖' : '⚡', p.x, p.y);
+      return p.y < H + 30;
+    });
+
+    // 3. Traffic
+    traffic = traffic.filter(t => {
+      t.y += (currentSpeedPx - t.speed) * dt;
+      if (invulnerable <= 0 && Math.abs(t.x - carX) < 26 && Math.abs(t.y - carY) < 46) {
+        invulnerable = 1.2;
+        burstAt(carX, carY, 10);
+        particles.push({ x: carX, y: carY, text: '💥 BUMP!', life: 0.8 });
+        isNitro = false;
+        t.y += 28;
+      }
+      drawTrafficCar(ctx, t);
+      return t.y < H + 60 && t.y > -80;
+    });
+
+    // 4. Text Particles
+    particles = particles.filter(pt => {
+      pt.y -= 38 * dt;
+      pt.life -= dt;
+      ctx.font = 'bold 14px Poppins, sans-serif';
+      ctx.fillStyle = `rgba(255, 220, 230, ${Math.max(0, pt.life)})`;
+      ctx.fillText(pt.text, pt.x, pt.y);
+      return pt.life > 0;
+    });
+
+    // 5. Draw Nissan GT-R R34
+    drawGTR(ctx, carX, carY, isNitro, invulnerable);
+
+    // 6. HUD
+    ctx.font = 'bold 13px Poppins, sans-serif';
+    ctx.fillStyle = isNitro ? '#38bdf8' : '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.round(currentSpeedKmH)} KM/H 🏎️`, 10, 18);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ff758c';
+    ctx.fillText(`💖 ${hearts}/${GTR_H}  |  🏁 ${Math.min(GTR_M, Math.floor(distance))}m`, W - 10, 18);
+
+    // Nitro Bar
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(10, H - 14, W - 20, 9);
+    const nG = ctx.createLinearGradient(10, 0, W - 10, 0);
+    nG.addColorStop(0, '#06b6d4'); nG.addColorStop(1, '#3b82f6');
+    ctx.fillStyle = nG;
+    ctx.fillRect(10, H - 14, (W - 20) * (nitro / 100), 9);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.strokeRect(10, H - 14, W - 20, 9);
+
+    ctx.restore();
+
+    // Check Win
+    if (distance >= GTR_M || hearts >= GTR_H) {
+      running = false;
+      const b = byId('gtrStart');
+      b.textContent = 'Drive again 🏎️'; b.style.display = '';
+      byId('gtrInfo').textContent = `Mission Complete! Distance: ${Math.floor(distance)}m, Hearts: ${hearts} 💕`;
+      setTimeout(() => celebrate(
+        'You conquered the midnight highway in the Nissan GT-R R34, but my heart was already racing for you at 300 km/h 🏎️💨',
+        `🏁 ${Math.floor(distance)}m conquered | 💖 ${hearts} hearts collected`
+      ), 700);
+      return;
+    }
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  byId('gtrStart').onclick = start;
+  funCleanup = () => {
+    alive = false;
+    cancelAnimationFrame(raf);
+    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('keyup', onKeyUp);
+  };
+};
+
+/* ---------- 🕊️ GAME 5: LOVE FLIGHT ---------- */
+FUN.flight = body => {
+  const W = 300, H = 280;
+  const GOAL = gameOpt('flight', 'gates', 10, 3, 50);
+  body.innerHTML = `<h3>Love Flight 🕊️</h3>
+    <p class="fun-sub" id="flInfo">Tap anywhere to flap your wings through the enchanted rose gates 🌹 (Goal: ${GOAL} Gates)</p>
+    <div style="position:relative; width:${W}px; margin:0 auto;">
+      <canvas id="flCv" class="game-cv" width="${W}" height="${H}" style="cursor:pointer;"></canvas>
+    </div>
+    <div class="game-controls-row">
+      <button class="game-ctrl-btn" id="flFlap" style="padding:9px 30px; font-size:0.95rem;">🕊️ Flap Wings</button>
+    </div>
+    <div class="fun-btn" id="flStart">Take Flight ▶️</div>`;
+
+  const cv = byId('flCv'), ctx = cv.getContext('2d');
+  let raf = 0, last = 0, running = false, alive = true;
+  let birdY = H / 2, birdVy = 0;
+  const birdX = 68;
+  let gates = [], passed = 0, wingAngle = 0;
+  let stars = [];
+
+  for (let i = 0; i < 25; i++) {
+    stars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.5 + 0.5 });
+  }
+
+  function flap() {
+    if (!running) { start(); return; }
+    birdVy = -190;
+    wingAngle = -0.5;
+  }
+
+  cv.addEventListener('pointerdown', flap);
+  byId('flFlap').addEventListener('pointerdown', e => { e.preventDefault(); flap(); });
+  const onKey = e => {
+    if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); flap(); }
+  };
+  document.addEventListener('keydown', onKey);
+
+  function drawIntro() {
+    const bgG = ctx.createLinearGradient(0, 0, 0, H);
+    bgG.addColorStop(0, '#2d124d'); bgG.addColorStop(0.55, '#581c87'); bgG.addColorStop(1, '#be185d');
+    ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255, 235, 240, 0.7)';
+    stars.forEach(s => ctx.fillRect(s.x, s.y, s.r, s.r));
+    // Winged heart preview
+    ctx.save();
+    ctx.translate(W / 2, H / 2 - 10);
+    ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(-6, -4, 12, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.font = 'bold 15px Poppins, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdce3';
+    ctx.fillText('ENCHANTED ROSE GATES 🌹', W / 2, 55);
+    ctx.font = '600 13px Poppins, sans-serif'; ctx.fillStyle = '#ffd27a';
+    ctx.fillText('▶ Tap to Take Flight 🕊️', W / 2, 80);
+  }
+  drawIntro();
+
+  function start() {
+    if (running) return;
+    running = true; birdY = H / 2; birdVy = -140; gates = []; passed = 0;
+    byId('flStart').style.display = 'none';
+    byId('flInfo').textContent = 'Gliding through the clouds... Tap to rise! 🕊️';
+    gates.push({ x: W + 30, top: 70, gap: 130, passed: false });
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    birdVy += 480 * dt;
+    birdY += birdVy * dt;
+    wingAngle += 8 * dt;
+
+    if (gates.length < 3) {
+      const lastGate = gates[gates.length - 1];
+      if (!lastGate || lastGate.x < W - 130) {
+        const topH = 45 + Math.random() * (H - 180);
+        gates.push({ x: W + 20, top: topH, gap: 125, passed: false });
+      }
+    }
+
+    const bgG = ctx.createLinearGradient(0, 0, 0, H);
+    bgG.addColorStop(0, '#2d124d'); bgG.addColorStop(0.55, '#581c87'); bgG.addColorStop(1, '#be185d');
+    ctx.fillStyle = bgG;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(255, 235, 240, 0.7)';
+    stars.forEach(s => ctx.fillRect(s.x, s.y, s.r, s.r));
+
+    gates.forEach(g => {
+      g.x -= 110 * dt;
+      const topPillarG = ctx.createLinearGradient(g.x, 0, g.x + 32, 0);
+      topPillarG.addColorStop(0, '#831843'); topPillarG.addColorStop(0.5, '#db2777'); topPillarG.addColorStop(1, '#831843');
+      ctx.fillStyle = topPillarG;
+      ctx.fillRect(g.x, 0, 32, g.top);
+      ctx.font = '18px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🌹', g.x + 16, g.top - 10);
+
+      const botY = g.top + g.gap;
+      const botH = H - botY;
+      ctx.fillStyle = topPillarG;
+      ctx.fillRect(g.x, botY, 32, botH);
+      ctx.fillText('🌹', g.x + 16, botY + 10);
+
+      if (!g.passed) {
+        ctx.font = '14px serif';
+        ctx.fillText('✨', g.x + 16, g.top + g.gap / 2);
+      }
+
+      if (!g.passed && g.x + 32 < birdX) {
+        g.passed = true;
+        passed++;
+        burstAt(birdX, birdY, 4);
+      }
+
+      if (birdX + 9 > g.x && birdX - 9 < g.x + 32) {
+        if (birdY - 9 < g.top || birdY + 9 > botY) {
+          endFail();
+        }
+      }
+    });
+
+    gates = gates.filter(g => g.x > -40);
+
+    if (birdY < 10 || birdY > H - 12) {
+      endFail();
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(birdX, birdY);
+    const tilt = Math.max(-0.4, Math.min(0.5, birdVy * 0.002));
+    ctx.rotate(tilt);
+
+    ctx.fillStyle = '#ff4d6d';
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+
+    const wFlap = Math.sin(wingAngle) * 8;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(-4, -4 + wFlap, 10, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fce7f3';
+    ctx.beginPath(); ctx.ellipse(3, -4 - wFlap, 9, 3.5, 0.3, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(4, -2, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(5, -2, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.font = 'bold 13px Poppins, sans-serif';
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left';
+    ctx.fillText(`🌹 Gates: ${passed} / ${GOAL}`, 10, 20);
+
+    if (passed >= GOAL) {
+      running = false;
+      byId('flStart').textContent = 'Fly again 🕊️';
+      byId('flStart').style.display = '';
+      byId('flInfo').textContent = `Glorious flight! You passed all ${GOAL} gates 💕`;
+      setTimeout(() => celebrate(
+        'Through every distance and every sky, my heart will always fly straight to you 🕊️💕',
+        `✨ ${GOAL} enchanted gates passed with grace`
+      ), 700);
+      return;
+    }
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  function endFail() {
+    running = false;
+    byId('flStart').textContent = 'Try again 🕊️';
+    byId('flStart').style.display = '';
+    byId('flInfo').textContent = `Gate count: ${passed}. Hearts are brave—take to the skies once more 💕`;
+  }
+
+  byId('flStart').onclick = start;
+  funCleanup = () => {
+    alive = false;
+    cancelAnimationFrame(raf);
+    document.removeEventListener('keydown', onKey);
+  };
+};
+
+/* ---------- 🧱 GAME 6: LOVE BREAKER ---------- */
+FUN.breaker = body => {
+  const W = 300, H = 280;
+  const LIVES = gameOpt('breaker', 'lives', 3, 1, 9);
+  body.innerHTML = `<h3>Love Breaker 🧱</h3>
+    <p class="fun-sub" id="brkInfo">Slide the paddle to bounce the heart & clear all love blocks 💖 (Clear all 24 blocks)</p>
+    <div style="position:relative; width:${W}px; margin:0 auto;">
+      <canvas id="brkCv" class="game-cv" width="${W}" height="${H}" style="cursor:pointer;"></canvas>
+    </div>
+    <div class="game-controls-row">
+      <button class="game-ctrl-btn" id="brkLeft">◀ Slide</button>
+      <button class="game-ctrl-btn" id="brkRight">Slide ▶</button>
+    </div>
+    <div class="fun-btn" id="brkStart">Start Game 🧱</div>`;
+
+  const cv = byId('brkCv'), ctx = cv.getContext('2d');
+  let raf = 0, last = 0, running = false, alive = true;
+
+  // Paddle
+  let padW = 66;
+  const padH = 11, padY = H - 26;
+  let padX = (W - padW) / 2, padTargetX = padX;
+
+  // Balls
+  let balls = [];
+  // Bricks (4 rows x 6 cols = 24 bricks)
+  let bricks = [];
+  let drops = [];
+  let lives = LIVES;
+  let steerDir = 0;
+
+  function safeRoundRect(c, x, y, w, h, r) {
+    if (c.roundRect) {
+      c.beginPath(); c.roundRect(x, y, w, h, r); c.fill();
+    } else {
+      c.beginPath(); c.rect(x, y, w, h); c.fill();
+    }
+  }
+
+  function initBricks() {
+    bricks = [];
+    const rows = 4, cols = 6;
+    const bW = 42, bH = 13, padTop = 32, padSide = 17;
+    const colors = ['#f43f5e', '#fbbf24', '#c084fc', '#fb7185'];
+    const icons = ['❤️', '✨', '🎀', '💎', '💖', '⭐'];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        bricks.push({
+          x: padSide + c * (bW + 4),
+          y: padTop + r * (bH + 5),
+          w: bW, h: bH,
+          color: colors[r],
+          icon: icons[(r + c) % icons.length],
+          alive: true
+        });
+      }
+    }
+  }
+
+  function setPaddleFromClientX(clientX) {
+    if (!running) return;
+    const r = cv.getBoundingClientRect();
+    const x = (clientX - r.left) * (W / r.width);
+    padTargetX = Math.max(8, Math.min(W - padW - 8, x - padW / 2));
+  }
+  cv.addEventListener('pointermove', e => setPaddleFromClientX(e.clientX));
+  cv.addEventListener('pointerdown', e => {
+    if (!running) start();
+    else setPaddleFromClientX(e.clientX);
+  });
+
+  const btnL = byId('brkLeft'), btnR = byId('brkRight');
+  const onLDown = e => { e.preventDefault(); steerDir = -1; };
+  const onRDown = e => { e.preventDefault(); steerDir = 1; };
+  const onUp = e => { e.preventDefault(); steerDir = 0; };
+  btnL.addEventListener('pointerdown', onLDown);
+  btnL.addEventListener('pointerup', onUp);
+  btnL.addEventListener('pointerleave', onUp);
+  btnR.addEventListener('pointerdown', onRDown);
+  btnR.addEventListener('pointerup', onUp);
+  btnR.addEventListener('pointerleave', onUp);
+
+  const onKey = e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { steerDir = -1; e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { steerDir = 1; e.preventDefault(); }
+  };
+  const onKeyUp = e => {
+    if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && steerDir === -1) steerDir = 0;
+    if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && steerDir === 1) steerDir = 0;
+  };
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('keyup', onKeyUp);
+
+  function drawIntro() {
+    initBricks();
+    ctx.fillStyle = '#14081c'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    bricks.forEach(b => {
+      ctx.fillStyle = b.color;
+      safeRoundRect(ctx, b.x, b.y, b.w, b.h, 4);
+      ctx.font = '9px serif';
+      ctx.fillText(b.icon, b.x + b.w / 2, b.y + b.h / 2 + 1);
+    });
+    // Paddle & Ball
+    const padG = ctx.createLinearGradient(padX, 0, padX + padW, 0);
+    padG.addColorStop(0, '#ff4d6d'); padG.addColorStop(0.5, '#ff8fa3'); padG.addColorStop(1, '#ff4d6d');
+    ctx.fillStyle = padG; safeRoundRect(ctx, padX, padY, padW, padH, 6);
+    ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(W / 2, padY - 8, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '600 13px Poppins, sans-serif'; ctx.fillStyle = '#ffd27a';
+    ctx.fillText('▶ Tap to Start Breaker 🧱', W / 2, H / 2 + 30);
+  }
+  drawIntro();
+
+  function start() {
+    if (running) return;
+    running = true; lives = LIVES; padW = 66; padX = (W - padW) / 2; padTargetX = padX;
+    drops = [];
+    initBricks();
+    balls = [{ x: W / 2, y: padY - 12, vx: 130, vy: -180, r: 6 }];
+    byId('brkStart').style.display = 'none';
+    byId('brkInfo').textContent = 'Keep the heart bouncing and clear the bricks 💖';
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    if (steerDir !== 0) padTargetX += steerDir * 250 * dt;
+    padTargetX = Math.max(8, Math.min(W - padW - 8, padTargetX));
+    padX += (padTargetX - padX) * (18 * dt);
+
+    ctx.fillStyle = '#14081c';
+    ctx.fillRect(0, 0, W, H);
+
+    let activeBricks = 0;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    bricks.forEach(b => {
+      if (!b.alive) return;
+      activeBricks++;
+      ctx.fillStyle = b.color;
+      safeRoundRect(ctx, b.x, b.y, b.w, b.h, 4);
+      ctx.font = '9px serif';
+      ctx.fillText(b.icon, b.x + b.w / 2, b.y + b.h / 2 + 1);
+    });
+
+    drops = drops.filter(d => {
+      d.y += 90 * dt;
+      if (d.y > padY && d.y < padY + padH && d.x > padX && d.x < padX + padW) {
+        if (d.type === 'heart') {
+          lives = Math.min(Math.max(5, LIVES + 2), lives + 1);
+          burstAt(d.x, d.y, 6);
+        } else if (d.type === 'wide') {
+          padW = Math.min(92, padW + 16);
+        } else if (d.type === 'ball') {
+          balls.push({ x: padX + padW / 2, y: padY - 12, vx: (Math.random() - 0.5) * 200, vy: -170, r: 6 });
+        }
+        return false;
+      }
+      ctx.font = '15px serif';
+      ctx.fillText(d.type === 'heart' ? '💖' : d.type === 'wide' ? '📏' : '⭐', d.x, d.y);
+      return d.y < H + 20;
+    });
+
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      if (b.x - b.r < 4) { b.x = 4 + b.r; b.vx = Math.abs(b.vx); }
+      if (b.x + b.r > W - 4) { b.x = W - 4 - b.r; b.vx = -Math.abs(b.vx); }
+      if (b.y - b.r < 14) { b.y = 14 + b.r; b.vy = Math.abs(b.vy); }
+
+      if (b.y + b.r >= padY && b.y - b.r <= padY + padH && b.x >= padX - 4 && b.x <= padX + padW + 4 && b.vy > 0) {
+        b.y = padY - b.r;
+        const hitNorm = (b.x - (padX + padW / 2)) / (padW / 2);
+        const speed = Math.hypot(b.vx, b.vy);
+        const maxAngle = 1.1;
+        const angle = hitNorm * maxAngle;
+        b.vx = speed * Math.sin(angle);
+        b.vy = -speed * Math.cos(angle);
+        burstAt(b.x, b.y, 3);
+      }
+
+      for (const brk of bricks) {
+        if (!brk.alive) continue;
+        if (b.x + b.r > brk.x && b.x - b.r < brk.x + brk.w && b.y + b.r > brk.y && b.y - b.r < brk.y + brk.h) {
+          brk.alive = false;
+          b.vy = -b.vy;
+          burstAt(brk.x + brk.w / 2, brk.y + brk.h / 2, 4);
+
+          if (Math.random() < 0.24) {
+            const types = ['heart', 'wide', 'ball'];
+            drops.push({ x: brk.x + brk.w / 2, y: brk.y + brk.h / 2, type: types[Math.floor(Math.random() * types.length)] });
+          }
+          break;
+        }
+      }
+
+      if (b.y > H + 10) {
+        balls.splice(i, 1);
+        continue;
+      }
+
+      ctx.fillStyle = '#ff4d6d';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(b.x - 2, b.y - 2, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+
+    if (balls.length === 0) {
+      lives--;
+      if (lives > 0) {
+        balls = [{ x: padX + padW / 2, y: padY - 12, vx: 130, vy: -180, r: 6 }];
+      } else {
+        running = false;
+        byId('brkStart').textContent = 'Play again 🔄';
+        byId('brkStart').style.display = '';
+        byId('brkInfo').textContent = 'Love never gives up! Try again 💕';
+        return;
+      }
+    }
+
+    const padG = ctx.createLinearGradient(padX, 0, padX + padW, 0);
+    padG.addColorStop(0, '#ff4d6d'); padG.addColorStop(0.5, '#ff8fa3'); padG.addColorStop(1, '#ff4d6d');
+    ctx.fillStyle = padG;
+    safeRoundRect(ctx, padX, padY, padW, padH, 6);
+
+    ctx.font = 'bold 12px Poppins, sans-serif';
+    ctx.fillStyle = '#ffb6c1'; ctx.textAlign = 'left';
+    ctx.fillText('❤️'.repeat(lives), 10, 18);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Blocks: ${activeBricks}`, W - 10, 18);
+
+    if (activeBricks === 0) {
+      running = false;
+      byId('brkStart').textContent = 'Play again 🔄';
+      byId('brkStart').style.display = '';
+      byId('brkInfo').textContent = 'Every block cleared in love! Outstanding! 💖';
+      setTimeout(() => celebrate(
+        'You broke through every block, just as your smile brightens up my whole world 🧱💖',
+        '🏆 All 24 blocks cleared in victory'
+      ), 700);
+      return;
+    }
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  byId('brkStart').onclick = start;
+  funCleanup = () => {
+    alive = false;
+    cancelAnimationFrame(raf);
+    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('keyup', onKeyUp);
+  };
+};
+
 function _sparkleBlocked() {
+  if (LITE) return true;   // no sparkle trail on weak phones
   const m = document.getElementById('funModal');
   return document.body.classList.contains('cine-on') || (m && m.classList.contains('show'));
 }
@@ -1931,7 +2998,7 @@ function openProposal() {
   const cv = q('canvas'), ctx = cv.getContext('2d');
   const stage = q('#ppStage'), ask = q('#ppAsk'), yesScene = q('#ppYesScene');
   const yesBtn = q('#ppYes'), noBtn = q('#ppNo'), skipBtn = q('#ppSkip');
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const dpr = (LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
   let W = 0, H = 0, closed = false, raf = 0, mode = 'night';
   const timers = [];
   const later = (fn, ms) => { const id = setTimeout(() => { if (!closed) fn(); }, ms); timers.push(id); return id; };
@@ -2223,7 +3290,7 @@ function storyEngine(cv) {
   let W = 0, H = 0, mode = 'stars', parts = [], raf = 0, shoot = null, born = 0, running = true;
 
   function resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = (LITE ? 1 : Math.min(2, window.devicePixelRatio || 1));
     W = cv.clientWidth; H = cv.clientHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2377,7 +3444,7 @@ function openStory() {
   music.pause();
   const startAt = Number(STORY.songStart) || 0;
   const song = new Audio();
-  song.preload = 'auto';
+  song.preload = LITE ? 'metadata' : 'auto';
   song.src = STORY.songFile || CINE_SONG_FILE;
   /* volumes come from the admin panel > Our Story (percent: 0 = silent, 100 = full) */
   const pct = (v, d) => { v = (v === '' || v == null) ? d : Number(v); if (!isFinite(v)) v = d; return Math.max(0, Math.min(100, v)) / 100; };
@@ -2392,7 +3459,7 @@ function openStory() {
 
   /* voice player (unlocked now, inside her tap, so phones let it play later) */
   const voice = new Audio();
-  voice.preload = 'auto';
+  voice.preload = LITE ? 'metadata' : 'auto';
   voice.src = SILENT_WAV;
   voice.play().then(() => voice.pause()).catch(() => { });
 

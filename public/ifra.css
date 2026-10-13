@@ -1830,6 +1830,59 @@ body.sunset {
 
 .ttt-cell:hover { background: rgba(255, 77, 109, 0.18); }
 
+/* Mini-games control buttons */
+.game-controls-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.game-ctrl-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  color: #ffdce3;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-ctrl-btn:hover {
+  background: rgba(255, 77, 109, 0.2);
+}
+
+.game-ctrl-btn:active {
+  transform: scale(0.94);
+  background: rgba(255, 77, 109, 0.35);
+}
+
+.game-ctrl-btn.nitro-btn {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  border-color: #38bdf8;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  font-weight: 600;
+}
+
+.game-ctrl-btn.nitro-btn:hover {
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.6);
+}
+
+.game-ctrl-btn.nitro-btn:active {
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+  transform: scale(0.94);
+}
+
+
 @media (prefers-reduced-motion: reduce) {
   .bq-bud.bloom { animation: none; }
 }

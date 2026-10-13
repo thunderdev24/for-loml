@@ -188,7 +188,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 /* ---------- tabs ---------- */
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
-  ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
+  ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
   ['proposal','💍 Proposal'],['logins','🔐 Logins'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
@@ -461,6 +461,77 @@ function msgsEditor(m,key,title){
   m.append(el('h3',{text:title}));
   m.append(listBox(()=>C[key],[F.self('Message',{type:'text'})],()=>''));
 }
+
+/* ---------- 🎮 GAMES ---------- */
+const GAME_TIMED=['catch','match','ttt','gtr','flight','breaker','quiz','sweet'];
+const GAME_OPTS={
+  catch:[{k:'seconds',label:'Round length (seconds)',def:30,min:10,max:300}],
+  quiz:[{k:'questions',label:'Questions per round',def:20,min:5,max:60}],
+  sweet:[{k:'questions',label:'Questions per round',def:20,min:5,max:60}],
+  flight:[{k:'gates',label:'Gates she must pass to win',def:10,min:3,max:50}],
+  breaker:[{k:'lives',label:'Lives',def:3,min:1,max:9}],
+  gtr:[{k:'distance',label:'Goal distance (metres)',def:1000,min:200,max:10000},{k:'hearts',label:'Goal hearts to collect',def:15,min:3,max:100}]
+};
+function syncGames(){
+  if(!Array.isArray(C.games))C.games=[];
+  (DEFAULTS.games||[]).forEach(d=>{if(!C.games.some(x=>x.id===d.id))C.games.push(clone(d));});
+  if(!C.gameMsgs)C.gameMsgs={};
+  for(const k in (DEFAULTS.gameMsgs||{}))if(C.gameMsgs[k]===undefined)C.gameMsgs[k]=DEFAULTS.gameMsgs[k];
+}
+function gameCard(host,gm){
+  const timed=GAME_TIMED.includes(gm.id);
+  const sum=el('summary');
+  const setSum=()=>{sum.textContent=(gm.emoji||'')+'  '+(gm.label||gm.id)+(gm.on===false?'   (hidden)':'')+((timed&&Number(gm.minutes)>0)?'   ⏳ '+gm.minutes+' min':'');};
+  setSum();
+  const body=el('div',{class:'body'});
+  body.append(el('div',{class:'grid3'},
+    field('select',()=>String(gm.on!==false),v=>{gm.on=v==='true';setSum();},{label:'Show on the site?',options:[['true','Yes, show it'],['false','No, hide it']]}),
+    field('text',()=>gm.emoji||'',v=>{gm.emoji=v;setSum();},{label:'Emoji on the tile'}),
+    field('text',()=>gm.label||'',v=>{gm.label=v;setSum();},{label:'Name on the tile'})));
+  if(timed){
+    body.append(el('div',{class:'grid2'},
+      field('num',()=>gm.minutes||0,v=>{gm.minutes=Math.max(0,v||0);setSum();},{label:'How long she can play (minutes, 0 = no limit)'}),
+      field('num',()=>gm.rest||0,v=>{gm.rest=Math.max(0,v||0);},{label:'Then lock it for (minutes, 0 = she can play again right away)'})));
+  }
+  const opts=GAME_OPTS[gm.id];
+  if(opts){
+    gm.opt=gm.opt||{};
+    body.append(el('div',{class:opts.length>1?'grid2':''},opts.map(o=>
+      field('num',()=>gm.opt[o.k]==null?o.def:gm.opt[o.k],v=>{gm.opt[o.k]=Math.max(o.min,Math.min(o.max,Math.round(v||o.def)));},{label:o.label+'  ('+o.min+' to '+o.max+', normal '+o.def+')'}))));
+  }
+  const move=d=>()=>{
+    const idxs=C.games.map((x,i)=>x.group===gm.group?i:-1).filter(i=>i>=0);
+    const pos=idxs.indexOf(C.games.indexOf(gm)),to=pos+d;
+    if(to<0||to>=idxs.length)return;
+    const p=idxs[pos],q=idxs[to];[C.games[p],C.games[q]]=[C.games[q],C.games[p]];save();draw();
+  };
+  body.append(el('div',{class:'ctl'},
+    el('button',{class:'b alt sm',onclick:move(-1),text:'↑ Up'}),
+    el('button',{class:'b alt sm',onclick:move(1),text:'↓ Down'}),
+    el('button',{class:'b alt sm',text:'♻ Reset this one',onclick:()=>{
+      const d=(DEFAULTS.games||[]).find(x=>x.id===gm.id);if(!d)return;
+      if(!confirm('Put “'+(gm.label||gm.id)+'” back to its built-in settings?'))return;
+      C.games[C.games.indexOf(gm)]=clone(d);save();draw();}})));
+  host.append(el('details',{class:'item'},sum,body));
+}
+VIEWS.games=m=>{
+  syncGames();
+  head(m,'Games & surprise tiles','Show or hide a tile, change its emoji and name, change the order, and for the games set how long she may play. Make games easier or harder with the extra boxes. Press Publish live when you are done.');
+  [['play','🎮 Play Together (games)'],['surprises','🎁 Little Surprises']].forEach(([grp,title])=>{
+    m.append(el('h3',{text:title}));
+    const host=el('div');m.append(host);
+    C.games.filter(x=>x.group===grp).forEach(gm=>gameCard(host,gm));
+  });
+  m.append(el('div',{class:'card'},el('h3',{text:'⏳ What she sees when the time is up'}),
+    el('p',{class:'hint',text:'In the “resting” message, {min} turns into the number of minutes that are left.'}),
+    field('text',()=>C.gameMsgs.timeUpTitle,v=>{C.gameMsgs.timeUpTitle=v;},{label:'Title'}),
+    field('area',()=>C.gameMsgs.timeUpText,v=>{C.gameMsgs.timeUpText=v;},{label:'Message',rows:2}),
+    field('text',()=>C.gameMsgs.restText,v=>{C.gameMsgs.restText=v;},{label:'Message while the game is locked'})));
+  m.append(el('div',{class:'bar'},el('button',{class:'b alt',text:'♻ Restore ALL games to the built-in settings',onclick:()=>{
+    if(!confirm('Reset every tile, time limit and difficulty to the built-in settings?'))return;
+    C.games=clone(DEFAULTS.games||[]);C.gameMsgs=clone(DEFAULTS.gameMsgs||{});save();draw();status('Games restored. Press Publish live.');}})));
+};
+
 VIEWS.riddles=m=>{
   head(m,'Funny riddles','Games (Valorant, Elden Ring and more), memes, and “me and her” questions. Each round picks 20 random ones from this list. The correct answer is shuffled automatically.');
   packBar(m,'riddles','funny riddles');
