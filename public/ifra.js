@@ -2500,6 +2500,69 @@ FUN.flight = body => {
     stars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.5 + 0.5 });
   }
 
+  /* 🕊️ the love-dove (faces right; about 26 x 20 px so the gates feel the same as before) */
+  let trail = [], trailT = 0;
+  function heartPath(c, x, y, k) {
+    c.beginPath();
+    c.moveTo(x, y + k * 0.9);
+    c.bezierCurveTo(x - k * 1.6, y - k * 0.2, x - k * 0.9, y - k * 1.5, x, y - k * 0.5);
+    c.bezierCurveTo(x + k * 0.9, y - k * 1.5, x + k * 1.6, y - k * 0.2, x, y + k * 0.9);
+    c.closePath();
+  }
+  function drawWing(c, flap, far) {
+    c.save();
+    c.translate(-1, -2);
+    c.rotate(flap * 0.85 - 0.1);                // up on the up-stroke, down on the down-stroke
+    if (far) c.scale(0.86, 0.86);
+    const wg = c.createLinearGradient(-17, -9, 0, 2);
+    wg.addColorStop(0, far ? '#f9a8d4' : '#fbcfe8');
+    wg.addColorStop(0.55, far ? '#fce7f3' : '#ffffff');
+    wg.addColorStop(1, '#ffffff');
+    c.fillStyle = wg;
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.bezierCurveTo(-3, -9, -12, -13, -18, -8);       // leading edge out to the tip
+    c.bezierCurveTo(-14.5, -7, -13, -4.5, -14, -2);   // feather notches along the back edge
+    c.bezierCurveTo(-11, -2.5, -9.5, 0, -10, 2);
+    c.bezierCurveTo(-7, 1.5, -3.5, 3, 0, 0.5);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(244,114,182,0.55)'; c.lineWidth = 0.7; c.stroke();
+    c.restore();
+  }
+  function drawBird(c, flap, k) {
+    c.save();
+    if (k && k !== 1) c.scale(k, k);
+    const glow = c.createRadialGradient(0, 0, 2, 0, 0, 24);
+    glow.addColorStop(0, 'rgba(255,150,190,0.35)'); glow.addColorStop(1, 'rgba(255,150,190,0)');
+    c.fillStyle = glow; c.beginPath(); c.arc(0, 0, 24, 0, Math.PI * 2); c.fill();
+    // tail feathers
+    c.fillStyle = '#f9a8d4';
+    [-0.5, 0, 0.5].forEach(a => {
+      c.save(); c.translate(-8, 1.5); c.rotate(Math.PI + a * 0.7);
+      c.beginPath(); c.ellipse(5.5, 0, 6.5, 2.1, 0, 0, Math.PI * 2); c.fill(); c.restore();
+    });
+    drawWing(c, -flap, true);                    // far wing flaps the other way, so it looks alive
+    // body + head
+    const bg = c.createLinearGradient(0, -8, 0, 9);
+    bg.addColorStop(0, '#ffffff'); bg.addColorStop(1, '#fbd5e6');
+    c.fillStyle = bg;
+    c.beginPath(); c.ellipse(-1, 1.5, 10, 6.8, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(7, -3, 5.3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,100,150,0.55)';      // blush
+    c.beginPath(); c.arc(8.6, -0.9, 1.7, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fbbf24';                     // golden beak
+    c.beginPath(); c.moveTo(11.6, -4.2); c.lineTo(16.4, -2.5); c.lineTo(11.8, -1.2); c.closePath(); c.fill();
+    c.fillStyle = '#1f1030';                     // eye with a sparkle
+    c.beginPath(); c.arc(8.6, -4.4, 1.2, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#ffffff';
+    c.beginPath(); c.arc(9, -4.8, 0.45, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#ff4d6d';                     // little heart on its chest
+    heartPath(c, 2.2, 3, 2.1); c.fill();
+    drawWing(c, flap, false);                    // near wing on top
+    c.restore();
+  }
+
   function flap() {
     if (!running) { start(); return; }
     birdVy = -190;
@@ -2519,11 +2582,10 @@ FUN.flight = body => {
     ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(255, 235, 240, 0.7)';
     stars.forEach(s => ctx.fillRect(s.x, s.y, s.r, s.r));
-    // Winged heart preview
+    // the love-dove, bigger, wings mid-flap
     ctx.save();
-    ctx.translate(W / 2, H / 2 - 10);
-    ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(-6, -4, 12, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(W / 2, H / 2 - 5);
+    drawBird(ctx, 0.5, 2.3);
     ctx.restore();
     ctx.font = 'bold 15px Poppins, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdce3';
     ctx.fillText('ENCHANTED ROSE GATES 🌹', W / 2, 55);
@@ -2534,7 +2596,7 @@ FUN.flight = body => {
 
   function start() {
     if (running) return;
-    running = true; birdY = H / 2; birdVy = -140; gates = []; passed = 0;
+    running = true; birdY = H / 2; birdVy = -140; gates = []; passed = 0; trail = []; trailT = 0;
     byId('flStart').style.display = 'none';
     byId('flInfo').textContent = 'Gliding through the clouds... Tap to rise! 🕊️';
     gates.push({ x: W + 30, top: 70, gap: 130, passed: false });
@@ -2607,22 +2669,24 @@ FUN.flight = body => {
       return;
     }
 
+    // trail of little hearts behind the dove (skipped on weak phones)
+    trailT -= dt;
+    if (trailT <= 0 && !LITE) { trailT = 0.16; trail.push({ x: birdX - 13, y: birdY + 2, a: 1 }); }
+    trail = trail.filter(t => {
+      t.x -= 110 * dt; t.a -= dt * 1.4;
+      if (t.a <= 0) return false;
+      ctx.globalAlpha = Math.max(0, t.a) * 0.8;
+      ctx.fillStyle = '#ff8fb1';
+      heartPath(ctx, t.x, t.y, 1.4 + t.a * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      return true;
+    });
+
     ctx.save();
     ctx.translate(birdX, birdY);
-    const tilt = Math.max(-0.4, Math.min(0.5, birdVy * 0.002));
-    ctx.rotate(tilt);
-
-    ctx.fillStyle = '#ff4d6d';
-    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
-
-    const wFlap = Math.sin(wingAngle) * 8;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(-4, -4 + wFlap, 10, 4, -0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fce7f3';
-    ctx.beginPath(); ctx.ellipse(3, -4 - wFlap, 9, 3.5, 0.3, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(4, -2, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(5, -2, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(Math.max(-0.4, Math.min(0.5, birdVy * 0.002)));
+    drawBird(ctx, Math.sin(wingAngle));
     ctx.restore();
 
     ctx.font = 'bold 13px Poppins, sans-serif';
