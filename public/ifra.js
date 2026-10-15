@@ -4092,3 +4092,126 @@ function installFromBanner() {
 
 /* 🔐 if she logged in before, load the private parts again (runs last, after everything above exists) */
 if (window.SITE_LOCKED) { AUTH.load(); }
+
+/* =====================================================
+   🔒 WEBSITE LOCKS
+   Individual things (a button, a surprise tile, a game, one "Open When" letter...) can get their own
+   password in the admin panel (Website locks). Tapping a locked thing asks for it first.
+   ===================================================== */
+const ITEM_LOCKS = window.SITE_ITEM_LOCKS || {};
+const ItemLock = {
+  open: new Set(),                       // unlocked during this visit
+  tokens: (() => { try { return JSON.parse(localStorage.getItem('ifraItems') || '{}') || {}; } catch (e) { return {}; } })(),
+  pending: null,
+  saveTokens() { try { localStorage.setItem('ifraItems', JSON.stringify(this.tokens)); } catch (e) { } },
+  locked(id) { return !!ITEM_LOCKS[id] && !this.open.has(id); },
+  async call(id, password, token) {
+    const r = await fetch('/api/auth/item', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, password, token })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(j.error || 'Could not unlock'); e.status = r.status; throw e; }
+    return j;
+  },
+  // which locked thing was tapped (null when it is not one of the lockable things)
+  idOf(t) {
+    if (!t || !t.closest) return null;
+    let e;
+    if ((e = t.closest('.s-tile[data-fun]'))) return e.dataset.fun;
+    if ((e = t.closest('.envelope'))) return 'env' + Array.prototype.indexOf.call(document.querySelectorAll('.envelope'), e);
+    if (t.closest('#openGalleryBtn, #galleryGrid')) return 'gallery';
+    if (t.closest('#storyBtn')) return 'story';
+    if (t.closest('.proposal-btn:not(.story-btn)')) return 'proposal';
+    if ((e = t.closest('button[onclick]'))) {
+      const oc = e.getAttribute('onclick') || '';
+      if (oc.indexOf('showFinale') === 0) return 'forever';
+      if (oc.indexOf('showMessage') === 0) return 'care';
+    }
+    return null;
+  },
+  elFor(id) {
+    if (/^env\d+$/.test(id)) return document.querySelectorAll('.envelope')[Number(id.slice(3))] || null;
+    const map = { gallery: '#openGalleryBtn', story: '#storyBtn', proposal: '.proposal-btn:not(.story-btn)', forever: 'button[onclick^="showFinale"]', care: 'button[onclick^="showMessage"]' };
+    return document.querySelector(map[id] || '.s-tile[data-fun="' + id + '"]');
+  },
+  badges() {
+    Object.keys(ITEM_LOCKS).forEach(id => {
+      const el = this.elFor(id);
+      if (el) el.classList.toggle('is-locked', this.locked(id));
+    });
+  },
+  // a locked "Open When" letter comes back from the server only after the password
+  fill(id, data) {
+    if (!/^env\d+$/.test(id) || !data || typeof data.body !== 'string' || !data.body) return;
+    const env = this.elFor(id), b = env && env.querySelector('.env-body');
+    if (b) b.innerHTML = data.body;
+  },
+  done(id, token, data) {
+    this.open.add(id);
+    if (token) { this.tokens[id] = token; this.saveTokens(); }
+    this.fill(id, data);
+    this.badges();
+  },
+  // she came back: unlock everything she already unlocked before
+  async restore() {
+    for (const id of Object.keys(ITEM_LOCKS)) {
+      const tk = this.tokens[id];
+      if (!tk) continue;
+      try { const j = await this.call(id, '', tk); this.done(id, j.token, j.data); }
+      catch (e) { if (e.status === 401) { delete this.tokens[id]; this.saveTokens(); } }
+    }
+  }
+};
+let itemBypass = false;
+function itemGate(e) {
+  if (itemBypass) return;
+  if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+  const id = ItemLock.idOf(e.target);
+  if (!id || !ItemLock.locked(id)) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  ItemLock.pending = { id, target: e.target };
+  openFun('itemlock');
+}
+window.addEventListener('click', itemGate, true);
+window.addEventListener('keydown', itemGate, true);
+
+FUN.itemlock = body => {
+  const p = ItemLock.pending;
+  if (!p) return;
+  const L = ITEM_LOCKS[p.id] || {};
+  body.innerHTML = `<h3>This is locked 🔒</h3>
+    <p class="fun-sub" id="ilHint"></p>
+    <input id="ilPass" class="fun-input" type="password" autocomplete="off" placeholder="Password" autocapitalize="off" spellcheck="false">
+    <p class="fun-sub" id="ilErr" style="min-height:1.4em;margin:8px 0 0"></p>
+    <div class="fun-btn" id="ilGo">Unlock 💌</div>`;
+  byId('ilHint').textContent = L.hint ? 'Hint: ' + L.hint : 'Ask me for the password 💕';
+  const err = byId('ilErr'), go = byId('ilGo'), inp = byId('ilPass');
+  let busy = false;
+  async function submit() {
+    if (busy || !inp.value) return;
+    busy = true; err.textContent = ''; go.textContent = 'Checking…';
+    try {
+      const j = await ItemLock.call(p.id, inp.value, '');
+      ItemLock.done(p.id, j.token, j.data);
+      closeFun();
+      ItemLock.pending = null;
+      setTimeout(() => {                 // now open the thing she tapped
+        itemBypass = true;
+        try { (p.target && p.target.isConnected ? p.target : ItemLock.elFor(p.id)).click(); } catch (e) { }
+        itemBypass = false;
+      }, 450);
+      return;
+    } catch (e) {
+      err.textContent = e.message;
+      go.textContent = 'Unlock 💌';
+      inp.value = ''; inp.focus();
+    }
+    busy = false;
+  }
+  go.onclick = submit;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  setTimeout(() => { try { inp.focus(); } catch (e) { } }, 350);
+};
+ItemLock.badges();
+if (Object.keys(ITEM_LOCKS).length) ItemLock.restore();

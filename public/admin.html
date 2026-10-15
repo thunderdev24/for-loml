@@ -196,7 +196,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
-  ['proposal','💍 Proposal'],['logins','🔐 Logins'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+  ['proposal','💍 Proposal'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
 function go(t){cur=t;draw();window.scrollTo(0,0);}
@@ -615,6 +615,58 @@ VIEWS.logins=m=>{
         el('div',{class:'ctl'},ctl),msg));
     });
     host.append(el('p',{class:'hint',text:'Changing a password or username logs that person out everywhere, and they log in again with the new details.'}));
+  }
+  load();
+};
+
+/* ---------- 🌐 website locks (a password on individual things of the website; saved straight to the server) ---------- */
+const SITE_ITEMS=[
+  ['Main buttons',[['gallery','📸 Photo gallery (Open Full Gallery)'],['story','📖 Our Story'],['proposal','💍 The proposal question'],['forever','❤️ “Forever Yours” button'],['care','💖 “Tap to see how much I care”']]],
+  ['Little Surprises',[['wish','🌠 Make a Wish'],['scratch','🎟️ Scratch Cards'],['bouquet','💐 Your Bouquet'],['quiz','😄 Funny Riddles'],['sweet','🧠 Sweet Quiz'],['promises','📜 My Promises'],['meter','💗 Love Meter'],['writeback','💌 Write Back To Me']]],
+  ['Play Together',[['catch','🧺 Catch Hearts'],['match','🃏 Memory Match'],['ttt','❌ Tic-Tac-Love'],['gtr','🏎️ GT-R R34'],['flight','🕊️ Love Flight'],['breaker','🧱 Love Breaker']]]
+];
+VIEWS.sitelocks=m=>{
+  head(m,'Website locks','Lock individual things on the website. When she taps a locked thing it shows a 🔒 and asks for its password first (you can add a hint she will see). Every thing has its own password. These save immediately, no need to press Publish live. For “Open When” letters the text is also kept back on the server until she unlocks it (once you have published); for the other things it is a password gate in front of the button.');
+  const host=el('div');m.append(host);
+  host.append(el('p',{class:'hint',text:'Loading…'}));
+  const sitePost=body=>api('sitelocks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  async function load(){
+    let r;
+    try{r=await api('sitelocks');}catch(e){host.innerHTML='';host.append(el('p',{class:'hint',text:'Could not load: '+e.message}));return;}
+    const items=r.items||{};
+    host.innerHTML='';
+    const n=Object.keys(items).length;
+    const top=el('div',{class:'card'},el('b',{text:n?('🔒 '+n+' thing'+(n>1?'s are':' is')+' locked on the website.'):'🔓 Nothing is locked on the website.'}));
+    if(n)top.append(el('div',{class:'bar'},el('button',{class:'b del sm',text:'✕ Remove all website locks',onclick:async()=>{
+      if(!confirm('Remove every website lock?'))return;
+      try{await sitePost({action:'removeAll'});load();}catch(e){if(e.message!=='auth')status(e.message,true);}
+    }})));
+    host.append(top);
+    const groups=SITE_ITEMS.map(g=>[g[0],g[1]]);
+    groups.push(['Open When letters (listed by position: if you reorder the letters, move the locks too)',(C.envelopes||[]).map((e,i)=>['env'+i,(e.emoji||'💌')+' '+(e.title||('Letter '+(i+1)))])]);
+    groups.forEach(g=>{
+      if(!g[1].length)return;
+      host.append(el('h3',{text:g[0]}));
+      g[1].forEach(it=>{
+        const id=it[0],cur=items[id];
+        const pw=el('input',{type:'password',autocomplete:'new-password',placeholder:cur?'New password (leave empty to keep the current one)':'Password (min 3 characters)'});
+        const hint=el('input',{type:'text',autocomplete:'off',placeholder:'e.g. Our first date place'});hint.value=cur?cur.hint:'';
+        const msg=el('p',{class:'hint'});
+        const fail=e=>{if(e.message!=='auth'){msg.style.color='#ff8aa0';msg.textContent=e.message;}};
+        const sv=el('button',{class:'b sm',text:cur?'💾 Save changes':'🔒 Lock this',onclick:async()=>{
+          try{await sitePost({action:'set',id,password:pw.value,hint:hint.value});load();status('Saved 🔒');}catch(e){fail(e);}
+        }});
+        const ctl=[sv];
+        if(cur)ctl.push(el('button',{class:'b del sm',text:'✕ Remove lock',onclick:async()=>{
+          try{await sitePost({action:'remove',id});load();status('Lock removed');}catch(e){fail(e);}
+        }}));
+        host.append(el('details',{class:'item'},el('summary',{text:it[1]+(cur?'   🔒 locked':'   🔓 open')}),
+          el('div',{class:'body'},
+            el('label',{class:'f'},el('span',{text:cur?'New password':'Password'}),pw),
+            el('label',{class:'f'},el('span',{text:'Hint she sees (optional)'}),hint),
+            el('div',{class:'ctl'},ctl),msg)));
+      });
+    });
   }
   load();
 };

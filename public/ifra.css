@@ -2697,3 +2697,19 @@ body.story-on { overflow: hidden; }
 }
 
 .fy-title.on { opacity: 1; transform: translateY(-50%) scale(1); }
+
+/* =====================================================
+   🔒 WEBSITE LOCKS (set in the admin panel > Website locks)
+   ===================================================== */
+.s-tile.is-locked, .envelope.is-locked { position: relative; }
+.s-tile.is-locked > span:first-child, .envelope.is-locked .env-title { opacity: 0.55; }
+.s-tile.is-locked::after, .envelope.is-locked::after {
+  content: '🔒';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.85rem;
+  line-height: 1;
+  pointer-events: none;
+}
+button.is-locked::after, .proposal-btn.is-locked::after { content: ' 🔒'; }
