@@ -74,10 +74,10 @@ function requireLogin(cb) {
   AUTH.after = cb;
   openFun('login');
 }
-async function doLogin(email, password) {
+async function doLogin(username, password) {
   const r = await fetch('/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ username, password })
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'Could not log in');
@@ -1956,7 +1956,7 @@ function celebrate(extra, stat) {
 FUN.login = body => {
   body.innerHTML = `<h3>Just for us 🔐</h3>
     <p class="fun-sub">Please log in to continue.</p>
-    <input id="lgEmail" class="fun-input" type="email" autocomplete="username" placeholder="Email" autocapitalize="off" spellcheck="false">
+    <input id="lgEmail" class="fun-input" type="text" autocomplete="username" placeholder="Username" autocapitalize="off" spellcheck="false">
     <input id="lgPass" class="fun-input" type="password" autocomplete="current-password" placeholder="Password">
     <p class="fun-sub" id="lgErr" style="min-height:1.4em;margin:8px 0 0"></p>
     <div class="fun-btn" id="lgGo">Log in 💌</div>`;
@@ -1965,7 +1965,7 @@ FUN.login = body => {
   async function submit() {
     if (busy) return;
     const email = byId('lgEmail').value.trim(), pw = byId('lgPass').value;
-    if (!email || !pw) { err.textContent = 'Enter your email and password'; return; }
+    if (!email || !pw) { err.textContent = 'Enter your username and password'; return; }
     busy = true; err.textContent = ''; go.textContent = 'Checking…';
     try {
       await doLogin(email, pw);
