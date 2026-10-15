@@ -454,11 +454,220 @@ function fireworks() {
 
 function showFinale() {
   if (birthdayMode) { startBirthdayDay(); return; }
+  playForeverCinematic();     // the cinematic leads into the "I LOVE YOU" screen
+}
+
+/* the "I LOVE YOU" screen itself (shown at the end of the cinematic) */
+function revealFinale() {
   const finale = document.getElementById('finale');
   finale.classList.add('show');
   finale.style.pointerEvents = "auto";
   fireworks();
-  startLoveSong();            // inside her tap, so phones allow the sound
+}
+
+/* ---------- 🎬 FOREVER YOURS CINEMATIC ----------
+   Two lights drift across a night sky, find each other, meet in a burst of
+   hearts, and "Forever Yours" appears, then it melts into the I LOVE YOU screen.
+   Tap anywhere to skip. The love song (admin > Playlist) starts with her tap.
+   Lines are editable: add "foreverLines": [[second, "text"], ...] to content.js. */
+const FOREVER_LINES = [
+  [0.9, "Out of every heart in this world,"],
+  [4.2, "mine found its way to yours."],
+  [7.2, ""],
+  [9.8, "You are my dua, answered."],
+  [12.6, "Today, tomorrow, and always,"],
+  [15.2, ""]
+];
+let foreverStop = null;
+function playForeverCinematic() {
+  if (foreverStop) return;
+  const lines = (Array.isArray(SITE.foreverLines) && SITE.foreverLines.length) ? SITE.foreverLines : FOREVER_LINES;
+  const titleText = (SITE.text && SITE.text.foreverCinemaTitle) || 'Forever Yours ❤️';
+  const ov = document.createElement('div');
+  ov.className = 'cine fy';
+  ov.innerHTML = '<canvas class="cine-cv fy-cv"></canvas><div class="cine-bar top"></div><div class="cine-bar bottom"></div>' +
+    '<div class="fy-title"></div><div class="cine-text"></div><div class="cine-hint">Tap to skip</div>';
+  ov.querySelector('.fy-title').innerHTML = titleText;
+  document.body.appendChild(ov);
+  document.body.classList.add('cine-on');
+  startLoveSong();                       // inside her tap, so phones allow the sound
+  requestAnimationFrame(() => ov.classList.add('show'));
+
+  const cv = ov.querySelector('canvas'), ctx = cv.getContext('2d');
+  const textEl = ov.querySelector('.cine-text'), titleEl = ov.querySelector('.fy-title');
+  const dpr = (LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+  let W = 0, H = 0, S = 1;
+  function size() {
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    S = Math.min(W, H * 0.85) / 40;
+  }
+  size();
+  window.addEventListener('resize', size);
+
+  const MEET = 8.4, TITLE = 15.6, END = 21.5;
+  const stars = [];
+  for (let i = 0; i < (LITE ? 70 : 140); i++) {
+    stars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.4, sp: 0.8 + Math.random() * 2, ph: Math.random() * 6.28 });
+  }
+  // two lights: one rose, one gold, each starting from a far corner
+  const orbs = [
+    { sx: -0.08, sy: 0.82, hue: 345, side: 1, trail: [] },
+    { sx: 1.08, sy: 0.16, hue: 42, side: -1, trail: [] }
+  ];
+  const bits = [];                       // hearts / sparks after the meeting
+  let burst = false, shooting = [], nextShoot = 2.5;
+  let lineIdx = -1, closed = false, raf = 0, last = performance.now();
+  const t0 = last, openedAt = t0;
+
+  function setLine(txt) {
+    textEl.classList.remove('on');
+    setTimeout(() => {
+      if (closed) return;
+      textEl.textContent = txt;
+      if (txt) textEl.classList.add('on');
+    }, 450);
+  }
+  function spawn(x, y, n, speed) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.2832, sp = speed * (0.25 + Math.random());
+      bits.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20,
+        life: 1, dec: 1 / (4 + Math.random() * 4), size: (0.7 + Math.random() * 1.1) * S * 0.9,
+        g: Math.random() < 0.7 ? '\u2665' : '\u2726', hue: Math.random() < 0.75 ? 335 + Math.random() * 22 : 38 + Math.random() * 14,
+        ph: Math.random() * 6.28
+      });
+    }
+  }
+  function glow(x, y, r, hue, a) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'hsla(' + hue + ',100%,78%,' + a.toFixed(3) + ')');
+    g.addColorStop(0.35, 'hsla(' + hue + ',100%,62%,' + (a * 0.45).toFixed(3) + ')');
+    g.addColorStop(1, 'hsla(' + hue + ',100%,55%,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+  }
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    const t = (now - t0) / 1000;
+    const cx = W / 2, cy = H / 2 - H * 0.05;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, W, H);
+
+    for (const s of stars) {
+      const a = 0.2 + 0.6 * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
+      ctx.fillStyle = 'rgba(255,235,240,' + a.toFixed(3) + ')';
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+
+    // occasional shooting star
+    if (t > nextShoot && t < MEET - 1) {
+      shooting.push({ x: W * (0.2 + Math.random() * 0.7), y: H * Math.random() * 0.35, vx: -W * 0.5, vy: H * 0.28, life: 1 });
+      nextShoot += 1.6 + Math.random() * 1.8;
+    }
+    shooting = shooting.filter(s => s.life > 0);
+    for (const s of shooting) {
+      s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 1.3;
+      ctx.strokeStyle = 'rgba(255,230,240,' + Math.max(0, s.life).toFixed(3) + ')';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.09, s.y - s.vy * 0.09); ctx.stroke();
+    }
+
+    // the two lights travel toward each other, swaying like they are shy
+    const u = Math.max(0, Math.min(1, (t - 1.2) / (MEET - 1.2)));
+    const e = u * u * (3 - 2 * u);
+    if (t < MEET) {
+      for (const o of orbs) {
+        const x0 = o.sx * W, y0 = o.sy * H;
+        const sway = Math.sin(t * 1.7 + o.side) * (1 - e) * S * 5 * o.side;
+        const x = x0 + (cx - x0) * e + sway;
+        const y = y0 + (cy - y0) * e - Math.sin(e * 3.1416) * S * 4 * o.side;
+        o.x = x; o.y = y;
+        o.trail.push({ x, y }); if (o.trail.length > 38) o.trail.shift();
+        const appear = Math.min(1, t / 1.4);
+        for (let i = 0; i < o.trail.length; i++) {
+          const k = i / o.trail.length;
+          glow(o.trail[i].x, o.trail[i].y, S * (0.5 + k * 1.1), o.hue, k * 0.35 * appear);
+        }
+        glow(x, y, S * (2.6 + 0.3 * Math.sin(t * 5 + o.side)), o.hue, 0.85 * appear);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * appear).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(x, y, S * 0.32, 0, 6.2832); ctx.fill();
+      }
+      // a faint thread of light between them as they get close
+      if (u > 0.35) {
+        ctx.strokeStyle = 'rgba(255,170,190,' + (0.35 * (u - 0.35)).toFixed(3) + ')';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(orbs[0].x, orbs[0].y); ctx.lineTo(orbs[1].x, orbs[1].y); ctx.stroke();
+      }
+    }
+
+    // the meeting: flash, shockwave, hearts
+    if (t >= MEET) {
+      const bt = t - MEET;
+      if (!burst) { burst = true; spawn(cx, cy, LITE ? 70 : 130, 300); }
+      const base = Math.min(1, bt / 2);
+      glow(cx, cy, S * (7 + 3 * base + 0.5 * Math.sin(t * 5.5)), 350, 0.5 * base * (t > TITLE ? 0.7 : 1));
+      if (bt < 2.2) {
+        ctx.strokeStyle = 'rgba(255,205,215,' + Math.max(0, 1 - bt / 2.2).toFixed(3) + ')';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, bt * Math.max(W, H) * 0.5, 0, 6.2832); ctx.stroke();
+      }
+      if (bt < 0.7) {
+        ctx.fillStyle = 'rgba(255,240,245,' + (0.5 * (1 - bt / 0.7)).toFixed(3) + ')';
+        ctx.fillRect(0, 0, W, H);
+      }
+      if (t < END - 3 && Math.random() < dt * (LITE ? 5 : 9)) {
+        spawn(Math.random() * W, H + 10, 1, 40);      // hearts keep floating up
+        const b = bits[bits.length - 1]; b.vy = -(40 + Math.random() * 70); b.vx = (Math.random() - 0.5) * 30;
+      }
+    }
+
+    // hearts and sparks
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = bits.length - 1; i >= 0; i--) {
+      const b = bits[i];
+      b.life -= b.dec * dt;
+      if (b.life <= 0) { bits.splice(i, 1); continue; }
+      const drag = Math.exp(-dt * 0.9);
+      b.vx *= drag; b.vy = b.vy * drag - 14 * dt;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      const a = Math.min(1, b.life * 1.6) * (0.6 + 0.4 * Math.sin(t * 5 + b.ph));
+      ctx.fillStyle = 'hsla(' + b.hue.toFixed(0) + ',100%,70%,' + Math.max(0, a).toFixed(3) + ')';
+      ctx.font = Math.round(b.size) + 'px serif';
+      ctx.fillText(b.g, b.x, b.y);
+    }
+
+    // poetic lines, then the title
+    let idx = -1;
+    for (let i = 0; i < lines.length; i++) if (t >= lines[i][0]) idx = i;
+    if (idx !== lineIdx) { lineIdx = idx; if (idx >= 0) setLine(lines[idx][1]); }
+    if (t >= TITLE && !titleEl.classList.contains('on')) titleEl.classList.add('on');
+
+    if (t >= END) { finish(false); return; }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+
+  function finish(skipped) {
+    if (closed || (skipped && performance.now() - openedAt < 900)) return;
+    closed = true;
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', size);
+    document.removeEventListener('keydown', onKey);
+    revealFinale();                      // appears underneath while the cinematic fades away
+    ov.style.pointerEvents = 'none';
+    ov.classList.remove('show');
+    document.body.classList.remove('cine-on');
+    setTimeout(() => ov.remove(), 1800);
+    foreverStop = null;
+  }
+  const onKey = e => { if (e.key === 'Escape') finish(true); };
+  document.addEventListener('keydown', onKey);
+  ov.addEventListener('click', () => finish(true));
+  foreverStop = () => finish(false);
 }
 
 function hideFinale() {

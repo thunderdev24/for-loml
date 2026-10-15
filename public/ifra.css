@@ -682,10 +682,27 @@ button:hover {
 }
 
 #finale h1 {
-  font-size: clamp(3rem, 15vw, 6rem);
+  width: 100%;
+  max-width: 100%;
+  padding: 0 20px;
+  margin: 0;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: normal;
+  font-size: clamp(2.6rem, 13vw, 6rem);
+  line-height: 1.15;
   color: #fff;
   text-shadow: 0 0 30px #ff4d6d, 0 0 60px #ff0000;
   animation: finalePulse 2s infinite;
+}
+
+/* small phones: keep the text well inside the screen, even at the biggest point of the pulse */
+@media (max-width: 480px) {
+  #finale h1 {
+    font-size: clamp(2.4rem, 12.5vw, 3.6rem);
+    padding: 0 28px;
+    text-shadow: 0 0 20px #ff4d6d, 0 0 40px #ff0000;
+  }
 }
 
 @keyframes finalePulse {
@@ -2654,3 +2671,29 @@ body.story-on { overflow: hidden; }
 }
 @media (max-width: 480px) { .install-banner button { width: auto; } }
 @media (prefers-reduced-motion: reduce) { .install-banner { transition: opacity 0.3s ease; transform: translate(-50%, 0); } }
+
+
+/* =====================================================
+   🎬 FOREVER YOURS CINEMATIC
+   ===================================================== */
+.fy-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 42%;
+  transform: translateY(-50%) scale(0.85);
+  padding: 0 28px;
+  text-align: center;
+  text-wrap: balance;
+  font-family: 'Great Vibes', cursive;
+  font-size: clamp(3rem, 15vw, 7rem);
+  line-height: 1.15;
+  color: #fff;
+  text-shadow: 0 0 24px #ff4d6d, 0 0 60px #ff8fa3, 0 0 110px rgba(255, 77, 109, 0.6);
+  opacity: 0;
+  transition: opacity 2.2s ease, transform 6s ease-out;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.fy-title.on { opacity: 1; transform: translateY(-50%) scale(1); }
