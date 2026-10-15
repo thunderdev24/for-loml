@@ -62,6 +62,7 @@ ol{padding-left:20px}
   <h1>🌹 Ifra site · Admin panel</h1>
   <span id="status">Ready</span>
   <button class="b alt sm" onclick="preview()">👁 Preview</button>
+  <button class="b alt sm" id="lockNow" style="display:none" onclick="lockNow()">🔒 Lock now</button>
   <button class="b sm" id="pubTop" onclick="publish()">🚀 Publish live</button>
 </header>
 <nav id="tabs"></nav>
@@ -71,10 +72,16 @@ ol{padding-left:20px}
 <script src="/api/live.js"></script>
 <script>
 let TOKEN=sessionStorage.getItem('ifraToken')||'';
+/* section passwords: the server keeps the passwords; here we only hold the short-lived "unlocked" tokens it hands out */
+let LOCKS={};                       // {tab:true} = has a password
+let UNLOCK={};try{UNLOCK=JSON.parse(sessionStorage.getItem('ifraUnlocks')||'{}')||{};}catch(e){}
+function saveUnlock(){try{sessionStorage.setItem('ifraUnlocks',JSON.stringify(UNLOCK));}catch(e){}}
+const isLocked=id=>!!LOCKS[id]&&!UNLOCK[id];
 async function api(path,opt){
   opt=opt||{};
-  const r=await fetch('/api/admin/'+path,{method:opt.method||'GET',body:opt.body,headers:Object.assign({'Authorization':'Bearer '+TOKEN},opt.headers||{})});
+  const r=await fetch('/api/admin/'+path,{method:opt.method||'GET',body:opt.body,headers:Object.assign({'Authorization':'Bearer '+TOKEN,'X-Unlocks':Object.keys(UNLOCK).map(k=>UNLOCK[k]).join(',')},opt.headers||{})});
   let j={};try{j=await r.json();}catch(e){}
+  if(r.status===403&&Array.isArray(j.locked)){j.locked.forEach(t=>delete UNLOCK[t]);saveUnlock();setTimeout(draw,0);}   // unlock expired: ask for the password again
   if(r.status===401&&path!=='login'){TOKEN='';sessionStorage.removeItem('ifraToken');showGate('Session expired, please sign in again');throw new Error('auth');}
   if(!r.ok)throw new Error(j.error||('Request failed ('+r.status+')'));
   return j;
@@ -189,15 +196,16 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
-  ['proposal','💍 Proposal'],['logins','🔐 Logins'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+  ['proposal','💍 Proposal'],['logins','🔐 Logins'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
 function go(t){cur=t;draw();window.scrollTo(0,0);}
 function draw(){
   const nav=$('#tabs');nav.innerHTML='';
-  TABS.forEach(t=>nav.append(el('button',{class:t[0]===cur?'on':'',onclick:()=>go(t[0]),text:t[1]})));
+  TABS.forEach(t=>nav.append(el('button',{class:t[0]===cur?'on':'',onclick:()=>go(t[0]),text:(isLocked(t[0])?'🔒 ':'')+t[1]})));
+  const lb=$('#lockNow');if(lb)lb.style.display=Object.keys(LOCKS).some(k=>LOCKS[k])?'':'none';
   const m=$('#main');m.innerHTML='';
-  VIEWS[cur](m);
+  if(isLocked(cur))lockGate(m,cur); else VIEWS[cur](m);
 }
 function head(m,t,h){m.append(el('h2',{text:t}));if(h)m.append(el('p',{class:'hint',text:h}));}
 function textField(m,key,label,area,rows){
@@ -569,11 +577,11 @@ VIEWS.proposal=m=>{
 
 /* ---------- logins (saved straight to the server, not part of the draft / Publish) ---------- */
 VIEWS.logins=m=>{
-  head(m,'Logins','Two separate accounts guard the photo gallery, Our Story and the proposal: one for you, one for her. Each has its own email and password. Passwords are stored scrambled on the server, so nobody (not even you) can read them later: to change one, just type a new one. These save immediately, you do not need to press Publish live.');
+  head(m,'Logins','Two separate accounts guard the photo gallery, Our Story and the proposal: one for you, one for her. Each has its own username and password. Passwords are stored scrambled on the server, so nobody (not even you) can read them later: to change one, just type a new one. These save immediately, you do not need to press Publish live.');
   const host=el('div');m.append(host);
   host.append(el('p',{class:'hint',text:'Loading…'}));
   const roles=[['me','👤 Your login','Use this to look at the private parts yourself or to test the proposal. Her answer is NOT sent to you while you are logged in as yourself.'],
-               ['her','💖 Her login','Give her this email and password. She is asked for it when she opens the gallery, Our Story or the proposal, and stays logged in on her phone.']];
+               ['her','💖 Her login','Give her this username and password. She is asked for it when she opens the gallery, Our Story or the proposal, and stays logged in on her phone.']];
   async function load(){
     let u;
     try{u=await api('users');}catch(e){host.innerHTML='';host.append(el('p',{class:'hint',text:'Could not load: '+e.message}));return;}
@@ -584,13 +592,13 @@ VIEWS.logins=m=>{
     roles.forEach(r=>{
       const cur=u[r[0]];
       const msg=el('p',{class:'hint'});
-      const email=el('input',{type:'email',autocomplete:'off',placeholder:'name@example.com'});email.value=cur?cur.email:'';
+      const email=el('input',{type:'text',autocomplete:'off',autocapitalize:'off',spellcheck:'false',placeholder:'e.g. ifra'});email.value=cur?cur.username:'';
       const pw=el('input',{type:'password',autocomplete:'new-password',placeholder:cur?'Leave empty to keep the current password':'At least 8 characters'});
       const save=el('button',{class:'b',text:cur?'💾 Save changes':'💾 Create login'});
       save.onclick=async()=>{
         save.disabled=true;msg.style.color='';msg.textContent='Saving…';
         try{
-          const body={};body[r[0]]={email:email.value,password:pw.value};
+          const body={};body[r[0]]={username:email.value,password:pw.value};
           await api('users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
           load();
         }catch(e){if(e.message!=='auth'){msg.style.color='#ff8aa0';msg.textContent=e.message;}save.disabled=false;}
@@ -602,13 +610,99 @@ VIEWS.logins=m=>{
         catch(e){if(e.message!=='auth'){msg.style.color='#ff8aa0';msg.textContent=e.message;}}
       }}));
       host.append(el('div',{class:'card'},el('h3',{style:'margin-top:0',text:r[1]}),el('p',{class:'hint',text:r[2]}),
-        el('label',{class:'f'},el('span',{text:'Email'}),email),
+        el('label',{class:'f'},el('span',{text:'Username (3 to 30 letters, numbers, . - _)'}),email),
         el('label',{class:'f'},el('span',{text:cur?'New password (optional)':'Password'}),pw),
         el('div',{class:'ctl'},ctl),msg));
     });
-    host.append(el('p',{class:'hint',text:'Changing a password or email logs that person out everywhere, and they log in again with the new details.'}));
+    host.append(el('p',{class:'hint',text:'Changing a password or username logs that person out everywhere, and they log in again with the new details.'}));
   }
   load();
+};
+
+/* ---------- 🔑 section passwords (kept and checked on the server) ---------- */
+const jsonHdr={'content-type':'application/json'};
+const lockApi=body=>api('locks',{method:'POST',headers:jsonHdr,body:JSON.stringify(body)});
+async function refreshLocks(){LOCKS=(await api('locks')).locks||{};}
+function lockNow(){UNLOCK={};saveUnlock();draw();status('Everything locked 🔒');}
+
+function lockGate(m,id){
+  const t=TABS.find(x=>x[0]===id);
+  const pw=el('input',{type:'password',autocomplete:'off',placeholder:'Password for this section'});
+  const msg=el('p',{style:'color:#ff8aa0;min-height:20px;margin:8px 0'});
+  const btn=el('button',{class:'b',text:'🔓 Unlock'});
+  async function tryUnlock(){
+    if(!pw.value)return;
+    btn.disabled=true;msg.textContent='';
+    try{
+      const r=await lockApi({action:'unlock',tab:id,password:pw.value});
+      if(r.token)UNLOCK[id]=r.token;else LOCKS[id]=false;
+      saveUnlock();draw();
+    }catch(e){if(e.message!=='auth'){msg.textContent=e.message;pw.value='';btn.disabled=false;pw.focus();}}
+  }
+  btn.onclick=tryUnlock;pw.onkeydown=e=>{if(e.key==='Enter')tryUnlock();};
+  const fMsg=el('p',{class:'hint',style:'margin:6px 0'});
+  const fPw=el('input',{type:'password',autocomplete:'off',placeholder:'Your main admin password'});
+  const fBtn=el('button',{class:'b alt sm',text:'Remove this lock'});
+  fBtn.onclick=async()=>{
+    fBtn.disabled=true;fMsg.style.color='';fMsg.textContent='Checking…';
+    try{await lockApi({action:'forgot',tab:id,adminPassword:fPw.value});LOCKS[id]=false;draw();status('Lock removed. Set a new one in 🔑 Section passwords');}
+    catch(e){if(e.message!=='auth'){fMsg.style.color='#ff8aa0';fMsg.textContent=e.message;fBtn.disabled=false;}}
+  };
+  const forgot=el('div',{style:'display:none;margin-top:10px'},el('p',{class:'hint',text:'Enter your main admin password (the one from the sign-in screen) to remove this lock.'}),fPw,fMsg,fBtn);
+  const fl=el('button',{class:'b alt sm',style:'margin-top:12px',text:'Forgot password?',onclick:()=>{forgot.style.display=forgot.style.display==='none'?'':'none';}});
+  m.append(el('div',{class:'card',style:'max-width:420px;margin:30px auto;text-align:center'},
+    el('h2',{text:'🔒 '+(t?t[1]:id)}),
+    el('p',{class:'hint',text:'This section is locked. Type its password to open and edit it.'}),
+    pw,msg,btn,el('div'),fl,forgot));
+  setTimeout(()=>{try{pw.focus();}catch(e){}},50);
+}
+
+VIEWS.locks=m=>{
+  head(m,'Section passwords','Pick which parts of this admin panel need a password before they open (for example Photos, Proposal or Publish). The passwords are kept on the server, so they work from any phone or computer, and the server refuses to save changes to a locked section without its password. If you forget one, tap “Forgot password?” on its lock screen and enter your main admin password.');
+  const host=el('div');m.append(host);
+  host.append(el('p',{class:'hint',text:'Loading…'}));
+  async function render(){
+    try{await refreshLocks();}catch(e){host.innerHTML='';host.append(el('p',{class:'hint',text:'Could not load: '+e.message}));return;}
+    host.innerHTML='';
+    const aPw=el('input',{type:'password',autocomplete:'new-password',placeholder:'One password (min 4 characters)'});
+    const aMsg=el('p',{class:'hint'});
+    const aBtn=el('button',{class:'b',text:'🔒 Lock every section with this password'});
+    aBtn.onclick=async()=>{
+      aMsg.style.color='#ff8aa0';aMsg.textContent='';
+      try{
+        const r=await lockApi({action:'setAll',password:aPw.value});
+        Object.assign(UNLOCK,r.tokens||{});saveUnlock();await refreshLocks();draw();
+        status('Locked '+r.count+' section(s) 🔒');
+      }catch(e){if(e.message!=='auth')aMsg.textContent=e.message;}
+    };
+    host.append(el('div',{class:'card'},el('h3',{style:'margin-top:0',text:'🔐 One password for everything'}),
+      el('p',{class:'hint',text:'Quick way: puts the same password on every section that has no password yet. You can still give a section its own password below.'}),
+      aPw,aMsg,el('div',{class:'ctl'},aBtn,el('button',{class:'b alt',text:'🔒 Lock now (ask again for everything)',onclick:lockNow}))));
+    host.append(el('h3',{text:'Each section'}));
+    TABS.forEach(t=>{
+      const id=t[0],has=!!LOCKS[id];
+      const cur=has?el('input',{type:'password',autocomplete:'off',placeholder:'Current password'}):null;
+      const nw=el('input',{type:'password',autocomplete:'new-password',placeholder:has?'New password (min 4 characters)':'Set a password (min 4 characters)'});
+      const msg=el('p',{class:'hint'});
+      const fail=e=>{if(e.message!=='auth'){msg.style.color='#ff8aa0';msg.textContent=e.message;}};
+      const sv=el('button',{class:'b sm',text:has?'💾 Change password':'🔒 Lock this section'});
+      sv.onclick=async()=>{
+        try{
+          const r=await lockApi({action:'set',tab:id,password:nw.value,current:cur?cur.value:''});
+          UNLOCK[id]=r.token;saveUnlock();await refreshLocks();draw();status('Saved 🔒');
+        }catch(e){fail(e);}
+      };
+      const ctl=[sv];
+      if(has)ctl.push(el('button',{class:'b del sm',text:'✕ Remove password',onclick:async()=>{
+        try{await lockApi({action:'remove',tab:id,current:cur.value});delete UNLOCK[id];saveUnlock();await refreshLocks();draw();status('Password removed');}
+        catch(e){fail(e);}
+      }}));
+      host.append(el('details',{class:'item'},el('summary',{text:t[1]+(has?'   🔒 password set':'   🔓 no password')}),
+        el('div',{class:'body'},cur?el('label',{class:'f'},el('span',{text:'Current password'}),cur):null,
+          el('label',{class:'f'},el('span',{text:has?'New password':'Password'}),nw),el('div',{class:'ctl'},ctl),msg)));
+    });
+  }
+  render();
 };
 
 function remindersCard(m){
@@ -662,6 +756,7 @@ function download(blob,name){const a=el('a',{href:URL.createObjectURL(blob),down
 const contentJs=()=>'window.SITE_CONTENT = '+JSON.stringify(C,null,2)+';\n';
 function privateOf(){return {ntfyTopic:C.settings.ntfyTopic||'',discordWebhook:C.settings.discordWebhook||''};}
 async function publish(){
+  if(isLocked('publish')){go('publish');status('Enter the Publish password first',true);return;}
   clearTimeout(saveT);const b=$('#pubTop');b.disabled=true;status('Publishing…');
   try{
     await api('save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({content:C,private:privateOf()})});
@@ -693,6 +788,7 @@ VIEWS.publish=m=>{
 async function start(){
   // the public script hides the private parts once logins are on, so ask the server for the full saved content
   try{const f=await api('content');if(f&&f.content)PUBLISHED=clone(f.content);}catch(e){if(e.message==='auth')return;}
+  try{LOCKS=(await api('locks')).locks||{};}catch(e){if(e.message==='auth')return;}
   loadDraft();
   try{
     const p=await api('private');
