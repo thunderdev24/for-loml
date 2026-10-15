@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { sendToAll, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
 import { getUsers, newCredentials, ROLES } from './lib/authlib.mjs';
+import { getItemLocks, saveItemLocks, makeItemLock, publicItemLocks, isItemId } from './lib/itemlocks.mjs';
 import { LOCKABLE, getLocks, saveLocks, makeLock, checkLock, makeUnlockToken, unlockedTabs, missingUnlocks, lockedMessage, changedSections } from './lib/locks.mjs';
 
 const store = () => getStore('ifra-site');
@@ -48,6 +49,37 @@ export default async (req) => {
   const locks = await getLocks(s);
   const open = unlockedTabs(req, locks);
   const locked = tabs => { const m = missingUnlocks(tabs, locks, open); return m.length ? json({ error: lockedMessage(m), locked: m }, 403) : null; };
+
+  // ---- locks on individual things of the public website (saved straight away, not part of Publish) ----
+  if (route === 'sitelocks' && req.method === 'GET') {
+    return json({ items: publicItemLocks(await getItemLocks(s)) });
+  }
+  if (route === 'sitelocks' && req.method === 'POST') {
+    { const e = locked(['sitelocks']); if (e) return e; }
+    let b;
+    try { b = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
+    const il = await getItemLocks(s);
+    const action = String(b.action || ''), id = String(b.id || '');
+    const pw = String(b.password || ''), hint = String(b.hint || '');
+    if (action === 'removeAll') {
+      await saveItemLocks(s, {});
+      return json({ ok: true, items: {} });
+    }
+    if (!isItemId(id)) return json({ error: 'Unknown item' }, 400);
+    if (action === 'remove') { delete il[id]; }
+    else if (action === 'set') {
+      const old = il[id];
+      if (!pw) {
+        if (!old) return json({ error: 'Type a password first' }, 400);
+        il[id] = Object.assign({}, old, { hint: hint.slice(0, 120) });        // only the hint changed
+      } else {
+        if (pw.length < 3) return json({ error: 'The password needs at least 3 characters' }, 400);
+        il[id] = makeItemLock(pw, old, hint);
+      }
+    } else return json({ error: 'Unknown action' }, 400);
+    await saveItemLocks(s, il);
+    return json({ ok: true, items: publicItemLocks(il) });
+  }
 
   // ---- section passwords (a wrong lock password answers 403, never 401, so you are not signed out) ----
   if (route === 'locks' && req.method === 'GET') {

@@ -2,6 +2,7 @@
 // When logins are set up, the private parts (photos, story, proposal) are NOT included here.
 import { getStore } from '@netlify/blobs';
 import { getUsers, hasUsers, stripProtected } from './lib/authlib.mjs';
+import { getItemLocks, publicItemLocks, stripLockedEnvelopes } from './lib/itemlocks.mjs';
 
 export default async () => {
   const store = getStore('ifra-site');
@@ -10,11 +11,14 @@ export default async () => {
   try { priv = await store.get('private.json', { type: 'json' }); } catch (e) { }
   const locked = hasUsers(await getUsers(store));
   if (locked) content = stripProtected(content);
+  const itemLocks = await getItemLocks(store);
+  content = stripLockedEnvelopes(content, itemLocks);
   const notify = !!((priv && (priv.ntfyTopic || priv.discordWebhook)) ||
     process.env.NTFY_TOPIC || process.env.DISCORD_WEBHOOK_URL);
   const body = 'window.SITE_LIVE = ' + JSON.stringify(content || null) + ';\n' +
                'window.SITE_NOTIFY = ' + notify + ';\n' +
-               'window.SITE_LOCK = ' + locked + ';\n';
+               'window.SITE_LOCK = ' + locked + ';\n' +
+               'window.SITE_ITEM_LOCKS = ' + JSON.stringify(publicItemLocks(itemLocks)) + ';\n';
   return new Response(body, {
     headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }
   });
