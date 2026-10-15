@@ -25,11 +25,11 @@ export const SECTIONS = {
   settings:  c => omit(c.settings, PLAY)
 };
 // tabs without content of their own: logins (the two accounts), locks (this screen), publish (saving / reset)
-export const LOCKABLE = Object.keys(SECTIONS).concat(['logins', 'locks', 'publish']);
+export const LOCKABLE = Object.keys(SECTIONS).concat(['logins', 'sitelocks', 'locks', 'publish']);
 export const TITLES = {
   texts: 'Page texts', photos: 'Photos & captions', playlist: 'Playlist', when: 'Open When', story: 'Our Story',
   poetry: 'Birthday poetry', surprises: 'Surprises', games: 'Games', riddles: 'Riddles', sweet: 'Sweet quiz',
-  proposal: 'Proposal', logins: 'Logins', locks: 'Section passwords', settings: 'Dates & delivery', publish: 'Publish'
+  proposal: 'Proposal', logins: 'Logins', sitelocks: 'Website locks', locks: 'Section passwords', settings: 'Dates & delivery', publish: 'Publish'
 };
 
 const stable = v => {
