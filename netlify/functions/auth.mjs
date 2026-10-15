@@ -1,5 +1,5 @@
 // Public: POST /api/auth/login  and  GET /api/auth/protected
-// Login checks the email + password on the server. The private parts of the site
+// Login checks the username + password on the server. The private parts of the site
 // (photos, Our Story, proposal) are only sent to someone holding a valid token.
 import { getStore } from '@netlify/blobs';
 import { getUsers, hasUsers, checkPw, makeUserToken, verifyUserToken, pickProtected, ROLES } from './lib/authlib.mjs';
@@ -20,12 +20,12 @@ export default async (req) => {
     const now = Date.now();
     while (hits.length && now - hits[0] > 3600e3) hits.shift();
     if (hits.length >= 60) return json({ error: 'Too many attempts, please try again later' }, 429);
-    let email = '', password = '';
-    try { const b = await req.json(); email = String(b.email || '').trim().toLowerCase(); password = String(b.password || ''); } catch (e) { }
+    let name = '', password = '';
+    try { const b = await req.json(); name = String(b.username != null ? b.username : (b.email || '')).trim().toLowerCase(); password = String(b.password || ''); } catch (e) { }
     let found = null, foundRole = null;
-    for (const r of ROLES) { if (users[r] && users[r].email === email) { found = users[r]; foundRole = r; } }
+    for (const r of ROLES) { if (users[r] && (users[r].username || users[r].email) === name) { found = users[r]; foundRole = r; } }
     const ok = checkPw(found, password) && found;
-    if (!ok) { hits.push(now); await sleep(1000); return json({ error: 'Wrong email or password' }, 401); }
+    if (!ok) { hits.push(now); await sleep(1000); return json({ error: 'Wrong username or password' }, 401); }
     return json({ token: makeUserToken(foundRole, found.ver), role: foundRole });
   }
 

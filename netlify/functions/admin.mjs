@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { sendToAll, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
 import { getUsers, newCredentials, ROLES } from './lib/authlib.mjs';
+import { LOCKABLE, getLocks, saveLocks, makeLock, checkLock, makeUnlockToken, unlockedTabs, missingUnlocks, lockedMessage, changedSections } from './lib/locks.mjs';
 
 const store = () => getStore('ifra-site');
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -26,6 +27,9 @@ function authed(req) {
   return !!(p && s && safeEq(s, sign(p)) && Number(p) > Date.now());
 }
 const PRIVATE_KEYS = ['ntfyTopic', 'discordWebhook'];
+const userName = u => (u && (u.username || u.email)) || '';
+const validUsername = n => /^[a-z0-9._-]{3,30}$/.test(n) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(n);   // an old email login stays valid
+const lockHits = [];
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').replace(/\/$/, '');
@@ -41,6 +45,65 @@ export default async (req) => {
 
   if (!authed(req)) return json({ error: 'Not signed in' }, 401);
   const s = store();
+  const locks = await getLocks(s);
+  const open = unlockedTabs(req, locks);
+  const locked = tabs => { const m = missingUnlocks(tabs, locks, open); return m.length ? json({ error: lockedMessage(m), locked: m }, 403) : null; };
+
+  // ---- section passwords (a wrong lock password answers 403, never 401, so you are not signed out) ----
+  if (route === 'locks' && req.method === 'GET') {
+    const out = {};
+    LOCKABLE.forEach(t => { out[t] = !!locks[t]; });
+    return json({ locks: out });
+  }
+  if (route === 'locks' && req.method === 'POST') {
+    let b;
+    try { b = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
+    const action = String(b.action || ''), tab = String(b.tab || '');
+    const pw = String(b.password || ''), cur = String(b.current || '');
+    if (action !== 'setAll' && !LOCKABLE.includes(tab)) return json({ error: 'Unknown section' }, 400);
+    const now = Date.now();
+    while (lockHits.length && now - lockHits[0] > 3600e3) lockHits.shift();
+    if (lockHits.length >= 40) return json({ error: 'Too many wrong passwords, try again later' }, 429);
+    const wrong = async msg => { lockHits.push(Date.now()); await sleep(800); return json({ error: msg }, 403); };
+
+    if (action === 'unlock') {
+      if (!locks[tab]) return json({ token: null });
+      if (!checkLock(locks[tab], pw)) return wrong('Wrong password');
+      return json({ token: makeUnlockToken(tab, locks[tab].ver) });
+    }
+    if (action === 'forgot') {   // the main admin password removes a forgotten lock
+      if (!crypto.timingSafeEqual(sha(String(b.adminPassword || '')), sha(process.env.ADMIN_PASSWORD || ''))) return wrong('That is not the main admin password');
+      delete locks[tab];
+      await saveLocks(s, locks);
+      return json({ ok: true });
+    }
+    // everything below changes locks: the "Section passwords" tab must be open (unless it is itself what is being changed)
+    if (tab !== 'locks' && action !== 'setAll') { const e = locked(['locks']); if (e) return e; }
+    if (action === 'setAll') { const e = locked(['locks']); if (e) return e; }
+
+    if (action === 'set') {
+      if (pw.length < 4) return json({ error: 'The password needs at least 4 characters' }, 400);
+      if (locks[tab] && !checkLock(locks[tab], cur)) return wrong('The current password is wrong');
+      locks[tab] = makeLock(pw, locks[tab]);
+      await saveLocks(s, locks);
+      return json({ ok: true, token: makeUnlockToken(tab, locks[tab].ver) });
+    }
+    if (action === 'remove') {
+      if (!locks[tab]) return json({ ok: true });
+      if (!checkLock(locks[tab], cur)) return wrong('The current password is wrong');
+      delete locks[tab];
+      await saveLocks(s, locks);
+      return json({ ok: true });
+    }
+    if (action === 'setAll') {
+      if (pw.length < 4) return json({ error: 'The password needs at least 4 characters' }, 400);
+      const tokens = {}; let n = 0;
+      LOCKABLE.forEach(t => { if (!locks[t]) { locks[t] = makeLock(pw); tokens[t] = makeUnlockToken(t, locks[t].ver); n++; } });
+      await saveLocks(s, locks);
+      return json({ ok: true, count: n, tokens });
+    }
+    return json({ error: 'Unknown action' }, 400);
+  }
 
   if (route === 'private' && req.method === 'GET') {
     let priv = null;
@@ -59,11 +122,12 @@ export default async (req) => {
   if (route === 'users' && req.method === 'GET') {
     const u = await getUsers(s);
     const out = {};
-    ROLES.forEach(r => { out[r] = u[r] && u[r].hash ? { email: u[r].email } : null; });
+    ROLES.forEach(r => { out[r] = u[r] && u[r].hash ? { username: userName(u[r]) } : null; });
     return json(out);
   }
 
   if (route === 'users' && req.method === 'POST') {
+    { const e = locked(['logins']); if (e) return e; }
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
     const users = await getUsers(s);
@@ -71,23 +135,23 @@ export default async (req) => {
       const inp = body && body[r];
       if (!inp) continue;
       if (inp.remove) { delete users[r]; continue; }
-      const email = String(inp.email || '').trim().toLowerCase();
+      const username = String(inp.username != null ? inp.username : (inp.email || '')).trim().toLowerCase();
       const pw = String(inp.password || '');
       const label = r === 'me' ? 'Your' : 'Her';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: label + ' email does not look right' }, 400);
+      if (!validUsername(username)) return json({ error: label + ' username must be 3 to 30 characters: letters, numbers, dot, dash or underscore (no spaces)' }, 400);
       const old = users[r];
       if (!old && !pw) return json({ error: label + ' login needs a password' }, 400);
       if (pw && pw.length < 8) return json({ error: label + ' password must be at least 8 characters' }, 400);
-      const next = { email, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
+      const next = { username, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
       if (pw) Object.assign(next, newCredentials(pw), { ver: next.ver + 1 });
-      else if (old && old.email !== email) next.ver += 1;
+      else if (old && userName(old) !== username) next.ver += 1;
       users[r] = next;
     }
-    const mails = ROLES.filter(r => users[r]).map(r => users[r].email);
-    if (new Set(mails).size !== mails.length) return json({ error: 'You and her need different emails' }, 400);
+    const mails = ROLES.filter(r => users[r]).map(r => userName(users[r]));
+    if (new Set(mails).size !== mails.length) return json({ error: 'You and her need different usernames' }, 400);
     await s.setJSON('users.json', users);
     const out = {};
-    ROLES.forEach(r => { out[r] = users[r] ? { email: users[r].email } : null; });
+    ROLES.forEach(r => { out[r] = users[r] ? { username: userName(users[r]) } : null; });
     return json({ ok: true, users: out });
   }
 
@@ -100,6 +164,13 @@ export default async (req) => {
     content.settings = content.settings || {};
     PRIVATE_KEYS.forEach(k => { delete content.settings[k]; });
     delete content.settings.notifyOn;
+    {   // a locked section can only be changed with its password; publishing itself can be locked too
+      let oldC = null, oldP = null;
+      try { oldC = await s.get('content.json', { type: 'json' }); } catch (e) { }
+      try { oldP = await s.get('private.json', { type: 'json' }); } catch (e) { }
+      const e = locked(['publish'].concat(changedSections(oldC, content, oldP, body.private && typeof body.private === 'object' ? body.private : null)));
+      if (e) return e;
+    }
     await s.setJSON('content.json', content);
     if (body.private && typeof body.private === 'object') {
       const priv = {};
@@ -163,6 +234,7 @@ export default async (req) => {
   }
 
   if (route === 'reset' && req.method === 'POST') {
+    { const e = locked(['publish']); if (e) return e; }
     await s.delete('content.json');
     return json({ ok: true });
   }
