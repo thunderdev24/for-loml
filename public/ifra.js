@@ -232,9 +232,55 @@ function dropPetals() {
 const music = document.getElementById("bgMusic");
 if (LITE) music.preload = 'metadata';
 
+/* 🎶 PLAYLIST: songs play one after another (in the order of the admin list, then back to the first).
+   The song that starts when she taps the rose is chosen in the admin panel (Playlist tab). */
+function songList() { return ((window.SITE && SITE.songs) || []).filter(function (s) { return s && s.file; }); }
+function songIndexOf(file) {
+  const l = songList();
+  for (let i = 0; i < l.length; i++) if (l[i].file === file) return i;
+  return -1;
+}
+let curSong = -1, songFails = 0;
+function loadSong(i, autoplay) {
+  const l = songList();
+  if (!l.length) return;
+  i = ((i % l.length) + l.length) % l.length;
+  curSong = i;
+  const source = music.querySelector('source');
+  if (source) { source.removeAttribute('type'); source.src = l[i].file; }
+  else music.src = l[i].file;
+  const sel = document.getElementById('songSelect');
+  if (sel) sel.value = l[i].file;
+  music.load();
+  if (autoplay) { music.muted = false; music.play().catch(() => { }); }
+}
+music.loop = false;
+music.removeAttribute('loop');                       // so the "ended" event fires and the next song can start
+music.addEventListener('ended', () => {
+  songFails = 0;
+  if (songList().length > 1) loadSong(curSong + 1, true);
+  else { music.currentTime = 0; music.play().catch(() => { }); }   // only one song: repeat it
+});
+music.addEventListener('playing', () => { songFails = 0; });
+music.addEventListener('error', () => {              // a missing / broken file is skipped, never stuck
+  const n = songList().length;
+  if (n > 1 && songFails < n) { songFails++; loadSong(curSong + 1, !music.paused || roseOpened); }
+});
+(function initPlaylist() {                           // load the chosen start song right away so it is ready on the rose tap
+  const l = songList();
+  if (!l.length) return;
+  let i = songIndexOf(SITE.settings && SITE.settings.roseSong);
+  if (i < 0) i = 0;
+  loadSong(i, false);
+})();
+
 /* Phones only allow audio inside a real tap, so music starts from the rose tap.
    (The old muted "pre-unlock" could pause the song right after the tap, so it was removed.) */
 function playMusic() {
+  if (curSong < 0 && songList().length) {
+    const i = songIndexOf(SITE.settings && SITE.settings.roseSong);
+    loadSong(i < 0 ? 0 : i, false);
+  }
   music.muted = false;
   music.volume = 0.4; // Lower default volume
   const p = music.play();
@@ -1125,17 +1171,10 @@ const LOVE_START = SITE.settings.loveStart ? new Date(SITE.settings.loveStart) :
    ===================================================== */
 function changeSong() {
   const select = document.getElementById("songSelect");
-  const music = document.getElementById("bgMusic");
-  const source = music.querySelector("source");
-  
-  if (select && music && source) {
-    const isPlaying = !music.paused;
-    source.src = select.value;
-    music.load(); // Reload the audio element with new source
-    if (isPlaying) {
-      music.play().catch(() => {});
-    }
-  }
+  if (!select) return;
+  const wasPlaying = !music.paused;
+  const i = songIndexOf(select.value);
+  if (i >= 0) loadSong(i, wasPlaying);               // she picked one: it plays, then the list continues from there
 }
 
 /* =====================================================

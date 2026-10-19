@@ -350,7 +350,7 @@ function voiceWidget(get,set){
 }
 
 VIEWS.playlist=m=>{
-  head(m,'Playlist','The first song plays after she taps the rose. Each “File” must be uploaded to the website folder with exactly that name.');
+  head(m,'Playlist','Songs play one after another in the order of this list (then it starts again from the top). Use ↑ Up / ↓ Down to change the order. Each “File” must be uploaded to the website folder with exactly that name.');
   const songHost=el('div');m.append(songHost);
   const drawSongs=()=>{songHost.innerHTML='';songHost.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name or uploaded address')],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));};
   drawSongs();
@@ -366,6 +366,12 @@ VIEWS.playlist=m=>{
     }
   })}),upInfo));
   m.append(el('p',{class:'hint',text:'Uploaded songs are stored on the site automatically and appear in her playlist after you press Publish live. Rename them above if you like. Tip: m4a or mp3 files work on every phone.'}));
+  m.append(el('h3',{text:'🌹 Song that starts when she taps the rose'}));
+  const roseOpts=C.songs.map(s=>[s.file,s.label]);
+  if(C.settings.roseSong&&!roseOpts.some(o=>o[0]===C.settings.roseSong))roseOpts.push([C.settings.roseSong,C.settings.roseSong]);
+  m.append(el('div',{class:'card'},
+    field('select',()=>C.settings.roseSong||(C.songs[0]&&C.songs[0].file)||'',v=>{C.settings.roseSong=v;},{label:'First song after the rose tap',options:roseOpts}),
+    el('p',{class:'hint',text:'This song plays first. When it ends, the next songs in the list above play in order, and after the last one it goes back to the top of the list. Press Publish live afterwards.'})));
   m.append(el('h3',{text:'💞 Love song (plays when she taps “Forever Yours”)'}));
   const loveOpts=[['','(none: no song)']].concat(C.songs.map(s=>[s.file,s.label]));
   if(C.settings.loveSongFile&&!loveOpts.some(o=>o[0]===C.settings.loveSongFile))loveOpts.push([C.settings.loveSongFile,C.settings.loveSongFile]);
