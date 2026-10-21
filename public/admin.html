@@ -352,7 +352,7 @@ function voiceWidget(get,set){
 VIEWS.playlist=m=>{
   head(m,'Playlist','Songs play one after another in the order of this list (then it starts again from the top). Use ↑ Up / ↓ Down to change the order. Each “File” must be uploaded to the website folder with exactly that name.');
   const songHost=el('div');m.append(songHost);
-  const drawSongs=()=>{songHost.innerHTML='';songHost.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name or uploaded address')],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));};
+  const drawSongs=()=>{songHost.innerHTML='';songHost.append(listBox(()=>C.songs,[F.key('label','Name shown in the list'),F.key('file','File name or uploaded address'),F.key('lyricsText','Lyrics (optional): one line per row, like  0:12 first line  or  1:05 next line',{type:'area',rows:6})],()=>({label:'New song',file:'song.m4a'}),{grid:'grid2'}));};
   drawSongs();
   const upInfo=el('span',{class:'hint'});
   m.append(el('div',{class:'bar'},el('button',{class:'b',text:'⬆ Upload songs from this phone / PC',onclick:()=>pickFiles('audio/*,.m4a,.mp3,.wav,.ogg,.aac',true,async fs=>{

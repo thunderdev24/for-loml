@@ -74,7 +74,12 @@
     function load() {
       var i = idx(); if (i === cur) return; cur = i; li = -2;
       var s = songs()[i] || {};
-      lines = (s.lyrics || []).filter(function (x) { return x && typeof x.t === 'number' && x.l; }).sort(function (a, b) { return a.t - b.t; });
+      var fromText = String(s.lyricsText || '').split(/\r?\n/).map(function (ln) {
+        var m = /^\s*(?:\[)?(\d+):(\d{1,2})(?:[.,]\d+)?(?:\])?\s+(.+)$/.exec(ln) || /^\s*(?:\[)?(\d+)(?:\])?\s+(.+)$/.exec(ln);
+        if (!m) return null;
+        return m.length === 4 ? { t: Number(m[1]) * 60 + Number(m[2]), l: m[3] } : { t: Number(m[1]), l: m[2] };
+      }).filter(Boolean);
+      lines = (fromText.length ? fromText : (s.lyrics || [])).filter(function (x) { return x && typeof x.t === 'number' && x.l; }).sort(function (a, b) { return a.t - b.t; });
       lyr.textContent = ''; accent();
     }
     function tick() {
