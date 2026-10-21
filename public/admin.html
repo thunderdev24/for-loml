@@ -124,13 +124,23 @@ function save(){
   clearTimeout(saveT);
   saveT=setTimeout(()=>{
     dirty=true;
-    try{localStorage.setItem('ifraDraft',JSON.stringify(C));status('● Unpublished changes (draft saved)');$('#pubTop').style.background='#ff9a3d';}
+    try{localStorage.setItem('ifraDraft',JSON.stringify(C));localStorage.setItem('ifraDraftDirty','1');status('● Unpublished changes (draft saved)');$('#pubTop').style.background='#ff9a3d';}
     catch(e){status('Could not save draft: '+e.message,true);}
   },300);
 }
 function loadDraft(){
   let d=null;
   try{d=JSON.parse(localStorage.getItem('ifraDraft')||'null');}catch(e){}
+  /* A draft is kept per device. If the live site was changed from another device (for example songs uploaded from the phone),
+     an old draft here would hide those changes, so compare with what is live now. */
+  const pubStr=JSON.stringify(PUBLISHED);
+  let base=null,dirtyFlag=false;
+  try{base=localStorage.getItem('ifraDraftBase');dirtyFlag=localStorage.getItem('ifraDraftDirty')==='1';}catch(e){}
+  if(d&&base!==pubStr){
+    if(base!==null&&!dirtyFlag)d=null;   /* nothing unpublished on this device: just take the live version */
+    else if(confirm('The live site was changed from another device (for example your phone), so this PC has an older copy.\n\nOK = load the live version (unpublished edits made on this PC are dropped)\nCancel = keep this PC\'s draft (publishing it would overwrite the other device\'s changes)'))d=null;
+  }
+  if(!d){try{localStorage.removeItem('ifraDraft');localStorage.removeItem('ifraDraftDirty');localStorage.setItem('ifraDraftBase',pubStr);}catch(e){}}
   C=d||clone(PUBLISHED);
   for(const k in DEFAULTS){
     if(C[k]===undefined)C[k]=clone(DEFAULTS[k]);
@@ -834,7 +844,7 @@ async function publish(){
   try{
     await api('save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({content:C,private:privateOf()})});
     dirty=false;b.style.background='';
-    try{localStorage.setItem('ifraDraft',JSON.stringify(C));}catch(e){}
+    try{localStorage.setItem('ifraDraft',JSON.stringify(C));localStorage.setItem('ifraDraftBase',JSON.stringify(C));localStorage.removeItem('ifraDraftDirty');}catch(e){}
     status('Published ✓ Live now '+new Date().toLocaleTimeString());
   }catch(e){if(e.message!=='auth')status('Publish failed: '+e.message,true);}
   b.disabled=false;
