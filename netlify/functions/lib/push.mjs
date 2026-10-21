@@ -8,7 +8,8 @@ export async function getVapid(store) {
     v = webpush.generateVAPIDKeys();
     await store.setJSON('push/vapid.json', v);
   }
-  webpush.setVapidDetails(process.env.URL || 'mailto:admin@example.com', v.publicKey, v.privateKey);
+  // subject must be a real https URL or mailto: address (Apple rejects fake ones like example.com); VAPID_SUBJECT can override it
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || process.env.URL || 'mailto:admin@example.com', v.publicKey, v.privateKey);
   return v;
 }
 
@@ -21,17 +22,23 @@ export async function sendToAll(store, payload) {
   const subs = await getSubs(store);
   const keep = [];
   let sent = 0, failed = 0;
+  const errors = [];
   for (const s of subs) {
     try {
-      await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 60 * 60 * 12 });
+      // urgency 'high' makes Android wake the phone now instead of batching the message for later
+      await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 60 * 60 * 12, urgency: 'high' });
       sent++; keep.push(s);
     } catch (e) {
-      if (e && (e.statusCode === 404 || e.statusCode === 410)) { /* subscription expired: drop it */ }
+      const code = e && e.statusCode;
+      let host = ''; try { host = new URL(s.endpoint).hostname; } catch (x) { }
+      errors.push({ status: code || 0, host, message: String((e && (e.body || e.message)) || e).slice(0, 200) });
+      console.log('push failed', code, host, e && e.body);
+      if (code === 404 || code === 410) { /* subscription expired: drop it */ }
       else { failed++; keep.push(s); }
     }
   }
   if (keep.length !== subs.length) await store.setJSON('push/subs.json', keep);
-  return { sent, failed, removed: subs.length - keep.length, total: subs.length };
+  return { sent, failed, removed: subs.length - keep.length, total: subs.length, errors };
 }
 
 export const DEFAULTS = {
