@@ -259,16 +259,20 @@
   el.vol.addEventListener('input', function () { setVol(el.vol.value / 100, true); });
   el.mute.addEventListener('click', function () { setVol(vol > 0 ? 0 : (lastVol || 0.4), true); });
 
-  /* ---------- hooks used by ifra.js (song ended) ---------- */
-  window.MP = {
-    onEnded: function () {
-      var n = songList().length;
-      if (repeatOne) { music.currentTime = 0; music.play().catch(function () { }); return true; }
-      if (shuffleOn && n > 1) { loadSong(nextIdx(), true); return true; }
-      return false;
-    },
-    next: next, prev: prev, toggle: toggle
-  };
+  /* ---------- song ended / volume (works on top of ifra.js without changing it) ---------- */
+  var playedIdx = idx();
+  music.addEventListener('playing', function () { playedIdx = idx(); });
+  music.addEventListener('ended', function () {
+    /* ifra.js has already queued the next song; shuffle / repeat-one override it here */
+    var n = songList().length;
+    if (n < 2) return;
+    if (repeatOne) { loadSong(playedIdx, true); return; }
+    if (shuffleOn) { var r; do { r = Math.floor(Math.random() * n); } while (r === playedIdx); loadSong(r, true); }
+  });
+  /* ifra.js sets the volume to 0.4 whenever music starts; put her chosen volume back */
+  music.addEventListener('play', function () { if (volOk) { try { music.volume = vol; } catch (e) { } } });
+
+  window.MP = { next: next, prev: prev, toggle: toggle };
 
   /* ---------- lock-screen / notification controls ---------- */
   var ms = 'mediaSession' in navigator ? navigator.mediaSession : null;
