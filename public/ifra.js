@@ -3947,6 +3947,38 @@ function remindOn() {
   if (!canPush && !ios) { b.style.display = 'none'; return; }
   if (canPush && Notification.permission === 'granted' && localStorage.getItem('ifraRemind') === '1') remindOn();
 })();
+/* Get (or repair) this phone's push subscription and tell the server about it.
+   A subscription made with an old server key is silently rejected by the push service,
+   which is the usual reason a test notification never shows up, so it is replaced here. */
+async function pushSubscribeAndSave() {
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  const kr = await fetch('/api/push/key', { cache: 'no-store' });
+  if (!kr.ok) throw new Error('key');
+  const key = (await kr.json()).key;
+  const keyBytes = b64ToU8(key);
+  let sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    const cur = sub.options && sub.options.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey) : null;
+    const same = cur && cur.length === keyBytes.length && cur.every((v, i) => v === keyBytes[i]);
+    if (!same) { try { await sub.unsubscribe(); } catch (e) { } sub = null; }
+  }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes });
+  const r = await fetch('/api/push/subscribe', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription: sub.toJSON() })
+  });
+  if (!r.ok) throw new Error('save');
+  return sub;
+}
+/* every visit: if reminders were turned on, quietly make sure the server still has this phone */
+(function () {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted' || localStorage.getItem('ifraRemind') !== '1') return;
+    window.addEventListener('load', () => { setTimeout(() => { pushSubscribeAndSave().catch(() => { }); }, 2500); });
+  } catch (e) { }
+})();
 async function enableReminders() {
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
@@ -3958,18 +3990,7 @@ async function enableReminders() {
   try {
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { toast('No problem. You can allow notifications later in your browser settings 🤍', 4500); return; }
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-    const kr = await fetch('/api/push/key');
-    if (!kr.ok) throw new Error('key');
-    const key = (await kr.json()).key;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
-    const r = await fetch('/api/push/subscribe', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON() })
-    });
-    if (!r.ok) throw new Error('save');
+    await pushSubscribeAndSave();
     localStorage.setItem('ifraRemind', '1');
     remindOn();
     toast('Reminders are on! I will tell you how many days are left 🎂💕', 5000);

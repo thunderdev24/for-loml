@@ -778,7 +778,8 @@ function remindersCard(m){
     test.disabled=true;
     try{
       const r=await api('push-test',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({settings:C.settings})});
-      info.textContent='Sent to '+r.result.sent+' device(s). Preview: “'+r.preview.title+'”.'+(r.result.total===0?' Nobody has turned on reminders yet.':'');
+      const x=r.result,er=(x.errors||[]).map(e=>e.status+' '+e.host+(e.message?' – '+e.message:'')).join(' | ');
+      info.textContent='Handed to the push service for '+x.sent+' of '+x.total+' device(s)'+(x.removed?' · removed '+x.removed+' expired':'')+(x.failed?' · '+x.failed+' failed':'')+'. Preview: “'+r.preview.title+'”.'+(x.total===0?' Nobody has turned on reminders yet.':'')+(er?' Errors: '+er:'');
     }catch(e){if(e.message!=='auth')info.textContent='Failed: '+e.message;}
     test.disabled=false;
   };
