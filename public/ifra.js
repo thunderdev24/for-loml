@@ -2111,6 +2111,7 @@ FUN.catch = body => {
       it.y += it.v * dt;
       if (it.y > H - 52 && it.y < H - 8 && Math.abs(it.x - bx) < 40) {
         score = Math.max(0, score + (it.bad ? -2 : 1));
+        if (window.PLUS) PLUS.hit(it.bad ? 'bad' : 'good');
         return false;
       }
       ctx.fillText(it.bad ? '💔' : '💖', it.x, it.y);
@@ -2636,10 +2637,12 @@ FUN.gtr = body => {
       if (Math.abs(p.x - carX) < 25 && Math.abs(p.y - carY) < 30) {
         if (p.isHeart) {
           hearts++;
+          if (window.PLUS) PLUS.hit('good');
           particles.push({ x: p.x, y: p.y, text: '+1 💖', life: 1 });
           burstAt(p.x, p.y, 6);
         } else {
           nitro = Math.min(100, nitro + 45);
+          if (window.PLUS) PLUS.sfx('pickup');
           particles.push({ x: p.x, y: p.y, text: '+NOS ⚡', life: 1 });
         }
         return false;
@@ -2900,6 +2903,7 @@ FUN.flight = body => {
       if (!g.passed && g.x + 32 < birdX) {
         g.passed = true;
         passed++;
+        if (window.PLUS) PLUS.hit('good');
         burstAt(birdX, birdY, 4);
       }
 
@@ -2957,6 +2961,7 @@ FUN.flight = body => {
   }
 
   function endFail() {
+    if (window.PLUS) PLUS.hit('bad');
     running = false;
     byId('flStart').textContent = 'Try again 🕊️';
     byId('flStart').style.display = '';
@@ -3124,6 +3129,7 @@ FUN.breaker = body => {
       if (d.y > padY && d.y < padY + padH && d.x > padX && d.x < padX + padW) {
         if (d.type === 'heart') {
           lives = Math.min(Math.max(5, LIVES + 2), lives + 1);
+          if (window.PLUS) PLUS.sfx('pickup');
           burstAt(d.x, d.y, 6);
         } else if (d.type === 'wide') {
           padW = Math.min(92, padW + 16);
@@ -3161,6 +3167,7 @@ FUN.breaker = body => {
         if (!brk.alive) continue;
         if (b.x + b.r > brk.x && b.x - b.r < brk.x + brk.w && b.y + b.r > brk.y && b.y - b.r < brk.y + brk.h) {
           brk.alive = false;
+          if (window.PLUS) PLUS.hit('good');
           b.vy = -b.vy;
           burstAt(brk.x + brk.w / 2, brk.y + brk.h / 2, 4);
 
@@ -3185,6 +3192,7 @@ FUN.breaker = body => {
 
     if (balls.length === 0) {
       lives--;
+      if (window.PLUS) PLUS.hit('bad');
       if (lives > 0) {
         balls = [{ x: padX + padW / 2, y: padY - 12, vx: 130, vy: -180, r: 6 }];
       } else {

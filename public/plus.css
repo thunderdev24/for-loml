@@ -1,0 +1,181 @@
+/* ✨ PLUS STYLES: loaded after ifra.css. Glass, glow and smoother motion + the new game/reward parts. */
+
+html { scroll-behavior: smooth; }
+.card { scroll-behavior: smooth; }
+button, .s-tile, .fun-btn, .envelope { -webkit-tap-highlight-color: transparent; }
+
+/* ---------- a living background: soft glowing orbs drifting behind the card ---------- */
+body::before {
+  content: '';
+  position: fixed; inset: -10%;
+  pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 110, 150, 0.16) 0 70px, transparent 72px),
+    radial-gradient(circle at 86% 26%, rgba(232, 194, 122, 0.12) 0 90px, transparent 92px),
+    radial-gradient(circle at 24% 82%, rgba(255, 90, 140, 0.13) 0 110px, transparent 112px),
+    radial-gradient(circle at 78% 86%, rgba(255, 160, 190, 0.11) 0 60px, transparent 62px);
+  filter: blur(14px);
+  animation: plusDrift 26s ease-in-out infinite alternate;
+}
+@keyframes plusDrift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to   { transform: translate3d(1.5%, 1.5%, 0) scale(1.06); }
+}
+
+/* ---------- the card: gold hairline + soft rose halo ---------- */
+.card {
+  border-color: rgba(232, 194, 122, 0.3);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(255, 60, 120, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 0 30px rgba(255, 255, 255, 0.02);
+}
+
+/* ---------- titles: rose-to-gold shimmer ---------- */
+.card > h1 {
+  background: linear-gradient(90deg, #ffb6c1, #fff1c9, #ff8fa3, #ffd6a5, #ffb6c1);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: plusShine 9s linear infinite;
+  filter: drop-shadow(0 4px 14px rgba(255, 77, 109, 0.35));
+}
+@keyframes plusShine { to { background-position: 300% 0; } }
+
+.surprises-section h3, .gallery-section h3, .letters-section h3, .proposal-section h3, .song-section h3 {
+  background: linear-gradient(90deg, #ffc2d1, #ffe3b0 50%, #ffc2d1);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 8px rgba(255, 90, 130, 0.35));
+}
+
+/* ---------- tiles: glass with a lit edge, bobbing icons, glow on touch ---------- */
+.s-tile {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 182, 193, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.s-tile > span { display: inline-block; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); animation: plusBob 3.6s ease-in-out infinite; }
+.s-tile:nth-child(2n) > span { animation-delay: -1.2s; }
+.s-tile:nth-child(3n) > span { animation-delay: -2.1s; }
+@keyframes plusBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.s-tile:hover, .s-tile:focus-visible {
+  background: linear-gradient(160deg, rgba(255, 90, 130, 0.30), rgba(255, 90, 130, 0.08));
+  border-color: rgba(255, 182, 193, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 26px rgba(255, 77, 109, 0.38), 0 0 22px rgba(255, 120, 160, 0.25);
+}
+.s-tile:hover > span, .s-tile:focus-visible > span { animation: none; transform: translateY(-3px) scale(1.18) rotate(-6deg); }
+.s-tile:active { transform: scale(0.94); }
+
+/* ---------- envelopes ---------- */
+.envelope {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ---------- buttons: moving sheen ---------- */
+button, .fun-btn {
+  background-image: linear-gradient(110deg, #ff4d6d 0%, #ff8fa3 45%, #ffb3c4 55%, #ff4d6d 100%);
+  background-size: 250% 100%;
+  background-position: 0% 0;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background-position 0.7s ease;
+}
+button:hover, .fun-btn:hover { background-position: 100% 0; }
+
+/* ---------- the game window: glass, spring-in ---------- */
+.fun-modal { background: radial-gradient(circle at 50% 40%, rgba(90, 10, 50, 0.55), rgba(0, 0, 0, 0.8)); }
+.fun-box {
+  background: linear-gradient(160deg, rgba(58, 10, 36, 0.96), rgba(22, 4, 15, 0.97));
+  border: 1px solid rgba(232, 194, 122, 0.32);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.65), 0 0 60px rgba(255, 60, 120, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: scale(0.88) translateY(14px);
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fun-modal.show .fun-box { transform: none; }
+.game-cv { border-radius: 16px; box-shadow: 0 0 0 1px rgba(255, 182, 193, 0.25), 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 30px rgba(255, 77, 109, 0.12); }
+
+/* toast a little more elegant */
+.toast { background: linear-gradient(135deg, rgba(60, 10, 38, 0.97), rgba(30, 5, 20, 0.97)); border-color: rgba(232, 194, 122, 0.45); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+
+/* ---------- new: best score line, sound switch, combo banner ---------- */
+.plus-best {
+  display: inline-block; margin: -4px auto 10px; padding: 4px 14px;
+  border-radius: 20px; font-size: 0.78rem; font-weight: 500; color: #ffe3b0;
+  background: rgba(232, 194, 122, 0.12); border: 1px solid rgba(232, 194, 122, 0.35);
+}
+.plus-snd {
+  position: absolute; top: 8px; left: 12px; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; cursor: pointer; border-radius: 50%; opacity: 0.85; user-select: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+.plus-snd:hover, .plus-snd:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.14); outline: none; }
+.plus-combo {
+  position: fixed; left: 50%; top: 22%; z-index: 750000; pointer-events: none;
+  transform: translateX(-50%); white-space: nowrap;
+  font: 700 clamp(1.6rem, 7vw, 2.4rem) 'Poppins', sans-serif; color: #fff;
+  text-shadow: 0 0 18px rgba(255, 90, 130, 0.9), 0 0 40px rgba(255, 190, 90, 0.6);
+  animation: plusCombo 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes plusCombo {
+  0% { opacity: 0; transform: translate(-50%, 20px) scale(0.5); }
+  18% { opacity: 1; transform: translate(-50%, 0) scale(1.2); }
+  70% { opacity: 1; transform: translate(-50%, -14px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(0.9); }
+}
+
+/* ---------- Love Jar ---------- */
+.jar-stats { display: flex; gap: 8px; margin: 6px 0 12px; }
+.jar-stats > div {
+  flex: 1; padding: 10px 4px; border-radius: 14px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 182, 193, 0.22);
+}
+.jar-stats b { display: block; font-size: 1.5rem; font-weight: 600; color: #ffe3b0; line-height: 1.1; }
+.jar-stats span { font-size: 0.7rem; color: #ffcad4; }
+.jar-bar { height: 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.1); overflow: hidden; margin: 2px 0 6px; }
+.jar-fill {
+  height: 100%; width: 4%; border-radius: 8px;
+  background: linear-gradient(90deg, #ff4d6d, #ffb86b, #ffe3b0);
+  box-shadow: 0 0 12px rgba(255, 150, 120, 0.7);
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.jar-next { font-size: 0.75rem; color: #ffcad4; margin-bottom: 8px; }
+.jar-tile { position: relative; }
+.jar-tile.has-new::before {
+  content: 'NEW'; position: absolute; top: 8px; right: 10px;
+  font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; padding: 2px 7px;
+  border-radius: 10px; background: #ff4d6d; color: #fff; box-shadow: 0 0 12px rgba(255, 77, 109, 0.8);
+  animation: plusPulse 1.4s ease-in-out infinite;
+}
+@keyframes plusPulse { 50% { transform: scale(1.12); } }
+
+.jar-list { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.jar-note {
+  padding: 10px 12px; border-radius: 14px; cursor: default;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 182, 193, 0.18);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.jar-note.open { cursor: pointer; background: linear-gradient(160deg, rgba(255, 90, 130, 0.16), rgba(255, 255, 255, 0.04)); border-color: rgba(232, 194, 122, 0.4); }
+.jar-note.locked { opacity: 0.55; }
+.jar-head { display: flex; align-items: center; gap: 10px; }
+.jar-em { font-size: 1.4rem; width: 1.8rem; text-align: center; }
+.jar-t { flex: 1; font-size: 0.9rem; color: #ffe3b0; }
+.jar-at { font-size: 0.7rem; color: #ffcad4; opacity: 0.85; }
+.jar-text { max-height: 0; overflow: hidden; opacity: 0; font-size: 0.85rem; line-height: 1.6; color: #fff; transition: max-height 0.45s ease, opacity 0.45s ease, margin 0.45s ease; }
+.jar-note.show .jar-text { max-height: 260px; opacity: 1; margin-top: 10px; }
+.jar-note.show .jar-at { opacity: 0; }
+
+/* ---------- weak phones and people who prefer less motion: keep it calm ---------- */
+html.lite body::before, html.lite .s-tile > span, html.lite .card > h1 { animation: none !important; }
+html.lite body::before { display: none; }
+html.lite .card > h1 { background: none; -webkit-text-fill-color: #ffb6c1; color: #ffb6c1; filter: none; }
+@media (prefers-reduced-motion: reduce) {
+  body::before, .s-tile > span, .card > h1, .jar-tile.has-new::before { animation: none !important; }
+  .fun-box { transition: opacity 0.2s ease; transform: none; }
+  .plus-combo { animation-duration: 0.01s; }
+}

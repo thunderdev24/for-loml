@@ -195,7 +195,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 /* ---------- tabs ---------- */
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
-  ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
+  ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['jar','🏺 Love Jar'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
   ['proposal','Special'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
@@ -424,6 +424,20 @@ VIEWS.when=m=>{
   head(m,'“Open When…” letters','Each envelope she can open. You can use <br> in the message.');
   m.append(listBox(()=>C.envelopes,[F.key('title','Title (e.g. When you miss me)'),F.key('emoji','Emoji'),F.key('body','Message',{type:'area',rows:4})],
     ()=>({emoji:'💌',title:'When…',body:''})));
+};
+
+VIEWS.jar=m=>{
+  head(m,'🏺 Love Jar: stars & love notes','She earns ⭐ stars by playing the games (win +3, new record +2, first game of the day +1, daily-streak bonus). Each note below unlocks when her stars reach its number. Write them in your own words, add as many as you like, and press Publish live when you are done.');
+  if(!Array.isArray(C.rewards)||!C.rewards.length)C.rewards=clone(DEFAULTS.rewards||[]);
+  m.append(listBox(()=>C.rewards,[
+    F.key('title','Title (e.g. Pehla phool)'),
+    F.key('at','Stars needed to unlock (a number, e.g. 30)',{ph:'30'}),
+    F.key('emoji','Emoji'),
+    F.key('text','Love note',{type:'area',rows:4})
+  ],()=>({at:String(((C.rewards.length?Math.max(...C.rewards.map(r=>Number(r.at)||0)):0)+30)),emoji:'💌',title:'New love note',text:''})));
+  m.append(el('div',{class:'bar'},el('button',{class:'b alt',text:'♻ Restore the built-in notes',onclick:()=>{
+    if(!confirm('Replace all notes with the built-in ones?'))return;
+    C.rewards=clone(DEFAULTS.rewards||[]);save();draw();status('Notes restored. Press Publish live.');}})));
 };
 
 VIEWS.poetry=m=>{

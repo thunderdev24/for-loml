@@ -1,4 +1,54 @@
 window.SITE_CONTENT = {
+  "rewards": [
+    {
+      "at": 5,
+      "emoji": "🌹",
+      "title": "Pehla phool",
+      "text": "Ifra, yeh pehla phool tumhari muskurahat ke naam. Jab tum hanstee ho, mera poora din mukammal ho jata hai."
+    },
+    {
+      "at": 15,
+      "emoji": "💌",
+      "title": "Chhoti si dua",
+      "text": "Main roz bas yehi dua maangta hoon ke tumhari har dua qabool ho aur tumhari har raah aasaan ho."
+    },
+    {
+      "at": 30,
+      "emoji": "🌙",
+      "title": "Raat ki baat",
+      "text": "Jab raat khamosh hoti hai, tab sabse zyada tumhari yaad aati hai. Aur woh yaad bohot meethi hoti hai."
+    },
+    {
+      "at": 50,
+      "emoji": "🎀",
+      "title": "Tumhari aadatein",
+      "text": "Tumhara baat baat par muskurana aur meri baat dhyaan se sunna, yeh chhoti chhoti cheezein mujhe tumse aur zyada mohabbat karwati hain."
+    },
+    {
+      "at": 80,
+      "emoji": "🧸",
+      "title": "Sukoon",
+      "text": "Tum mere liye woh jagah ho jahan saari thakan utar jaati hai. Tumhare paas aakar dil ko sukoon mil jata hai."
+    },
+    {
+      "at": 120,
+      "emoji": "💍",
+      "title": "Ek wada",
+      "text": "Main wada karta hoon ke tumhara haath kabhi nahi chhodunga, chahe raaste kitne hi mushkil kyun na hon."
+    },
+    {
+      "at": 170,
+      "emoji": "🌟",
+      "title": "Meri dua",
+      "text": "Meri har dua mein tumhara naam hai, aur meri har khushi ki wajah tum ho."
+    },
+    {
+      "at": 230,
+      "emoji": "👑",
+      "title": "Meri malika",
+      "text": "Ifra, tum meri zindagi ki sabse khoobsurat kahani ho, aur yeh kahani hamesha chalti rahegi. Tumse mohabbat hai, hamesha ❤️"
+    }
+  ],
   "settings": {
     "birthdayDay": 4,
     "birthdayMonth": 1,
