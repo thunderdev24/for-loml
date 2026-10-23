@@ -75,10 +75,20 @@
       var i = idx(); if (i === cur) return; cur = i; li = -2;
       var s = songs()[i] || {};
       var fromText = String(s.lyricsText || '').split(/\r?\n/).map(function (ln) {
-        var m = /^\s*(?:\[)?(\d+):(\d{1,2})(?:[.,]\d+)?(?:\])?\s+(.+)$/.exec(ln) || /^\s*(?:\[)?(\d+)(?:\])?\s+(.+)$/.exec(ln);
+        var m = /^\s*(?:\[)?(\d+):(\d{1,2})(?:[.,]\d+)?(?:\])?\s*(.*)$/.exec(ln) || /^\s*(?:\[)?(\d+)(?:\])?\s+(.+)$/.exec(ln);
         if (!m) return null;
-        return m.length === 4 ? { t: Number(m[1]) * 60 + Number(m[2]), l: m[3] } : { t: Number(m[1]), l: m[2] };
-      }).filter(Boolean);
+        var raw = m.length === 4 ? m[3] : m[2], end = null;
+        raw.replace(/<(\d+):(\d{1,2})(?:[.,](\d+))?>/g, function (x, mm, ss, fr) { end = Number(mm) * 60 + Number(ss) + (fr ? Number('0.' + fr) : 0); return x; });
+        var text = raw.replace(/<\d+:\d{1,2}(?:[.,]\d+)?>/g, '').replace(/\s+/g, ' ').trim();   /* word-by-word times are dropped, line times are used */
+        return m.length === 4 ? { t: Number(m[1]) * 60 + Number(m[2]), l: text, e: end } : { t: Number(m[1]), l: text, e: end };
+      }).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+      var withGaps = [];
+      fromText.forEach(function (x, k) {   /* with word times, clear the line shortly after its last word during long pauses */
+        withGaps.push({ t: x.t, l: x.l });
+        var nxt = fromText[k + 1];
+        if (x.e != null && x.l && (!nxt || nxt.t > x.e + 3.5)) withGaps.push({ t: x.e + 2.5, l: '' });
+      });
+      fromText = withGaps;
       lines = (fromText.length ? fromText : (s.lyrics || [])).filter(function (x) { return x && typeof x.t === 'number' && x.l; }).sort(function (a, b) { return a.t - b.t; });
       lyr.textContent = ''; accent();
     }
