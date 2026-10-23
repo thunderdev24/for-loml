@@ -9,9 +9,10 @@ FUN.gtr = body => {
       <canvas id="gtrCv" class="game-cv" width="${W}" height="${H}" style="cursor:pointer;touch-action:none;width:100%;height:auto;display:block;"></canvas>
     </div>
     <div class="game-controls-row">
-      <button class="game-ctrl-btn" id="gtrLeft">◀ Left</button>
-      <button class="game-ctrl-btn nitro-btn" id="gtrNitro">🚀 NITRO</button>
-      <button class="game-ctrl-btn" id="gtrRight">Right ▶</button>
+      <button class="game-ctrl-btn" id="gtrLeft" style="padding:8px 12px">◀ Left</button>
+      <button class="game-ctrl-btn" id="gtrBrake" style="padding:8px 12px;background:linear-gradient(135deg,#dc2626,#991b1b);border-color:#f87171;color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(220,38,38,.45)">🛑 BRAKE</button>
+      <button class="game-ctrl-btn nitro-btn" id="gtrNitro" style="padding:8px 12px">🚀 NITRO</button>
+      <button class="game-ctrl-btn" id="gtrRight" style="padding:8px 12px">Right ▶</button>
     </div>
     <div class="fun-btn" id="gtrStart">Start Engine 🏎️</div>`;
 
@@ -31,7 +32,7 @@ FUN.gtr = body => {
   let fT = 0, fN = 0;
   let playerX = 0, dragX = null, steerDir = 0, tilt = 0;
   let distance = 0, hearts = 0, nitro = 100, isNitro = false, invuln = 0, shake = 0;
-  let speed = 0, posZ = 0, curve = 0, skyOff = 0;
+  let speed = 0, posZ = 0, curve = 0, skyOff = 0, isBrake = false;
   let traffic = [], pickups = [], sparks = [], pops = [];
   let tTimer = 1, pTimer = 1.2;
   let score = 0, mult = 1, comboT = 0, near = 0, shield = 0, lvl = 1, lastLvl = 0, best = 0;
@@ -96,15 +97,22 @@ FUN.gtr = body => {
 
   /* ---------- sprites ---------- */
   function drawTraffic(c, x, y, t, col) {
+    t = Math.max(t, 0.16) * 1.3;                       // bigger, and never too tiny in the distance
     const w = 54 * t, h = 36 * t;
+    c.globalCompositeOperation = 'lighter';           // coloured halo so cars pop out of the dark city
+    glow(c, x, y - h * 0.45, w * 1.05, col, 0.55);
+    glow(c, x, y - 2 * t, w * 0.75, col, 0.7);
+    c.globalCompositeOperation = 'source-over';
     c.fillStyle = 'rgba(0,0,0,.45)'; c.beginPath(); c.ellipse(x, y, w * 0.58, h * 0.14, 0, 0, 7); c.fill();
     c.fillStyle = '#07040f'; c.fillRect(x - w * 0.46, y - h * 0.3, w * 0.16, h * 0.3); c.fillRect(x + w * 0.3, y - h * 0.3, w * 0.16, h * 0.3);
     c.fillStyle = col; rr(c, x - w / 2, y - h * 0.68, w, h * 0.5, 3 * t); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = Math.max(1.2, 1.5 * t); c.stroke();   // bright outline
     c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(x - w * 0.46, y - h * 0.6, w * 0.92, Math.max(1, h * 0.04));
     c.fillStyle = '#0d1026'; c.beginPath(); c.moveTo(x - w * 0.36, y - h * 0.66); c.lineTo(x - w * 0.26, y - h); c.lineTo(x + w * 0.26, y - h); c.lineTo(x + w * 0.36, y - h * 0.66); c.fill();
+    c.strokeStyle = col; c.lineWidth = Math.max(1, 1.2 * t); c.stroke();
     c.fillStyle = '#ff2338'; c.fillRect(x - w * 0.44, y - h * 0.55, w * 0.2, h * 0.12); c.fillRect(x + w * 0.24, y - h * 0.55, w * 0.2, h * 0.12);
     c.globalCompositeOperation = 'lighter';
-    glow(c, x - w * 0.34, y - h * 0.49, w * 0.4, '#ff2338', 0.6); glow(c, x + w * 0.34, y - h * 0.49, w * 0.4, '#ff2338', 0.6);
+    glow(c, x - w * 0.34, y - h * 0.49, w * 0.55, '#ff2338', 1); glow(c, x + w * 0.34, y - h * 0.49, w * 0.55, '#ff2338', 1);
     c.globalCompositeOperation = 'source-over';
     if (!lowQ) {
       c.globalCompositeOperation = 'lighter';
@@ -121,18 +129,30 @@ FUN.gtr = body => {
     c.fill();
   }
   function drawPickup(c, p, x, y, t) {
-    const bob = Math.sin(posZ * 0.12 + p.ph) * 3 * t, yy = y - 22 * t + bob;
+    t = Math.max(t, 0.22) * 1.6;                                   // much bigger, readable from far away
+    const pulse = 1 + 0.14 * Math.sin(posZ * 0.25 + p.ph);
+    const bob = Math.sin(posZ * 0.12 + p.ph) * 3 * t, yy = y - 26 * t + bob;
+    const col = p.kind === 'h' ? '#ff4d8d' : p.kind === 's' ? '#38bdf8' : '#facc15';
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(x, y, 11 * t, 3 * t, 0, 0, 7); c.fill();
     c.globalCompositeOperation = 'lighter';
-    glow(c, x, yy, 24 * t, p.kind === 'h' ? '#ff4d8d' : '#22d3ee', 0.8);
+    const bm = c.createLinearGradient(0, y, 0, yy - 46 * t); bm.addColorStop(0, col); bm.addColorStop(1, 'rgba(0,0,0,0)');   // light beam
+    c.globalAlpha = 0.5; c.fillStyle = bm; c.fillRect(x - 5 * t, yy - 46 * t, 10 * t, y - yy + 46 * t); c.globalAlpha = 1;
+    glow(c, x, yy, 44 * t * pulse, col, 1);
+    c.strokeStyle = col; c.lineWidth = Math.max(1.5, 2.2 * t); c.globalAlpha = 0.9;
+    c.beginPath(); c.arc(x, yy, 15 * t * pulse, 0, 7); c.stroke(); c.globalAlpha = 1;   // pulsing ring
     c.globalCompositeOperation = 'source-over';
-    if (p.kind === 'h') heart(c, x, yy, 9 * t, '#ff6fa5');
-    else if (p.kind === 's') {
-      c.strokeStyle = '#a5f3fc'; c.lineWidth = Math.max(1, 2 * t); c.beginPath(); c.arc(x, yy, 9 * t, 0, 7); c.stroke();
-      c.fillStyle = 'rgba(125,211,252,.35)'; c.beginPath(); c.arc(x, yy, 9 * t, 0, 7); c.fill();
-      c.fillStyle = '#e0f9ff'; c.beginPath(); c.moveTo(x, yy - 6 * t); c.lineTo(x + 5 * t, yy - 3 * t); c.lineTo(x + 3.5 * t, yy + 4 * t); c.lineTo(x, yy + 7 * t); c.lineTo(x - 3.5 * t, yy + 4 * t); c.lineTo(x - 5 * t, yy - 3 * t); c.closePath(); c.fill();
+    const ow = Math.max(1.2, 1.8 * t);
+    if (p.kind === 'h') {
+      heart(c, x, yy, 11 * t, '#ff6fa5');
+      c.strokeStyle = '#fff'; c.lineWidth = ow; c.stroke();
+    } else if (p.kind === 's') {
+      c.fillStyle = 'rgba(56,189,248,.45)'; c.beginPath(); c.arc(x, yy, 12 * t, 0, 7); c.fill();
+      c.strokeStyle = '#fff'; c.lineWidth = ow; c.stroke();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(x, yy - 8 * t); c.lineTo(x + 6.5 * t, yy - 4 * t); c.lineTo(x + 4.5 * t, yy + 5 * t); c.lineTo(x, yy + 9 * t); c.lineTo(x - 4.5 * t, yy + 5 * t); c.lineTo(x - 6.5 * t, yy - 4 * t); c.closePath(); c.fill();
+    } else {
+      c.fillStyle = '#fde047'; c.beginPath(); c.moveTo(x + 3 * t, yy - 14 * t); c.lineTo(x - 9 * t, yy + 3 * t); c.lineTo(x - 1 * t, yy + 3 * t); c.lineTo(x - 4 * t, yy + 14 * t); c.lineTo(x + 9 * t, yy - 4 * t); c.lineTo(x + 1 * t, yy - 4 * t); c.closePath(); c.fill();
+      c.strokeStyle = '#fff'; c.lineWidth = ow; c.stroke();
     }
-    else { c.fillStyle = '#7dd3fc'; c.beginPath(); c.moveTo(x + 2 * t, yy - 11 * t); c.lineTo(x - 7 * t, yy + 2 * t); c.lineTo(x - 1 * t, yy + 2 * t); c.lineTo(x - 3 * t, yy + 11 * t); c.lineTo(x + 7 * t, yy - 3 * t); c.lineTo(x + 1 * t, yy - 3 * t); c.closePath(); c.fill(); }
-    c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(x, y, 9 * t, 2.5 * t, 0, 0, 7); c.fill();
   }
   function drawPost(c, x, y, t, col, i) {
     if (!lowQ && t > 0.12) {
@@ -183,7 +203,7 @@ FUN.gtr = body => {
   let carImg = null;
   (function () { const im = new Image(); im.onload = () => { if (im.naturalWidth > 20) carImg = im; }; im.onerror = () => { }; im.src = 'gtr-rear.png'; })();
 
-  function drawGTR(c, x, y, tl, nitroOn, flash) {
+  function drawGTR(c, x, y, tl, nitroOn, flash, brakeOn) {
     if (flash > 0 && Math.floor(flash * 14) % 2 === 0) return;
     c.save(); c.translate(x, y); c.rotate(tl); c.scale(0.88, 0.88);
     /* neon underglow + contact shadow */
@@ -257,7 +277,7 @@ FUN.gtr = body => {
       c.fillStyle = 'rgba(255,255,255,.75)'; c.beginPath(); c.arc(l[0] - l[2] * 0.35, l[1] - l[2] * 0.4, l[2] * 0.16, 0, 7); c.fill();
     });
     c.globalCompositeOperation = 'lighter';
-    lamps.forEach(l => glow(c, l[0], l[1], 20, '#ff2030', nitroOn ? 0.95 : 0.7));
+    lamps.forEach(l => glow(c, l[0], l[1], brakeOn ? 34 : 20, brakeOn ? '#ff5050' : '#ff2030', brakeOn ? 1 : nitroOn ? 0.95 : 0.7));
     c.globalCompositeOperation = 'source-over';
     /* cabin: body-coloured C-pillars + dark sloped rear glass */
     g = c.createLinearGradient(0, -68, 0, -46); g.addColorStop(0, P[4]); g.addColorStop(1, P[5]);
@@ -372,7 +392,7 @@ FUN.gtr = body => {
 
     /* the GT-R from behind */
     const bob = Math.sin(posZ * 0.9) * (speed > 24 ? 0.5 : 0);
-    drawGTR(c, carSX, CARY + bob, tilt, isNitro && nitro > 0, invuln);
+    drawGTR(c, carSX, CARY + bob, tilt, isNitro && nitro > 0, invuln, isBrake);
 
     if (shield > 0) {
       c.globalCompositeOperation = 'lighter';
@@ -399,7 +419,7 @@ FUN.gtr = body => {
     /* HUD */
     c.font = 'bold 13px Poppins, sans-serif'; c.textAlign = 'left'; c.fillStyle = isNitro ? '#7dd3fc' : '#ffffff';
     c.shadowColor = 'rgba(0,0,0,.8)'; c.shadowBlur = 4;
-    c.fillText(Math.round(speed * 3.4) + ' KM/H', 10, 18);
+    c.fillText(Math.round(speed * 3.4) + ' KM/H' + (isBrake ? '  🛑 BRAKE' : ''), 10, 18);
     c.textAlign = 'right'; c.fillStyle = '#ff9ec0';
     c.fillText('💖 ' + hearts + '/' + GTR_H + '  |  🏁 ' + Math.min(GTR_M, Math.floor(distance)) + 'm', W - 10, 18);
     c.font = 'bold 11px Poppins, sans-serif'; c.textAlign = 'left'; c.fillStyle = '#ffe3b0';
@@ -435,8 +455,9 @@ FUN.gtr = body => {
     lvl = 1 + Math.floor(distance / 250);
     if (lvl !== lastLvl) { if (lastLvl > 0) pop(CX, HZ + 44, 'LEVEL ' + lvl + ' 🔥', '#ffe3b0'); lastLvl = lvl; }
     const base = 30 + Math.min(8, (lvl - 1) * 2);
-    const tv = (isNitro && nitro > 0) ? base + 28 : base;
-    speed += (tv - speed) * Math.min(1, dt * (isNitro ? 2.4 : 1.1));
+    if (isBrake) isNitro = false;
+    const tv = isBrake ? 8 : (isNitro && nitro > 0) ? base + 28 : base;
+    speed += (tv - speed) * Math.min(1, dt * (isBrake ? 3.2 : isNitro ? 2.4 : 1.1));
     if (isNitro) { nitro = Math.max(0, nitro - dt * 26); if (nitro <= 0) isNitro = false; } else nitro = Math.min(100, nitro + dt * 5);
     posZ += speed * 0.9 * dt; distance += speed * 0.8 * dt; score += speed * 0.8 * dt;
     comboT -= dt; if (comboT <= 0) mult = 1;
@@ -480,7 +501,7 @@ FUN.gtr = body => {
     for (let i = pickups.length - 1; i >= 0; i--) {
       const p = pickups[i]; p.z -= speed * 0.9 * dt;
       if (p.z < 0.3) { pickups.splice(i, 1); continue; }
-      if (Math.abs(p.z - ZCAR) < 0.5 && Math.abs(p.lane - playerX) < 0.3) {
+      if (Math.abs(p.z - ZCAR) < 0.5 && Math.abs(p.lane - playerX) < 0.38) {
         if (p.kind === 'h') { hearts++; mult = Math.min(5, mult + 1); comboT = 6; const pts = 40 * mult; score += pts; pop(carSX, CARY - 80, '+1 💖  +' + pts, '#ff9ec0'); burst(carSX, CARY - 40, '#ff6fa5', 10); }
         else if (p.kind === 's') { shield = 1; pop(carSX, CARY - 80, 'SHIELD 🛡️', '#a5f3fc'); burst(carSX, CARY - 40, '#a5f3fc', 10); }
         else { nitro = Math.min(100, nitro + 38); pop(carSX, CARY - 80, 'NITRO ⚡', '#7dd3fc'); burst(carSX, CARY - 40, '#7dd3fc', 10); }
@@ -521,10 +542,10 @@ FUN.gtr = body => {
 
   function start() {
     if (running) return;
-    running = true; distance = 0; hearts = 0; nitro = 100; isNitro = false; invuln = 0; shake = 0;
+    running = true; isBrake = false; distance = 0; hearts = 0; nitro = 100; isNitro = false; invuln = 0; shake = 0;
     traffic = []; pickups = []; sparks = []; pops = []; playerX = 0; dragX = null; steerDir = 0; speed = 12; posZ = 0; score = 0; mult = 1; comboT = 0; near = 0; shield = 0; lvl = 1; lastLvl = 0; tTimer = 1.2; pTimer = 0.8; fT = 0; fN = 0;
     byId('gtrStart').style.display = 'none';
-    byId('gtrInfo').textContent = 'Hold NITRO for 190+ km/h! Dodge traffic & catch hearts 💖';
+    byId('gtrInfo').textContent = 'Hold NITRO to boost, BRAKE to slow down. Dodge traffic & catch hearts 💖';
     last = performance.now();
     raf = requestAnimationFrame(loop);
   }
@@ -545,7 +566,13 @@ FUN.gtr = body => {
   const onUp = e => { e.preventDefault(); steerDir = 0; };
   btnL.addEventListener('pointerdown', onLDown); btnL.addEventListener('pointerup', onUp); btnL.addEventListener('pointerleave', onUp);
   btnR.addEventListener('pointerdown', onRDown); btnR.addEventListener('pointerup', onUp); btnR.addEventListener('pointerleave', onUp);
-  const toggleNitro = on => { isNitro = on && nitro > 5; };
+  const toggleNitro = on => { isNitro = on && nitro > 5 && !isBrake; };
+  const setBrake = on => { isBrake = on; if (on) isNitro = false; };
+  const btnB = byId('gtrBrake');
+  btnB.addEventListener('pointerdown', e => { e.preventDefault(); setBrake(true); });
+  btnB.addEventListener('pointerup', e => { e.preventDefault(); setBrake(false); });
+  btnB.addEventListener('pointerleave', e => { e.preventDefault(); setBrake(false); });
+  btnB.addEventListener('pointercancel', () => setBrake(false));
   btnN.addEventListener('pointerdown', e => { e.preventDefault(); toggleNitro(true); });
   btnN.addEventListener('pointerup', e => { e.preventDefault(); toggleNitro(false); });
   btnN.addEventListener('pointerleave', e => { e.preventDefault(); toggleNitro(false); });
@@ -553,11 +580,13 @@ FUN.gtr = body => {
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { steerDir = -1; dragX = null; e.preventDefault(); }
     if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { steerDir = 1; dragX = null; e.preventDefault(); }
     if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { toggleNitro(true); e.preventDefault(); }
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { setBrake(true); e.preventDefault(); }
   };
   const onKeyUp = e => {
     if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && steerDir === -1) steerDir = 0;
     if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && steerDir === 1) steerDir = 0;
     if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') toggleNitro(false);
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') setBrake(false);
   };
   document.addEventListener('keydown', onKey); document.addEventListener('keyup', onKeyUp);
 
