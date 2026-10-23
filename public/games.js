@@ -140,62 +140,110 @@ FUN.gtr = body => {
     }
   }
 
+  /* optional: drop a transparent PNG of a real GT-R's rear called gtr-rear.png next to index.html and it is used instead of the drawn car */
+  let carImg = null;
+  (function () { const im = new Image(); im.onload = () => { if (im.naturalWidth > 20) carImg = im; }; im.onerror = () => { }; im.src = 'gtr-rear.png'; })();
+
   function drawGTR(c, x, y, tl, nitroOn, flash) {
     if (flash > 0 && Math.floor(flash * 14) % 2 === 0) return;
     c.save(); c.translate(x, y); c.rotate(tl);
-    /* neon underglow + shadow */
-    c.save(); c.scale(1, 0.26); c.globalCompositeOperation = 'lighter'; glow(c, 0, 4, 58, nitroOn ? '#38bdf8' : '#ec4899', 0.75); c.restore();
-    c.fillStyle = 'rgba(0,0,0,.5)'; c.beginPath(); c.ellipse(0, 1, 36, 5, 0, 0, 7); c.fill();
-    /* wheels */
-    c.fillStyle = '#07070d'; rr(c, -33, -15, 10, 15, 2); c.fill(); rr(c, 23, -15, 10, 15, 2); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-32, -14, 1.4, 12); c.fillRect(31, -14, 1.4, 12);
-    /* diffuser + bumper */
-    let g = c.createLinearGradient(0, -20, 0, -4); g.addColorStop(0, '#1e40af'); g.addColorStop(1, '#0b1a4d');
-    c.fillStyle = g; rr(c, -30, -20, 60, 15, 4); c.fill();
-    c.fillStyle = '#07070c'; rr(c, -19, -9, 38, 6, 2); c.fill();
-    /* exhausts */
-    c.fillStyle = '#9ca3af'; c.beginPath(); c.arc(-9, -6, 3.6, 0, 7); c.arc(9, -6, 3.6, 0, 7); c.fill();
-    c.fillStyle = '#05050a'; c.beginPath(); c.arc(-9, -6, 2.5, 0, 7); c.arc(9, -6, 2.5, 0, 7); c.fill();
-    if (nitroOn) {
-      for (const sx of [-9, 9]) {
-        const L = 20 + Math.random() * 16, fg = c.createLinearGradient(0, -5, 0, L);
+    /* neon underglow + contact shadow */
+    c.save(); c.scale(1, 0.24); c.globalCompositeOperation = 'lighter'; glow(c, 0, 5, 66, nitroOn ? '#38bdf8' : '#ec4899', 0.7); c.restore();
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.beginPath(); c.ellipse(0, 1, 44, 5.5, 0, 0, 7); c.fill();
+    const flames = () => {
+      if (!nitroOn) return;
+      for (const sx of [-11, 11]) {
+        const L = 22 + Math.random() * 18, fg = c.createLinearGradient(0, -6, 0, L);
         fg.addColorStop(0, '#ffffff'); fg.addColorStop(0.3, '#7dd3fc'); fg.addColorStop(1, 'rgba(59,130,246,0)');
-        c.fillStyle = fg; c.beginPath(); c.moveTo(sx - 3, -4); c.lineTo(sx, L); c.lineTo(sx + 3, -4); c.fill();
+        c.fillStyle = fg; c.beginPath(); c.moveTo(sx - 3.5, -5); c.lineTo(sx, L); c.lineTo(sx + 3.5, -5); c.fill();
       }
+    };
+    if (carImg) {   /* real photo sprite */
+      const w = 92, h = w * carImg.naturalHeight / carImg.naturalWidth;
+      c.drawImage(carImg, -w / 2, 3 - h, w, h);
+      flames(); c.restore(); return;
     }
-    /* plate */
-    c.fillStyle = '#f8fafc'; rr(c, -9, -17, 18, 8, 1); c.fill();
-    c.fillStyle = '#1e293b'; c.font = 'bold 5px Poppins, sans-serif'; c.textAlign = 'center'; c.fillText('IFRA', 0, -11.2);
-    /* main body */
-    g = c.createLinearGradient(0, -36, 0, -16); g.addColorStop(0, '#4f8bff'); g.addColorStop(0.5, '#2150c9'); g.addColorStop(1, '#14307f');
-    c.fillStyle = g; rr(c, -31, -36, 62, 22, 7); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(-27, -33, 54, 1.4);
-    c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(-27, -29, 54, 6);
-    /* tail-light panel */
-    c.fillStyle = '#2a0710'; rr(c, -26, -28, 52, 7, 2); c.fill();
-    /* four round tail lights */
-    const lights = [[-23, -24.5, 5.4], [-12.5, -24.5, 4.8], [12.5, -24.5, 4.8], [23, -24.5, 5.4]];
-    lights.forEach(l => {
-      c.fillStyle = '#12040a'; c.beginPath(); c.arc(l[0], l[1], l[2] + 1.5, 0, 7); c.fill();
-      const rg = c.createRadialGradient(l[0] - 1, l[1] - 1, 0.5, l[0], l[1], l[2]);
-      rg.addColorStop(0, '#ffc2c2'); rg.addColorStop(0.45, '#ff2a2a'); rg.addColorStop(1, '#8a0b12');
+    let g;
+    /* tyres: wide, with sidewall shading */
+    for (const sx of [-1, 1]) {
+      g = c.createLinearGradient(sx * 34, 0, sx * 47, 0); g.addColorStop(0, '#0a0a10'); g.addColorStop(0.5, '#23252e'); g.addColorStop(1, '#07070b');
+      c.fillStyle = g; rr(c, sx < 0 ? -47 : 34, -19, 13, 19, 3); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.10)'; c.fillRect(sx < 0 ? -45 : 36, -17, 1.2, 14);
+    }
+    /* lower valance + diffuser */
+    g = c.createLinearGradient(0, -24, 0, -4); g.addColorStop(0, '#1b2f78'); g.addColorStop(0.45, '#0f1b4a'); g.addColorStop(1, '#07091a');
+    c.fillStyle = g; c.beginPath(); c.moveTo(-42, -24); c.lineTo(42, -24); c.lineTo(39, -6); c.quadraticCurveTo(0, -1, -39, -6); c.closePath(); c.fill();
+    c.fillStyle = '#06070d'; c.beginPath(); c.moveTo(-26, -14); c.lineTo(26, -14); c.lineTo(23, -4); c.lineTo(-23, -4); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(120,140,200,.35)'; c.lineWidth = 0.8;
+    for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(i * 8, -13.5); c.lineTo(i * 7.2, -4.5); c.stroke(); }
+    /* twin round exhausts */
+    for (const sx of [-12, 12]) {
+      g = c.createRadialGradient(sx - 1, -9.5, 0.5, sx, -9, 5); g.addColorStop(0, '#e5e7eb'); g.addColorStop(0.6, '#8b93a1'); g.addColorStop(1, '#4b5563');
+      c.fillStyle = g; c.beginPath(); c.arc(sx, -9, 4.6, 0, 7); c.fill();
+      c.fillStyle = '#030306'; c.beginPath(); c.arc(sx, -9, 3.1, 0, 7); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.arc(sx - 1.5, -10.5, 0.9, 0, 7); c.fill();
+    }
+    flames();
+    /* trunk face: flared fenders, metallic bayside blue */
+    c.save();
+    c.beginPath(); c.moveTo(-42, -22); c.quadraticCurveTo(-45, -36, -41, -47); c.lineTo(41, -47); c.quadraticCurveTo(45, -36, 42, -22); c.closePath();
+    g = c.createLinearGradient(0, -47, 0, -22); g.addColorStop(0, '#6aa0ff'); g.addColorStop(0.18, '#3a6df0'); g.addColorStop(0.6, '#1f45b8'); g.addColorStop(1, '#122a73');
+    c.fillStyle = g; c.fill(); c.clip();
+    g = c.createLinearGradient(-42, 0, 42, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.25, 'rgba(255,255,255,.20)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(0.8, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(0,0,0,.25)');
+    c.fillStyle = g; c.fillRect(-45, -48, 90, 30);
+    c.fillStyle = 'rgba(0,0,0,.28)'; c.fillRect(-45, -26, 90, 5);                       /* shadow where the body tucks under */
+    c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-40, -45.5); c.lineTo(40, -45.5); c.stroke();   /* trunk lip highlight */
+    c.strokeStyle = 'rgba(8,18,60,.55)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(-42, -41); c.lineTo(42, -41); c.stroke();           /* panel gap */
+    c.strokeStyle = 'rgba(255,90,170,.35)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(-43, -44); c.quadraticCurveTo(-45, -35, -42, -24); c.stroke();  /* neon rim light */
+    c.strokeStyle = 'rgba(34,211,238,.35)'; c.beginPath(); c.moveTo(43, -44); c.quadraticCurveTo(45, -35, 42, -24); c.stroke();
+    c.restore();
+    /* dark centre garnish with chrome lettering strip, plate recess */
+    c.fillStyle = '#0a0c16'; rr(c, -11, -40, 22, 13, 2); c.fill();
+    c.fillStyle = '#b8bfcc'; for (let i = 0; i < 9; i++) c.fillRect(-9.5 + i * 2.4, -39, 1.4, 1.5);
+    c.fillStyle = '#f4f6fa'; rr(c, -9.5, -37, 19, 8.5, 1); c.fill();
+    c.fillStyle = '#1e293b'; c.font = 'bold 5px Poppins, sans-serif'; c.textAlign = 'center'; c.fillText('IFRA', 0, -30.7);
+    c.fillStyle = '#6b7280'; c.fillRect(-8.5, -36.4, 1, 1); c.fillRect(7.5, -36.4, 1, 1);
+    /* four round tail lamps in dark housings */
+    for (const sx of [-1, 1]) {
+      c.fillStyle = '#2b060d'; rr(c, sx < 0 ? -38 : 12, -42, 26, 14, 6); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 0.7; rr(c, sx < 0 ? -38 : 12, -42, 26, 14, 6); c.stroke();
+    }
+    const lamps = [[-31, -35, 6], [-18, -35, 5.4], [18, -35, 5.4], [31, -35, 6]];
+    lamps.forEach(l => {
+      c.fillStyle = '#080204'; c.beginPath(); c.arc(l[0], l[1], l[2] + 1.3, 0, 7); c.fill();
+      const rg = c.createRadialGradient(l[0] - 1.5, l[1] - 1.5, 0.4, l[0], l[1], l[2]);
+      rg.addColorStop(0, '#ffd0d0'); rg.addColorStop(0.35, '#ff3030'); rg.addColorStop(0.8, '#a60f1b'); rg.addColorStop(1, '#5c0710');
       c.fillStyle = rg; c.beginPath(); c.arc(l[0], l[1], l[2], 0, 7); c.fill();
+      c.strokeStyle = 'rgba(40,0,6,.7)'; c.lineWidth = 0.8; c.beginPath(); c.arc(l[0], l[1], l[2] * 0.58, 0, 7); c.stroke();   /* reflector ring */
+      c.fillStyle = 'rgba(255,255,255,.75)'; c.beginPath(); c.arc(l[0] - l[2] * 0.35, l[1] - l[2] * 0.4, l[2] * 0.16, 0, 7); c.fill();
     });
     c.globalCompositeOperation = 'lighter';
-    lights.forEach(l => glow(c, l[0], l[1], 17, '#ff2030', nitroOn ? 0.95 : 0.65));
+    lamps.forEach(l => glow(c, l[0], l[1], 20, '#ff2030', nitroOn ? 0.95 : 0.7));
     c.globalCompositeOperation = 'source-over';
-    /* rear window / cabin */
-    g = c.createLinearGradient(0, -48, 0, -35); g.addColorStop(0, '#202a55'); g.addColorStop(1, '#070b1c');
-    c.fillStyle = g; c.beginPath(); c.moveTo(-25, -35); c.lineTo(-19, -47); c.lineTo(19, -47); c.lineTo(25, -35); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(255,90,170,.22)'; c.beginPath(); c.moveTo(-20, -36); c.lineTo(-9, -36); c.lineTo(-3, -46); c.lineTo(-14, -46); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(34,211,238,.18)'; c.beginPath(); c.moveTo(6, -36); c.lineTo(12, -36); c.lineTo(15, -46); c.lineTo(10, -46); c.closePath(); c.fill();
-    c.fillStyle = '#1d3f9c'; c.fillRect(-19, -48.4, 38, 1.6);
-    /* big rear wing */
-    c.fillStyle = '#05060b'; c.fillRect(-21, -49, 3, 11); c.fillRect(18, -49, 3, 11);
-    g = c.createLinearGradient(0, -57, 0, -51); g.addColorStop(0, '#2a3042'); g.addColorStop(1, '#05060b');
-    c.fillStyle = g; rr(c, -34, -57, 68, 6, 2); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.3)'; c.fillRect(-32, -56.6, 64, 1);
-    c.fillStyle = '#05060b'; c.fillRect(-35, -60, 3, 12); c.fillRect(32, -60, 3, 12);
+    /* cabin: body-coloured C-pillars + dark sloped rear glass */
+    g = c.createLinearGradient(0, -68, 0, -46); g.addColorStop(0, '#5b92fb'); g.addColorStop(1, '#2350c4');
+    c.fillStyle = g; c.beginPath(); c.moveTo(-36, -46); c.lineTo(-27, -66); c.quadraticCurveTo(0, -69, 27, -66); c.lineTo(36, -46); c.closePath(); c.fill();
+    g = c.createLinearGradient(0, -64, 0, -47); g.addColorStop(0, '#26315f'); g.addColorStop(0.6, '#0b1130'); g.addColorStop(1, '#04060f');
+    c.fillStyle = g; c.beginPath(); c.moveTo(-31, -47); c.lineTo(-23, -63); c.lineTo(23, -63); c.lineTo(31, -47); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,90,170,.20)'; c.beginPath(); c.moveTo(-26, -48); c.lineTo(-12, -48); c.lineTo(-5, -62); c.lineTo(-19, -62); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(34,211,238,.17)'; c.beginPath(); c.moveTo(8, -48); c.lineTo(15, -48); c.lineTo(19, -62); c.lineTo(12, -62); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(0,0,0,.55)'; rr(c, -14, -58, 9, 9, 3); c.fill(); rr(c, 5, -58, 9, 9, 3); c.fill();   /* headrests */
+    c.fillStyle = '#080c1c'; c.fillRect(-12, -62.6, 24, 1.6);                                                /* third brake light */
+    c.fillStyle = '#ff2a2a'; c.fillRect(-9, -62.2, 18, 0.9);
+    c.fillStyle = 'rgba(255,255,255,.30)'; c.beginPath(); c.moveTo(-27, -66); c.quadraticCurveTo(0, -69.5, 27, -66); c.lineTo(27, -65); c.quadraticCurveTo(0, -68.4, -27, -65); c.fill();   /* roof highlight */
+    /* mirrors */
+    c.fillStyle = '#2a5be0'; rr(c, -43, -58, 7, 5, 2); c.fill(); rr(c, 36, -58, 7, 5, 2); c.fill();
+    /* big rear wing on angled uprights */
+    c.fillStyle = '#06070c'; c.beginPath(); c.moveTo(-26, -47); c.lineTo(-22, -47); c.lineTo(-21, -73); c.lineTo(-25, -73); c.fill();
+    c.beginPath(); c.moveTo(26, -47); c.lineTo(22, -47); c.lineTo(21, -73); c.lineTo(25, -73); c.fill();
+    g = c.createLinearGradient(0, -80, 0, -72); g.addColorStop(0, '#3b4257'); g.addColorStop(0.5, '#0e111b'); g.addColorStop(1, '#05060b');
+    c.fillStyle = g; rr(c, -42, -80, 84, 8, 2); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.14)'; c.lineWidth = 0.6;
+    for (let i = -40; i < 40; i += 4) { c.beginPath(); c.moveTo(i, -79); c.lineTo(i + 3, -73); c.stroke(); }   /* carbon weave */
+    c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(-40, -79.6, 80, 1);
+    c.fillStyle = '#05060b'; rr(c, -44, -84, 3.5, 16, 1); c.fill(); rr(c, 40.5, -84, 3.5, 16, 1); c.fill();
+    c.strokeStyle = 'rgba(255,90,170,.35)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-42, -80.5); c.lineTo(0, -81); c.stroke();
+    c.strokeStyle = 'rgba(34,211,238,.35)'; c.beginPath(); c.moveTo(0, -81); c.lineTo(42, -80.5); c.stroke();
     c.restore();
   }
 
@@ -259,8 +307,8 @@ FUN.gtr = body => {
     }
 
     /* speed streaks */
-    if (speed > 58) {
-      c.strokeStyle = 'rgba(190,235,255,' + Math.min(0.45, (speed - 58) / 50) + ')'; c.lineWidth = 1.2;
+    if (speed > 42) {
+      c.strokeStyle = 'rgba(190,235,255,' + Math.min(0.45, (speed - 42) / 30) + ')'; c.lineWidth = 1.2;
       for (let k = 0; k < 12; k++) {
         const ang = Math.PI * (0.06 + 0.88 * ((k * 0.618) % 1)), r = ((posZ * 0.07 + k * 0.37) % 1), r0 = 24 + r * 150, r1 = r0 + 10 + r * 44;
         c.beginPath(); c.moveTo(CX + Math.cos(ang) * r0 * 1.3, HZ + 8 + Math.sin(ang) * r0); c.lineTo(CX + Math.cos(ang) * r1 * 1.3, HZ + 8 + Math.sin(ang) * r1); c.stroke();
@@ -268,7 +316,7 @@ FUN.gtr = body => {
     }
 
     /* the GT-R from behind */
-    const bob = Math.sin(posZ * 0.9) * (speed > 30 ? 0.6 : 0);
+    const bob = Math.sin(posZ * 0.9) * (speed > 24 ? 0.5 : 0);
     drawGTR(c, carSX, CARY + bob, tilt, isNitro && nitro > 0, invuln);
 
     /* sparks + popups */
@@ -289,7 +337,7 @@ FUN.gtr = body => {
     /* HUD */
     c.font = 'bold 13px Poppins, sans-serif'; c.textAlign = 'left'; c.fillStyle = isNitro ? '#7dd3fc' : '#ffffff';
     c.shadowColor = 'rgba(0,0,0,.8)'; c.shadowBlur = 4;
-    c.fillText(Math.round(speed * 3.15) + ' KM/H', 10, 18);
+    c.fillText(Math.round(speed * 3.4) + ' KM/H', 10, 18);
     c.textAlign = 'right'; c.fillStyle = '#ff9ec0';
     c.fillText('💖 ' + hearts + '/' + GTR_H + '  |  🏁 ' + Math.min(GTR_M, Math.floor(distance)) + 'm', W - 10, 18);
     c.shadowBlur = 0;
@@ -307,28 +355,28 @@ FUN.gtr = body => {
   function spawnTraffic() {
     const lane = LANES[(Math.random() * 3) | 0];
     if (traffic.some(o => o.z > 60 && Math.abs(o.lane - lane) < 0.1)) return;
-    traffic.push({ z: 88, lane, v: 14 + Math.random() * 10, col: ['#ff2d95', '#22d3ee', '#f59e0b', '#a78bfa', '#34d399'][(Math.random() * 5) | 0] });
+    traffic.push({ z: 88, lane, v: 8 + Math.random() * 7, col: ['#ff2d95', '#22d3ee', '#f59e0b', '#a78bfa', '#34d399'][(Math.random() * 5) | 0] });
   }
   function spawnPickup() { pickups.push({ z: 88, lane: (Math.random() * 1.6 - 0.8), kind: Math.random() < 0.72 ? 'h' : 'n', ph: Math.random() * 6 }); }
   function burst(x, y, col, n) { for (let i = 0; i < n; i++) sparks.push({ x, y, vx: (Math.random() - 0.5) * 140, vy: -Math.random() * 110, life: 0.5 + Math.random() * 0.3, col }); }
   function pop(x, y, txt, col) { pops.push({ x, y, txt, col, life: 0.9 }); }
 
   function update(dt) {
-    const tv = (isNitro && nitro > 0) ? 84 : 46;
+    const tv = (isNitro && nitro > 0) ? 58 : 30;
     speed += (tv - speed) * Math.min(1, dt * (isNitro ? 2.4 : 1.1));
     if (isNitro) { nitro = Math.max(0, nitro - dt * 26); if (nitro <= 0) isNitro = false; } else nitro = Math.min(100, nitro + dt * 5);
-    posZ += speed * 0.9 * dt; distance += speed * 0.55 * dt;
+    posZ += speed * 0.9 * dt; distance += speed * 0.8 * dt;
     curve = Math.sin(distance * 0.012) * 0.65 + Math.sin(distance * 0.005 + 1.3) * 0.35;
     skyOff += curve * speed * dt * 0.22;
     let steer = steerDir;
     if (dragX !== null) { steer = Math.max(-1, Math.min(1, (dragX - playerX) * 3)); playerX += (dragX - playerX) * Math.min(1, dt * 9); }
     else playerX += steerDir * dt * 1.7;
-    playerX -= curve * dt * 0.5 * (speed / 46);
+    playerX -= curve * dt * 0.45 * (speed / 30);
     if (playerX > 0.95) { playerX = 0.95; speed *= 0.99; } else if (playerX < -0.95) { playerX = -0.95; speed *= 0.99; }
     tilt += (Math.max(-0.12, Math.min(0.12, steer * 0.08 + curve * 0.03)) - tilt) * Math.min(1, dt * 8);
     invuln = Math.max(0, invuln - dt); shake = Math.max(0, shake - dt * 1.6);
 
-    tTimer -= dt; if (tTimer <= 0) { spawnTraffic(); tTimer = (0.85 + Math.random() * 0.9) * Math.sqrt(46 / Math.max(30, speed)); }
+    tTimer -= dt; if (tTimer <= 0) { spawnTraffic(); tTimer = (0.85 + Math.random() * 0.9) * Math.sqrt(30 / Math.max(22, speed)); }
     pTimer -= dt; if (pTimer <= 0) { spawnPickup(); pTimer = 1.3 + Math.random() * 1.3; }
 
     const carSX = CX + playerX * RW * TCAR;
@@ -336,7 +384,7 @@ FUN.gtr = body => {
       const o = traffic[i]; o.z -= (speed - o.v) * 0.9 * dt;
       if (o.z < 0.3 || o.z > 120) { traffic.splice(i, 1); continue; }
       if (invuln <= 0 && Math.abs(o.z - ZCAR) < 0.42 && Math.abs(o.lane - playerX) < 0.4) {
-        speed = 16; invuln = 1.6; shake = 0.5; nitro = Math.max(0, nitro - 14); isNitro = false;
+        speed = 9; invuln = 1.6; shake = 0.5; nitro = Math.max(0, nitro - 14); isNitro = false;
         burst(carSX, CARY - 20, '#ffd27a', 16); pop(carSX, CARY - 70, 'Ouch! 💥', '#ffb4b4');
         if (window.PLUS) PLUS.sfx('bad');
       }
@@ -380,9 +428,9 @@ FUN.gtr = body => {
   function start() {
     if (running) return;
     running = true; distance = 0; hearts = 0; nitro = 100; isNitro = false; invuln = 0; shake = 0;
-    traffic = []; pickups = []; sparks = []; pops = []; playerX = 0; dragX = null; steerDir = 0; speed = 20; posZ = 0; tTimer = 1.2; pTimer = 0.8; fT = 0; fN = 0;
+    traffic = []; pickups = []; sparks = []; pops = []; playerX = 0; dragX = null; steerDir = 0; speed = 12; posZ = 0; tTimer = 1.2; pTimer = 0.8; fT = 0; fN = 0;
     byId('gtrStart').style.display = 'none';
-    byId('gtrInfo').textContent = 'Hold NITRO for 260+ km/h! Dodge traffic & catch hearts 💖';
+    byId('gtrInfo').textContent = 'Hold NITRO for 190+ km/h! Dodge traffic & catch hearts 💖';
     last = performance.now();
     raf = requestAnimationFrame(loop);
   }
