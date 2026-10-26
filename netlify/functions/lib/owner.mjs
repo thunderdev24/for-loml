@@ -31,6 +31,22 @@ export async function sendOwner(text, title, opts = {}) {
             timestamp: new Date().toISOString()
           }]
         };
+      } else if (opts.diary) {
+        body = {
+          username: 'Ifra 💕',
+          content: '📖 **Ifra shared a new diary page with you!** 💖 @everyone',
+          embeds: [{
+            title: `${opts.diary.mood || '📖'} ${opts.diary.title || 'Personal Diary Entry'}`,
+            description: opts.diary.text ? (opts.diary.text.length > 1500 ? opts.diary.text.slice(0, 1500) + '…' : opts.diary.text) : '*(Empty entry)*',
+            color: 12208888, // #ba68c8 purple
+            fields: [
+              { name: '📅 Date', value: opts.diary.dateFormatted || opts.diary.date || 'Today', inline: true },
+              { name: '💭 Mood', value: opts.diary.mood || '💖', inline: true }
+            ],
+            footer: { text: 'Ifra\'s Personal Diary · View in Admin' },
+            timestamp: new Date().toISOString()
+          }]
+        };
       } else {
         body = { username: 'Ifra', content: String(text).slice(0, 1900) };
       }
@@ -63,7 +79,7 @@ export async function sendOwner(text, title, opts = {}) {
       title: title || '💌 New Message from Ifra',
       body: String(text).replace(/\n+/g, ' · ').slice(0, 180),
       url: '/admin.html',
-      tag: opts.plan ? 'ifra-plan' : 'ifra-msg'
+      tag: opts.diary ? 'ifra-diary' : (opts.plan ? 'ifra-plan' : 'ifra-msg')
     }).then(res => { if (res && res.sent > 0) ok = true; }).catch(() => { });
   } catch (e) { }
 
