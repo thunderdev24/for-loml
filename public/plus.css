@@ -179,3 +179,173 @@ html.lite .card > h1 { background: none; -webkit-text-fill-color: #ffb6c1; color
   .fun-box { transition: opacity 0.2s ease; transform: none; }
   .plus-combo { animation-duration: 0.01s; }
 }
+
+/* ---------- 📅 DATE & VALORANT PLANNER MODAL STYLES ---------- */
+.planner-wrap {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-sec-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ff9cb0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+.plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.plan-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fce7ef;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.plan-chip:hover {
+  background: rgba(255, 77, 109, 0.25);
+  border-color: #ff7597;
+  color: #fff;
+}
+.plan-chip.active {
+  background: linear-gradient(135deg, #ff4d6d, #d81b60);
+  border-color: #ff4d6d;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(255, 77, 109, 0.45);
+}
+.cal-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 110, 140, 0.25);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cal-month-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffe6ee;
+}
+.cal-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+.cal-btn:hover {
+  background: #ff4d6d;
+}
+.cal-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.cal-dow {
+  font-size: 0.72rem;
+  color: #e6b8c8;
+  font-weight: 600;
+  padding: 3px 0;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  color: #fbe9ef;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.cal-cell:hover:not(.disabled) {
+  background: rgba(255, 77, 109, 0.3);
+}
+.cal-cell.today {
+  border: 1px dashed #ff7597;
+}
+.cal-cell.selected {
+  background: linear-gradient(135deg, #ff4d6d, #d81b60) !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.8);
+}
+.cal-cell.disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+.plan-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.plan-time-input {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 110, 140, 0.3);
+  color: #fff;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+}
+.plan-time-input:focus {
+  border-color: #ff4d6d;
+}
+.plan-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 110, 140, 0.25);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 55px;
+}
+.plan-note-input:focus {
+  border-color: #ff4d6d;
+  outline: none;
+}
+.plan-summary-box {
+  background: rgba(255, 77, 109, 0.12);
+  border: 1px solid rgba(255, 77, 109, 0.35);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 10px 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #fff;
+  text-align: left;
+}
+.plan-success-wrap {
+  text-align: center;
+  padding: 10px 0;
+}
+

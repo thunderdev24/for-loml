@@ -2067,6 +2067,340 @@ FUN.writeback = body => {
   };
 };
 
+/* ---------- 📅 PLAN A DATE / VALORANT SESSION ---------- */
+FUN.calendar = (body, initialType) => {
+  const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  let currentPlanType = initialType === 'valorant' ? 'valorant' : 'valorant';
+  let valorantMode = 'Competitive 🏆';
+  let customTitle = '';
+  let selectedDate = new Date();
+  let displayYear = selectedDate.getFullYear();
+  let displayMonth = selectedDate.getMonth();
+  let selectedTime = '21:30';
+  let noteText = '';
+
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  function formatDateStr(d) {
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function formatISODate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function formatTimeStr(time24) {
+    if (!time24) return '9:30 PM';
+    const parts = time24.split(':');
+    let h = parseInt(parts[0], 10);
+    const m = parts[1] || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
+
+  function render() {
+    body.innerHTML = `
+      <h3>Plan a Date / Game 📅🎮</h3>
+      <p class="fun-sub">Pick a day & time to play Valorant, watch a movie, or plan anything special! Tayyab’s phone gets the notification immediately 📲💕</p>
+      
+      <div class="planner-wrap">
+        <div>
+          <div class="plan-sec-title">1. What's the plan?</div>
+          <div class="plan-chips" id="planTypeChips">
+            <div class="plan-chip ${currentPlanType === 'valorant' ? 'active' : ''}" data-type="valorant">🎮 Valorant Date</div>
+            <div class="plan-chip ${currentPlanType === 'movie' ? 'active' : ''}" data-type="movie">🎬 Movie Night</div>
+            <div class="plan-chip ${currentPlanType === 'call' ? 'active' : ''}" data-type="call">☕ Late Night Call</div>
+            <div class="plan-chip ${currentPlanType === 'dinner' ? 'active' : ''}" data-type="dinner">🍕 Dinner / Food</div>
+            <div class="plan-chip ${currentPlanType === 'custom' ? 'active' : ''}" data-type="custom">🌸 Custom Plan</div>
+          </div>
+          <div id="subTypeWrap" style="margin-top:8px;"></div>
+        </div>
+
+        <div>
+          <div class="plan-sec-title">2. Pick a Date (${formatDateStr(selectedDate)})</div>
+          <div class="plan-chips" style="margin-bottom:8px;">
+            <div class="plan-chip" id="quickToday">Today</div>
+            <div class="plan-chip" id="quickTomorrow">Tomorrow</div>
+            <div class="plan-chip" id="quickWeekend">This Weekend</div>
+          </div>
+          <div class="cal-box">
+            <div class="cal-head">
+              <button class="cal-btn" id="calPrev" type="button">◀</button>
+              <div class="cal-month-title" id="calMonthTitle">${MONTH_NAMES[displayMonth]} ${displayYear}</div>
+              <button class="cal-btn" id="calNext" type="button">▶</button>
+            </div>
+            <div class="cal-days-grid" id="calDaysGrid"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="plan-sec-title">3. Pick a Time (${formatTimeStr(selectedTime)})</div>
+          <div class="plan-chips" style="margin-bottom:8px;">
+            <div class="plan-chip ${selectedTime === '19:00' ? 'active' : ''}" data-time="19:00">🌅 7:00 PM (Evening)</div>
+            <div class="plan-chip ${selectedTime === '21:00' ? 'active' : ''}" data-time="21:00">🌙 9:00 PM (Prime)</div>
+            <div class="plan-chip ${selectedTime === '21:30' ? 'active' : ''}" data-time="21:30">⚡ 9:30 PM (Valorant Time)</div>
+            <div class="plan-chip ${selectedTime === '22:30' ? 'active' : ''}" data-time="22:30">🌌 10:30 PM (Late Night)</div>
+            <div class="plan-chip ${selectedTime === '00:00' ? 'active' : ''}" data-time="00:00">🕛 Midnight</div>
+          </div>
+          <div class="plan-time-row">
+            <span style="font-size:0.85rem;color:var(--mut);">Or pick exact time:</span>
+            <input type="time" class="plan-time-input" id="planExactTime" value="${selectedTime}">
+          </div>
+        </div>
+
+        <div>
+          <div class="plan-sec-title">4. Little note for Tayyab (optional)</div>
+          <textarea class="plan-note-input" id="planNoteInput" maxlength="300" placeholder="e.g. Lock in Reyna, let's play competitive! Don't be late 💕">${esc(noteText)}</textarea>
+        </div>
+
+        <div class="fun-btn" id="planSubmitBtn" style="margin-top:4px;">Send Plan to Tayyab's Phone 🚀💖</div>
+      </div>
+    `;
+
+    renderSubTypes();
+    renderCalendar();
+    attachEvents();
+  }
+
+  function renderSubTypes() {
+    const wrap = body.querySelector('#subTypeWrap');
+    if (!wrap) return;
+    if (currentPlanType === 'valorant') {
+      const modes = ['Competitive 🏆', 'Swiftplay ⚡', 'Spike Rush 💥', 'Unrated 🎯', 'Custom 1v1 ⚔️'];
+      wrap.innerHTML = `
+        <span style="font-size:0.75rem;color:#ffcad4;display:block;margin-bottom:4px;">Game Mode:</span>
+        <div class="plan-chips">
+          ${modes.map(m => `<div class="plan-chip ${valorantMode === m ? 'active' : ''}" data-mode="${m}">${m}</div>`).join('')}
+        </div>
+      `;
+      wrap.querySelectorAll('[data-mode]').forEach(ch => {
+        ch.onclick = () => { valorantMode = ch.dataset.mode; renderSubTypes(); };
+      });
+    } else if (currentPlanType === 'custom') {
+      wrap.innerHTML = `
+        <input type="text" class="plan-time-input" id="customPlanTitleInp" placeholder="Name your plan (e.g. Virtual date, Surprise...)" style="width:100%;box-sizing:border-box;margin-top:4px;" value="${esc(customTitle)}">
+      `;
+      const inp = wrap.querySelector('#customPlanTitleInp');
+      inp.oninput = () => { customTitle = inp.value; };
+    } else {
+      wrap.innerHTML = '';
+    }
+  }
+
+  function renderCalendar() {
+    const grid = body.querySelector('#calDaysGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    DAYS_SHORT.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstDay = new Date(displayYear, displayMonth, 1).getDay();
+    const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'cal-cell disabled';
+      grid.appendChild(blank);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const thisDate = new Date(displayYear, displayMonth, day);
+      thisDate.setHours(0, 0, 0, 0);
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      cell.textContent = day;
+
+      const isPast = thisDate < today;
+      const isToday = thisDate.getTime() === today.getTime();
+      const isSelected = selectedDate && thisDate.getTime() === new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
+
+      if (isPast) cell.classList.add('disabled');
+      if (isToday) cell.classList.add('today');
+      if (isSelected) cell.classList.add('selected');
+
+      if (!isPast) {
+        cell.onclick = () => {
+          selectedDate = new Date(displayYear, displayMonth, day);
+          render();
+        };
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  function attachEvents() {
+    body.querySelectorAll('#planTypeChips .plan-chip').forEach(ch => {
+      ch.onclick = () => {
+        currentPlanType = ch.dataset.type;
+        render();
+      };
+    });
+
+    const qToday = body.querySelector('#quickToday');
+    const qTomorrow = body.querySelector('#quickTomorrow');
+    const qWeekend = body.querySelector('#quickWeekend');
+
+    if (qToday) qToday.onclick = () => {
+      selectedDate = new Date();
+      displayYear = selectedDate.getFullYear();
+      displayMonth = selectedDate.getMonth();
+      render();
+    };
+    if (qTomorrow) qTomorrow.onclick = () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      selectedDate = d;
+      displayYear = selectedDate.getFullYear();
+      displayMonth = selectedDate.getMonth();
+      render();
+    };
+    if (qWeekend) qWeekend.onclick = () => {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = (6 - day + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      selectedDate = d;
+      displayYear = selectedDate.getFullYear();
+      displayMonth = selectedDate.getMonth();
+      render();
+    };
+
+    const prevBtn = body.querySelector('#calPrev');
+    const nextBtn = body.querySelector('#calNext');
+    if (prevBtn) prevBtn.onclick = () => {
+      displayMonth--;
+      if (displayMonth < 0) { displayMonth = 11; displayYear--; }
+      render();
+    };
+    if (nextBtn) nextBtn.onclick = () => {
+      displayMonth++;
+      if (displayMonth > 11) { displayMonth = 0; displayYear++; }
+      render();
+    };
+
+    body.querySelectorAll('[data-time]').forEach(ch => {
+      ch.onclick = () => {
+        selectedTime = ch.dataset.time;
+        const inp = body.querySelector('#planExactTime');
+        if (inp) inp.value = selectedTime;
+        render();
+      };
+    });
+
+    const timeInp = body.querySelector('#planExactTime');
+    if (timeInp) timeInp.onchange = () => {
+      selectedTime = timeInp.value;
+      render();
+    };
+
+    const noteInp = body.querySelector('#planNoteInput');
+    if (noteInp) noteInp.oninput = () => { noteText = noteInp.value; };
+
+    const submitBtn = body.querySelector('#planSubmitBtn');
+    if (submitBtn) submitBtn.onclick = async () => {
+      submitBtn.classList.add('disabled');
+      submitBtn.textContent = 'Sending to Tayyab’s phone… 💌';
+
+      let planTitle = 'Valorant Session 🎮';
+      let subType = valorantMode;
+      if (currentPlanType === 'movie') { planTitle = 'Movie Date 🎬'; subType = ''; }
+      else if (currentPlanType === 'call') { planTitle = 'Late Night Call & Tea ☕'; subType = ''; }
+      else if (currentPlanType === 'dinner') { planTitle = 'Dinner / Food Date 🍕'; subType = ''; }
+      else if (currentPlanType === 'custom') { planTitle = customTitle.trim() || 'Special Plan 🌸'; subType = ''; }
+
+      const dateFormatted = formatDateStr(selectedDate);
+      const isoDate = formatISODate(selectedDate);
+      const timeFormatted = formatTimeStr(selectedTime);
+      const note = (noteInp ? noteInp.value : noteText).trim();
+
+      const text = `🎮 New Plan from Ifra: ${planTitle}${subType ? ' (' + subType + ')' : ''}!\n` +
+                   `📅 Date: ${dateFormatted}\n` +
+                   `⏰ Time: ${timeFormatted}\n` +
+                   (note ? `💬 Note: “${note}”\n` : '') +
+                   `💌 Sent with love from your website 💕`;
+
+      const planData = {
+        planType: currentPlanType,
+        title: planTitle,
+        subType,
+        date: isoDate,
+        dateFormatted,
+        time: selectedTime,
+        timeFormatted,
+        note
+      };
+
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'plan',
+            title: `🎮 ${planTitle} from Ifra! 💖`,
+            text,
+            plan: planData
+          })
+        });
+
+        burstCenter(24);
+
+        body.innerHTML = `
+          <div class="plan-success-wrap">
+            <div style="font-size:48px;margin-bottom:10px;animation:plusPulse 1.2s infinite;">🎉🎮💖</div>
+            <h3 style="color:#ffb3c4;">Plan Sent to Tayyab!</h3>
+            <p style="font-size:0.9rem;color:#fbe9ef;margin:8px 0 14px;">
+              Your plan has been sent straight to his phone and devices! 📲
+            </p>
+            <div class="plan-summary-box">
+              <b style="color:#ff7597;font-size:1.05rem;">${esc(planTitle)} ${subType ? '· ' + esc(subType) : ''}</b><br>
+              📅 <b>${esc(dateFormatted)}</b><br>
+              ⏰ <b>${esc(timeFormatted)}</b>
+              ${note ? `<br>💬 <i>“${esc(note)}”</i>` : ''}
+            </div>
+            <p class="hint" style="margin:12px 0 16px;">
+              He will receive an instant notification alert on his phone so you two can enjoy your time together! 💕
+            </p>
+            <div class="bar" style="justify-content:center;gap:10px;">
+              <div class="fun-btn" onclick="closeFun()" style="min-width:120px;">Awesome ✨</div>
+              ${WHATSAPP_NUMBER ? `<div class="fun-btn" id="planWhatsApp" style="background:#25d366;min-width:140px;">Send on WhatsApp too 💬</div>` : ''}
+            </div>
+          </div>
+        `;
+
+        const wa = body.querySelector('#planWhatsApp');
+        if (wa && WHATSAPP_NUMBER) {
+          wa.onclick = () => {
+            window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text), '_blank');
+          };
+        }
+      } catch (err) {
+        toast('Could not deliver to server, opening WhatsApp fallback 💕', 3500);
+        if (WHATSAPP_NUMBER) {
+          window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text), '_blank');
+        } else if (navigator.share) {
+          try { await navigator.share({ text }); } catch (e) { }
+        }
+        closeFun();
+      }
+    };
+  }
+
+  render();
+};
+
+FUN.valorant = body => FUN.calendar(body, 'valorant');
+
 /* ---------- 🧺 GAME 1: CATCH THE HEARTS ---------- */
 FUN.catch = body => {
   const W = 300, H = 380;

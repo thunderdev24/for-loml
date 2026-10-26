@@ -73,6 +73,7 @@
           <div id="agentDynamicContent"></div>
           <div class="agent-actions-grid" id="agentActionsGrid">
             <button class="agent-act-btn full-w" type="button" id="actTour">✨ Take Me on a Tour</button>
+            <button class="agent-act-btn" type="button" id="actPlan">🎮 Plan Valorant / Date</button>
             <button class="agent-act-btn" type="button" id="actWhisper">💌 Love Note</button>
             <button class="agent-act-btn" type="button" id="actSurprise">🎁 Surprises</button>
             <button class="agent-act-btn" type="button" id="actMusic">🎵 Play Song</button>
@@ -325,6 +326,11 @@
       "You are not just his choice, you are his answered prayer 🌹",
       "Every love song he listens to reminds him of you 🎵"
     ];
+
+    document.getElementById('actPlan').onclick = () => {
+      closeBubble();
+      if (typeof window.openFun === 'function') window.openFun('calendar');
+    };
 
     document.getElementById('actWhisper').onclick = () => {
       const note = notesList[Math.floor(Math.random() * notesList.length)];

@@ -206,7 +206,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['jar','🏺 Love Jar'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
-  ['proposal','Special'],['agent','🤖 Cute AI Guide'],['devices','📱 Subscribed Devices'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+  ['proposal','Special'],['agent','🤖 Cute AI Guide'],['devices','📱 Subscribed Devices'],['plans','📅 Dates & Plans'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
 function go(t){cur=t;draw();window.scrollTo(0,0);}
@@ -1024,6 +1024,133 @@ VIEWS.devices=m=>{
   };
 
   loadDevices();
+};
+
+/* ---------- dates & valorant plans scheduled by ifra ---------- */
+VIEWS.plans=m=>{
+  head(m,'📅 Dates & Plans Scheduled by Ifra','Every time Ifra picks a date & time to play Valorant, watch a movie, or plan anything together on the website, it is recorded here and dispatched to your phone.');
+
+  const card=el('div',{class:'card'});
+  const statusMsg=el('p',{class:'hint',text:'Loading plans…'});
+  const listWrap=el('div',{style:'margin-top:14px;'});
+
+  const refreshBtn=el('button',{class:'b alt sm',text:'🔄 Refresh Plans'});
+  const clearAllBtn=el('button',{class:'b del sm',text:'🗑️ Clear All Plans',style:'margin-left:8px;'});
+
+  const bar=el('div',{class:'bar'},refreshBtn,clearAllBtn);
+  card.append(bar,statusMsg,listWrap);
+  m.append(card);
+
+  async function loadPlans(){
+    statusMsg.textContent='Fetching plans from server…';
+    listWrap.innerHTML='';
+    try{
+      const res=await api('plans');
+      const plans=res.plans||[];
+      statusMsg.innerHTML='<b>'+plans.length+' plan(s)</b> scheduled by Ifra.';
+      if(!plans.length){
+        listWrap.append(el('div',{style:'background:#12040b;border:1px dashed #4a1a30;border-radius:12px;padding:28px 20px;text-align:center;'},
+          el('div',{style:'font-size:36px;margin-bottom:8px;',text:'📅🎮'}),
+          el('h4',{style:'margin:0 0 6px;color:#ffb3c4;',text:'No plans scheduled yet'}),
+          el('p',{class:'hint',style:'margin:0 auto;max-width:440px;',text:'When Ifra opens “Plan a Date” or “Valorant Date” on the website and selects a date and time, her plan will show up here, and you will get an instant alert on your phone via ntfy, Discord, and Web Push!'})
+        ));
+        return;
+      }
+
+      plans.forEach(p=>{
+        const item=el('div',{class:'card',style:'background:#19060f;border:1px solid '+(p.status==='confirmed'?'#4cc38a':'#ff4d6d')+';margin:12px 0;padding:16px;'});
+
+        let icon='📅';
+        if(p.planType==='valorant')icon='🎮';
+        else if(p.planType==='movie')icon='🎬';
+        else if(p.planType==='call')icon='☕';
+        else if(p.planType==='dinner')icon='🍕';
+        else icon='🌸';
+
+        const headRow=el('div',{style:'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;'});
+        const titleArea=el('div',{style:'display:flex;align-items:center;gap:12px;'});
+        titleArea.append(el('span',{style:'font-size:32px;',text:icon}));
+        const nameBlock=el('div');
+        nameBlock.append(
+          el('h4',{style:'margin:0;font-size:17px;color:#fff;',text:p.title+(p.subType?' · '+p.subType:'')}),
+          el('span',{style:'font-size:12px;color:var(--mut);',text:'Received: '+(p.createdAt?new Date(p.createdAt).toLocaleString():'Recently')})
+        );
+        titleArea.append(nameBlock);
+
+        const statusTag=el('span',{class:'tag',style:p.status==='confirmed'?'background:#204020;color:#6ee7b7;':'background:#7a1d33;color:#ffcad4;',text:p.status==='confirmed'?'✅ Confirmed with Ifra':'🔔 New / Pending'});
+        headRow.append(titleArea,statusTag);
+
+        const scheduleBox=el('div',{style:'display:flex;gap:16px;flex-wrap:wrap;background:rgba(255,77,109,0.1);border-radius:10px;padding:10px 14px;margin:10px 0;border:1px solid rgba(255,77,109,0.25);'});
+        scheduleBox.append(
+          el('div',el('span',{style:'font-size:11.5px;color:var(--mut);display:block;',text:'SCHEDULED DATE'}),el('b',{style:'font-size:15px;color:#ffe6ee;',text:'📅 '+(p.dateFormatted||p.date)})),
+          el('div',el('span',{style:'font-size:11.5px;color:var(--mut);display:block;',text:'SCHEDULED TIME'}),el('b',{style:'font-size:15px;color:#ffe6ee;',text:'⏰ '+(p.timeFormatted||p.time)}))
+        );
+
+        const noteBox=p.note?el('div',{style:'font-size:13.5px;color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;margin:8px 0;border-left:3px solid #ff4d6d;'},
+          el('span',{style:'font-size:11px;color:var(--mut);display:block;margin-bottom:3px;',text:'HER NOTE:'}),
+          el('div',{style:'font-style:italic;',text:'“'+p.note+'”'})
+        ):null;
+
+        const actBar=el('div',{class:'bar',style:'margin-top:12px;justify-content:flex-end;'});
+        const confirmBtn=el('button',{class:'b sm',style:p.status==='confirmed'?'background:#2a4a35;':'background:#4cc38a;',text:p.status==='confirmed'?'Mark as Pending ↩️':'Ready! Confirm Plan ✅'});
+        confirmBtn.onclick=async()=>{
+          confirmBtn.disabled=true;
+          try{
+            await api('plans-status',{
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({id:p.id,status:p.status==='confirmed'?'pending':'confirmed'})
+            });
+            loadPlans();
+          }catch(e){
+            alert('Could not update status: '+e.message);
+          }
+        };
+
+        const delBtn=el('button',{class:'b del sm',text:'🗑️ Delete'});
+        delBtn.onclick=async()=>{
+          if(confirm('Delete this plan for '+(p.title||'date')+'?')){
+            try{
+              await api('plans-delete',{
+                method:'POST',
+                headers:{'content-type':'application/json'},
+                body:JSON.stringify({id:p.id})
+              });
+              loadPlans();
+            }catch(e){
+              alert('Could not delete: '+e.message);
+            }
+          }
+        };
+
+        actBar.append(confirmBtn,delBtn);
+        item.append(headRow,scheduleBox);
+        if(noteBox)item.append(noteBox);
+        item.append(actBar);
+        listWrap.append(item);
+      });
+    }catch(err){
+      if(err.message!=='auth')statusMsg.textContent='Could not load plans: '+err.message;
+    }
+  }
+
+  refreshBtn.onclick=loadPlans;
+  clearAllBtn.onclick=async()=>{
+    if(confirm('Are you sure you want to delete all scheduled plans?')){
+      try{
+        await api('plans-delete',{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({all:true})
+        });
+        loadPlans();
+      }catch(e){
+        alert('Could not clear plans: '+e.message);
+      }
+    }
+  };
+
+  loadPlans();
 };
 
 /* ---------- logins (saved straight to the server, not part of the draft / Publish) ---------- */
