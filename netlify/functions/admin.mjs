@@ -340,6 +340,40 @@ export default async (req) => {
     return json({ ok: true, preview: msg, result: res });
   }
 
+  if (route === 'plans' && req.method === 'GET') {
+    let plans = [];
+    try { plans = (await s.get('plans/list.json', { type: 'json' })) || []; } catch (e) { }
+    return json({ ok: true, plans });
+  }
+
+  if (route === 'plans-status' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, status } = body;
+    let plans = [];
+    try { plans = (await s.get('plans/list.json', { type: 'json' })) || []; } catch (e) { }
+    const target = plans.find(p => p.id === id);
+    if (!target) return json({ error: 'Plan not found' }, 404);
+    target.status = String(status || 'confirmed');
+    await s.setJSON('plans/list.json', plans);
+    return json({ ok: true });
+  }
+
+  if (route === 'plans-delete' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, all } = body;
+    if (all) {
+      await s.setJSON('plans/list.json', []);
+      return json({ ok: true, remaining: 0 });
+    }
+    let plans = [];
+    try { plans = (await s.get('plans/list.json', { type: 'json' })) || []; } catch (e) { }
+    plans = plans.filter(p => p.id !== id);
+    await s.setJSON('plans/list.json', plans);
+    return json({ ok: true, remaining: plans.length });
+  }
+
   if (route === 'reset' && req.method === 'POST') {
     { const e = locked(['publish']); if (e) return e; }
     await s.delete('content.json');
