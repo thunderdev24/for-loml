@@ -46,6 +46,12 @@ const lockHits = [];
 
 const DEFAULT_IFRA_TABS = ['texts', 'photos', 'playlist', 'when', 'story', 'surprises', 'games', 'jar', 'riddles', 'sweet', 'plans', 'diary'];
 
+// Ifra's admin panel credentials are stored SEPARATELY from users.json.
+// users.json controls the website content gate (SITE_LOCK); admin-panel.json only controls admin panel access.
+async function getAdminPanel(store) {
+  try { return (await store.get('admin-panel.json', { type: 'json' })) || {}; } catch (e) { return {}; }
+}
+
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').replace(/\/$/, '');
 
@@ -64,17 +70,18 @@ export default async (req) => {
       }
     }
 
-    // 2. Check Ifra's credentials from users.json
+    // 2. Check Ifra's admin-panel credentials (stored in admin-panel.json — separate from users.json)
+    //    This does NOT affect the website's SITE_LOCK or content protection at all.
     const s = store();
-    const users = await getUsers(s);
-    if (users && users.her && checkPw(users.her, pw)) {
-      const herName = (userName(users.her) || '').toLowerCase();
+    const ap = await getAdminPanel(s);
+    if (ap && ap.her && checkPw(ap.her, pw)) {
+      const herName = (userName(ap.her) || '').toLowerCase();
       if (!username || username === herName || username === 'ifra') {
-        const allowedTabs = Array.isArray(users.her.allowedTabs) ? users.her.allowedTabs : DEFAULT_IFRA_TABS;
+        const allowedTabs = Array.isArray(ap.her.allowedTabs) ? ap.her.allowedTabs : DEFAULT_IFRA_TABS;
         return json({
           token: makeToken('her'),
           role: 'her',
-          name: users.her.username || 'Ifra',
+          name: ap.her.username || 'Ifra',
           allowedTabs
         });
       }
@@ -93,8 +100,8 @@ export default async (req) => {
 
   const herAllowed = async (tab) => {
     if (auth.role !== 'her') return true;
-    const u = await getUsers(s);
-    const list = (u.her && Array.isArray(u.her.allowedTabs)) ? u.her.allowedTabs : DEFAULT_IFRA_TABS;
+    const ap = await getAdminPanel(s);
+    const list = (ap.her && Array.isArray(ap.her.allowedTabs)) ? ap.her.allowedTabs : DEFAULT_IFRA_TABS;
     return list.includes(tab);
   };
 
@@ -202,21 +209,22 @@ export default async (req) => {
     return json({ content });
   }
 
-  // the two logins (me / her): emails are shown, passwords are never sent back
+  // ---- Website content logins (me/her guard the gallery, story, proposal) ----
+  // NOTE: These are completely separate from Ifra's admin panel login (admin-panel.json).
   if (route === 'users' && req.method === 'GET') {
     if (auth.role === 'her') return json({ error: 'Permission denied: Logins are managed by Tayyab' }, 403);
     const u = await getUsers(s);
+    const ap = await getAdminPanel(s);
     const out = {};
-    ROLES.forEach(r => {
-      if (u[r] && u[r].hash) {
-        out[r] = { username: userName(u[r]) };
-        if (r === 'her') {
-          out[r].allowedTabs = Array.isArray(u[r].allowedTabs) ? u[r].allowedTabs : DEFAULT_IFRA_TABS;
-        }
-      } else {
-        out[r] = null;
-      }
-    });
+    // me: website login
+    out.me = (u.me && u.me.hash) ? { username: userName(u.me) } : null;
+    // her website login (for gallery/story/proposal) — separate from admin panel
+    out.her = (u.her && u.her.hash) ? { username: userName(u.her) } : null;
+    // Ifra's admin panel login (from admin-panel.json)
+    out.adminHer = (ap.her && ap.her.hash) ? {
+      username: userName(ap.her),
+      allowedTabs: Array.isArray(ap.her.allowedTabs) ? ap.her.allowedTabs : DEFAULT_IFRA_TABS
+    } : null;
     return json(out);
   }
 
@@ -225,19 +233,52 @@ export default async (req) => {
     { const e = locked(['logins']); if (e) return e; }
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
+
+    // ---- Handle Ifra's ADMIN PANEL login (stored in admin-panel.json, separate from website) ----
+    if (body && body.adminHer !== undefined) {
+      const ap = await getAdminPanel(s);
+      const inp = body.adminHer;
+      if (!inp || inp.remove) {
+        delete ap.her;
+      } else {
+        // Only updating allowedTabs (no username/password needed)
+        if (Array.isArray(inp.allowedTabs) && !inp.username && !inp.password) {
+          ap.her = ap.her || {};
+          ap.her.allowedTabs = inp.allowedTabs.map(String);
+        } else {
+          const username = String(inp.username != null ? inp.username : (inp.email || '')).trim().toLowerCase();
+          const pw = String(inp.password || '');
+          if (!validUsername(username)) return json({ error: 'Admin panel username must be 3 to 30 characters' }, 400);
+          const old = ap.her;
+          if (!old && !pw) return json({ error: 'Admin panel login needs a password' }, 400);
+          if (pw && pw.length < 8) return json({ error: 'Admin panel password must be at least 8 characters' }, 400);
+          const next = { username, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
+          if (old && old.allowedTabs) next.allowedTabs = old.allowedTabs;
+          if (Array.isArray(inp.allowedTabs)) next.allowedTabs = inp.allowedTabs.map(String);
+          if (pw) Object.assign(next, newCredentials(pw), { ver: next.ver + 1 });
+          else if (old && userName(old) !== username) next.ver += 1;
+          ap.her = next;
+        }
+      }
+      await s.setJSON('admin-panel.json', ap);
+      // Return updated state
+      const u = await getUsers(s);
+      return json({
+        ok: true,
+        users: {
+          me: (u.me && u.me.hash) ? { username: userName(u.me) } : null,
+          her: (u.her && u.her.hash) ? { username: userName(u.her) } : null,
+          adminHer: (ap.her && ap.her.hash) ? { username: userName(ap.her), allowedTabs: ap.her.allowedTabs || DEFAULT_IFRA_TABS } : null
+        }
+      });
+    }
+
+    // ---- Handle website logins (me / her) — stored in users.json, controls SITE_LOCK ----
     const users = await getUsers(s);
     for (const r of ROLES) {
       const inp = body && body[r];
       if (!inp) continue;
       if (inp.remove) { delete users[r]; continue; }
-
-      // Updating permissions for her:
-      if (r === 'her' && Array.isArray(inp.allowedTabs)) {
-        users.her = users.her || {};
-        users.her.allowedTabs = inp.allowedTabs.map(String);
-        if (!inp.username && !inp.password) continue;
-      }
-
       const username = String(inp.username != null ? inp.username : (inp.email || '')).trim().toLowerCase();
       const pw = String(inp.password || '');
       const label = r === 'me' ? 'Your' : 'Her';
@@ -246,8 +287,6 @@ export default async (req) => {
       if (!old && !pw) return json({ error: label + ' login needs a password' }, 400);
       if (pw && pw.length < 8) return json({ error: label + ' password must be at least 8 characters' }, 400);
       const next = { username, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
-      if (old && old.allowedTabs) next.allowedTabs = old.allowedTabs;
-      if (r === 'her' && Array.isArray(inp.allowedTabs)) next.allowedTabs = inp.allowedTabs.map(String);
       if (pw) Object.assign(next, newCredentials(pw), { ver: next.ver + 1 });
       else if (old && userName(old) !== username) next.ver += 1;
       users[r] = next;
@@ -255,16 +294,15 @@ export default async (req) => {
     const mails = ROLES.filter(r => users[r]).map(r => userName(users[r]));
     if (new Set(mails).size !== mails.length) return json({ error: 'You and her need different usernames' }, 400);
     await s.setJSON('users.json', users);
-    const out = {};
-    ROLES.forEach(r => {
-      if (users[r]) {
-        out[r] = { username: userName(users[r]) };
-        if (r === 'her') out[r].allowedTabs = users[r].allowedTabs || DEFAULT_IFRA_TABS;
-      } else {
-        out[r] = null;
+    const ap = await getAdminPanel(s);
+    return json({
+      ok: true,
+      users: {
+        me: users.me ? { username: userName(users.me) } : null,
+        her: users.her ? { username: userName(users.her) } : null,
+        adminHer: (ap.her && ap.her.hash) ? { username: userName(ap.her), allowedTabs: ap.her.allowedTabs || DEFAULT_IFRA_TABS } : null
       }
     });
-    return json({ ok: true, users: out });
   }
 
   if (route === 'save' && req.method === 'POST') {
