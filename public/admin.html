@@ -1028,18 +1028,133 @@ VIEWS.devices=m=>{
 
 /* ---------- dates & valorant plans scheduled by ifra ---------- */
 VIEWS.plans=m=>{
-  head(m,'📅 Dates & Plans Scheduled by Ifra','Every time Ifra picks a date & time to play Valorant, watch a movie, or plan anything together on the website, it is recorded here and dispatched to your phone.');
+  head(m,'📅 Calendar Planner & Scheduled Dates','Customize the date & Valorant planner for Ifra (all texts, activities, game modes, time slots, and show/hide options), and inspect incoming plans she has scheduled on your phone.');
 
-  const card=el('div',{class:'card'});
-  const statusMsg=el('p',{class:'hint',text:'Loading plans…'});
-  const listWrap=el('div',{style:'margin-top:14px;'});
+  if(!C.planner) C.planner = clone(DEFAULTS.planner || {});
+  if(C.planner.enabled === undefined) C.planner.enabled = true;
+  if(!Array.isArray(C.planner.activities)) C.planner.activities = clone(DEFAULTS.planner.activities || []);
+  if(!Array.isArray(C.planner.timeSlots)) C.planner.timeSlots = clone(DEFAULTS.planner.timeSlots || []);
 
-  const refreshBtn=el('button',{class:'b alt sm',text:'🔄 Refresh Plans'});
-  const clearAllBtn=el('button',{class:'b del sm',text:'🗑️ Clear All Plans',style:'margin-left:8px;'});
+  // Quick Action Bar
+  const topBar = el('div', {class:'bar', style:'margin-bottom:16px;gap:8px;flex-wrap:wrap;'},
+    el('button', {class:'b alt sm', onclick:preview, text:'👁 Preview Calendar on Site'}),
+    el('button', {class:'b sm', onclick:publish, text:'🚀 Publish live'}),
+    el('button', {class:'b alt sm', onclick:()=>{
+      const sec = document.getElementById('receivedPlansCard');
+      if(sec) sec.scrollIntoView({behavior:'smooth'});
+    }, text:'📬 Jump to Received Plans'})
+  );
+  m.append(topBar);
 
-  const bar=el('div',{class:'bar'},refreshBtn,clearAllBtn);
-  card.append(bar,statusMsg,listWrap);
-  m.append(card);
+  // 1. General & Visibility Settings Card
+  const cfgCard = el('div', {class:'card'});
+  cfgCard.append(el('h3', {style:'margin-top:0', text:'⚙️ Calendar & Date Planner Settings'}));
+  cfgCard.append(el('p', {class:'hint', text:'Control what Ifra sees when opening “Plan a Date” or “Valorant Date”, customize headings, and toggle sections on or off.'}));
+
+  // Enable/Disable Planner toggle
+  const enableWrap = el('label', {class:'f', style:'display:flex;align-items:center;gap:10px;cursor:pointer;margin:10px 0 14px;background:rgba(255,77,109,0.12);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,77,109,0.3);'});
+  const enableInp = el('input', {type:'checkbox', style:'width:20px;height:20px;'});
+  enableInp.checked = C.planner.enabled !== false;
+  enableInp.onchange = () => { C.planner.enabled = enableInp.checked; save(); };
+  enableWrap.append(enableInp, el('div',
+    el('b', {style:'color:#ffe6ee;', text:'Enable Calendar & Date Planner on the website'}),
+    el('span', {class:'hint', style:'display:block;margin-top:2px;', text:'Shows the “📅 Plan a Date 💖” tile in Little Surprises and “🎮 Valorant Date” in Play Together, plus the floating AI guide shortcut.'})
+  ));
+  cfgCard.append(enableWrap);
+
+  // Show/Hide section options
+  const togglesWrap = el('div', {class:'card', style:'background:#14050d;border:1px solid #3d1424;margin:12px 0;padding:12px 14px;'});
+  togglesWrap.append(el('h4', {style:'margin:0 0 10px;color:#ffcad4;', text:'👁️ Show or Hide Specific Elements'}));
+
+  function makeToggle(label, desc, getter, setter) {
+    const lab = el('label', {class:'f', style:'display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:8px 0;'});
+    const chk = el('input', {type:'checkbox', style:'width:18px;height:18px;margin-top:2px;'});
+    chk.checked = getter() !== false;
+    chk.onchange = () => { setter(chk.checked); save(); };
+    lab.append(chk, el('div',
+      el('span', {style:'color:#fff;font-size:14px;', text:label}),
+      desc ? el('small', {class:'hint', style:'display:block;font-size:11.5px;', text:desc}) : null
+    ));
+    return lab;
+  }
+
+  togglesWrap.append(
+    makeToggle('Show Quick Date buttons', 'Displays quick shortcut chips: “Today”, “Tomorrow”, and “This Weekend” above the calendar', () => C.planner.showQuickDates, v => { C.planner.showQuickDates = v; }),
+    makeToggle('Show Exact Time Picker', 'Displays an exact time input field (<input type="time">) so she can pick custom minutes', () => C.planner.showExactTime, v => { C.planner.showExactTime = v; }),
+    makeToggle('Show Personal Note box', 'Lets her write a sweet note, instructions, or gaming trash talk along with the plan', () => C.planner.showNote, v => { C.planner.showNote = v; })
+  );
+  cfgCard.append(togglesWrap);
+
+  // Texts
+  cfgCard.append(el('h4', {style:'margin:14px 0 6px;color:#ffcad4;', text:'📝 Texts & Headings'}));
+  cfgCard.append(field('text', () => C.planner.title || 'Plan a Date / Game 📅🎮', v => { C.planner.title = v; }, { label: 'Modal Heading / Title' }));
+  cfgCard.append(field('area', () => C.planner.subtitle || '', v => { C.planner.subtitle = v; }, { label: 'Modal Subtitle / Description', rows: 2 }));
+  cfgCard.append(field('text', () => C.planner.submitBtnText || 'Send Plan to Tayyab\'s Phone 🚀💖', v => { C.planner.submitBtnText = v; }, { label: 'Submit Button Text' }));
+  cfgCard.append(field('text', () => C.planner.notePlaceholder || 'e.g. Lock in Reyna, let\'s play competitive! Don\'t be late 💕', v => { C.planner.notePlaceholder = v; }, { label: 'Note Input Placeholder' }));
+  cfgCard.append(field('text', () => C.planner.valorantModes || 'Competitive 🏆, Swiftplay ⚡, Spike Rush 💥, Unrated 🎯, Custom 1v1 ⚔️', v => { C.planner.valorantModes = v; }, { label: 'Valorant Game Modes (comma-separated list shown when Valorant is selected)' }));
+
+  m.append(cfgCard);
+
+  // 2. Success Screen Customization
+  const successCard = el('div', {class:'card'});
+  successCard.append(el('h3', {style:'margin-top:0', text:'🎉 Confirmation & Success Screen'}));
+  successCard.append(el('p', {class:'hint', text:'What Ifra sees in the popup right after she hits send:'}));
+  successCard.append(field('text', () => C.planner.successTitle || 'Plan Sent to Tayyab!', v => { C.planner.successTitle = v; }, { label: 'Success Heading' }));
+  successCard.append(field('text', () => C.planner.successSubtitle || 'Your plan has been sent straight to his phone and devices! 📲', v => { C.planner.successSubtitle = v; }, { label: 'Success Subtitle' }));
+  successCard.append(field('area', () => C.planner.successHint || 'He will receive an instant notification alert on his phone so you two can enjoy your time together! 💕', v => { C.planner.successHint = v; }, { label: 'Success Hint Message', rows: 2 }));
+  m.append(successCard);
+
+  // 3. Activities / Plan Types Card
+  const actCard = el('div', {class:'card'});
+  actCard.append(el('h3', {style:'margin-top:0', text:'🎯 Date Activities & Plan Types'}));
+  actCard.append(el('p', {class:'hint', text:'Customize what types of dates & activities she can pick from. You can add new ones, rename existing ones, reorder them, or toggle them on/off:'}));
+
+  const actFields = [
+    F.key('label', 'Activity Label (e.g. Valorant Date, Movie Night)'),
+    F.key('icon', 'Icon / Emoji (e.g. 🎮, 🎬, ☕, 🍕)'),
+    F.key('id', 'Type ID (e.g. valorant, movie, call, dinner, custom)'),
+    F.key('enabled', 'Visibility', {
+      type: 'select',
+      options: [['true', '✅ Show on Website'], ['false', '❌ Hide from Website']],
+      get: (a, i) => a[i].enabled !== false ? 'true' : 'false',
+      set: (a, i, v) => { a[i].enabled = v === 'true'; }
+    })
+  ];
+  actCard.append(listBox(() => C.planner.activities, actFields, () => ({
+    id: 'activity_' + Date.now(),
+    label: 'New Date Idea',
+    icon: '✨',
+    enabled: true
+  }), { grid: 'grid2' }));
+  m.append(actCard);
+
+  // 4. Quick Time Slots Card
+  const slotsCard = el('div', {class:'card'});
+  slotsCard.append(el('h3', {style:'margin-top:0', text:'⏰ Time Slots & Hours'}));
+  slotsCard.append(el('p', {class:'hint', text:'Quick time buttons that she can tap to choose the scheduled time (24-hour format HH:MM):'}));
+
+  const slotFields = [
+    F.key('label', 'Button Label (e.g. ⚡ 9:30 PM (Valorant Time))'),
+    F.key('time', '24h Time format HH:MM (e.g. 21:30)')
+  ];
+  slotsCard.append(listBox(() => C.planner.timeSlots, slotFields, () => ({
+    label: '⏰ 8:00 PM',
+    time: '20:00'
+  }), { grid: 'grid2' }));
+  m.append(slotsCard);
+
+  // 5. Received Scheduled Plans Card
+  const plansCard = el('div', {class:'card', id:'receivedPlansCard'});
+  plansCard.append(el('h3', {style:'margin-top:0', text:'📬 Scheduled Plans Received from Ifra'}));
+  const statusMsg = el('p', {class:'hint', text:'Loading plans…'});
+  const listWrap = el('div', {style:'margin-top:14px;'});
+
+  const refreshBtn = el('button', {class:'b alt sm', text:'🔄 Refresh Plans'});
+  const clearAllBtn = el('button', {class:'b del sm', text:'🗑️ Clear All Plans', style:'margin-left:8px;'});
+
+  const bar = el('div', {class:'bar'}, refreshBtn, clearAllBtn);
+  plansCard.append(bar, statusMsg, listWrap);
+  m.append(plansCard);
 
   async function loadPlans(){
     statusMsg.textContent='Fetching plans from server…';
