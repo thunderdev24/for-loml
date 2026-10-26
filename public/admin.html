@@ -1410,15 +1410,18 @@ VIEWS.diary=m=>{
 
 /* ---------- logins (saved straight to the server, not part of the draft / Publish) ---------- */
 VIEWS.logins=m=>{
-  head(m,'Logins','Two separate accounts guard the photo gallery, Our Story and the proposal: one for you, one for her. Each has its own username and password. Passwords are stored scrambled on the server, so nobody (not even you) can read them later: to change one, just type a new one. These save immediately, you do not need to press Publish live.');
+  head(m,'Logins','Manage two separate login systems. The "Website Logins" protect the private gallery, Our Story and proposal on the site. The "Admin Panel Login" is a separate login just for Ifra to access this admin panel — it has nothing to do with the website content gates.');
   const host=el('div');m.append(host);
   host.append(el('p',{class:'hint',text:'Loading…'}));
-  const roles=[['me','👤 Your login','Use this to look at the private parts yourself or to test the proposal. Her answer is NOT sent to you while you are logged in as yourself.'],
-               ['her','💖 Her login','Give her this username and password. She is asked for it when she opens the gallery, Our Story or the proposal, and stays logged in on her phone.']];
+  const roles=[['me','👤 Your login (website)','Use this to look at the private parts of the website yourself, or to test the proposal. Her answer is NOT sent to you while you are logged in as yourself.'],
+               ['her','💖 Her website login','Give her this username and password. She is asked for it when she opens the gallery, Our Story or the proposal on the main site. This is NOT her admin panel login.']];
   async function load(){
     let u;
     try{u=await api('users');}catch(e){host.innerHTML='';host.append(el('p',{class:'hint',text:'Could not load: '+e.message}));return;}
     host.innerHTML='';
+
+    // ---- Section 1: Website Content Logins ----
+    host.append(el('h3',{text:'🌐 Website Content Logins'}));
     const any=!!(u.me||u.her);
     host.append(el('div',{class:'card'},el('b',{text:any?'🔒 Login is ON for the gallery, story and proposal.':'🔓 Login is OFF. Everyone with the link can see everything.'}),
       el('p',{class:'hint',style:'margin-top:6px',text:any?'Remove both logins to turn it off again.':'It turns on as soon as you save the first login below. Set both logins before you give her the link.'})));
@@ -1447,8 +1450,38 @@ VIEWS.logins=m=>{
         el('label',{class:'f'},el('span',{text:cur?'New password (optional)':'Password'}),pw),
         el('div',{class:'ctl'},ctl),msg));
     });
+    host.append(el('p',{class:'hint',text:'Changing a password or username logs that person out everywhere, and they log in again with the new details.'}));
 
-    // Ifra Admin Panel Permissions Card
+    // ---- Section 2: Ifra Admin Panel Login (completely separate from website) ----
+    host.append(el('h3',{style:'margin-top:28px',text:'🌸 Ifra\'s Admin Panel Login'}));
+    host.append(el('p',{class:'hint',text:'This login is ONLY for Ifra to access this admin panel. It is completely separate from the website logins above — setting this up will NOT lock any content on the website.'}));
+
+    const apCur = u.adminHer;
+    const apMsg = el('p',{class:'hint'});
+    const apEmail = el('input',{type:'text',autocomplete:'off',autocapitalize:'off',spellcheck:'false',placeholder:'e.g. ifra'});
+    apEmail.value = apCur ? apCur.username : '';
+    const apPw = el('input',{type:'password',autocomplete:'new-password',placeholder: apCur ? 'Leave empty to keep the current password' : 'At least 8 characters'});
+    const apSave = el('button',{class:'b',text: apCur ? '💾 Save changes' : '💾 Create admin panel login'});
+    apSave.onclick = async () => {
+      apSave.disabled=true; apMsg.style.color=''; apMsg.textContent='Saving…';
+      try {
+        await api('users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({adminHer:{username:apEmail.value,password:apPw.value}})});
+        load();
+      } catch(e) { if(e.message!=='auth'){apMsg.style.color='#ff8aa0';apMsg.textContent=e.message;} apSave.disabled=false; }
+    };
+    const apCtl = [apSave];
+    if(apCur) apCtl.push(el('button',{class:'b del',text:'✕ Remove admin panel login',onclick:async()=>{
+      if(!confirm('Remove Ifra\'s admin panel login? She will no longer be able to sign into the admin panel.'))return;
+      try{await api('users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({adminHer:{remove:true}})});load();}
+      catch(e){if(e.message!=='auth'){apMsg.style.color='#ff8aa0';apMsg.textContent=e.message;}}
+    }}));
+    host.append(el('div',{class:'card',style:'border-color:#ff7597'},
+      el('p',{class:'hint',text:'Ifra uses this username + password to sign into the admin panel at /admin.html. Completely independent of the website.'}),
+      el('label',{class:'f'},el('span',{text:'Username (3 to 30 letters, numbers, . - _)'}),apEmail),
+      el('label',{class:'f'},el('span',{text:apCur?'New password (optional)':'Password'}),apPw),
+      el('div',{class:'ctl'},apCtl),apMsg));
+
+    // ---- Section 3: Ifra Admin Panel Permissions ----
     const IFRA_AVAILABLE_TABS = [
       ['texts', '📝 Page texts', 'Headings, letters, and custom text on the site'],
       ['photos', '📸 Photos & captions', 'Upload photos and edit album captions'],
@@ -1469,16 +1502,14 @@ VIEWS.logins=m=>{
       ['publish', '🚀 Publish live', 'Allow Ifra to publish draft changes to live site']
     ];
 
-    const herObj = u.her || {};
-    const currentAllowed = Array.isArray(herObj.allowedTabs) ? herObj.allowedTabs : ['texts', 'photos', 'playlist', 'when', 'story', 'surprises', 'games', 'jar', 'riddles', 'sweet', 'plans', 'diary'];
+    const currentAllowed = apCur && Array.isArray(apCur.allowedTabs) ? apCur.allowedTabs : ['texts','photos','playlist','when','story','surprises','games','jar','riddles','sweet','plans','diary'];
 
     const permCard = el('div', { class: 'card', style: 'background: radial-gradient(circle at top right, rgba(255,105,180,0.12), #200814); border: 1px solid #ff7597; margin-top:20px;' });
     permCard.append(el('h3', { style: 'margin-top:0; color:#ff7597;', text: "🌸 Ifra's Admin Panel · Allowed Tabs & Permissions" }));
-    permCard.append(el('p', { class: 'hint', text: "Tayyab's Master Control: Select which tabs Ifra is permitted to see and edit when she signs into the admin panel. Unchecked tabs will be hidden from her completely. Sensitive master tabs (Logins, Website Locks, Section Passwords, and Settings) are always kept private to you." }));
+    permCard.append(el('p', { class: 'hint', text: "Select which tabs Ifra is permitted to see and edit when she signs into the admin panel. Unchecked tabs will be hidden from her completely. Sensitive master tabs (Logins, Website Locks, Section Passwords, Settings) are always kept private to you." }));
 
     const permGrid = el('div', { style: 'display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px; margin:16px 0;' });
     const checkboxes = {};
-
     IFRA_AVAILABLE_TABS.forEach(item => {
       const id = item[0], label = item[1], desc = item[2];
       const row = el('label', { style: 'display:flex; align-items:flex-start; gap:10px; padding:10px 12px; background:rgba(0,0,0,0.3); border:1px solid #4a1a2e; border-radius:8px; cursor:pointer;' });
@@ -1499,7 +1530,6 @@ VIEWS.logins=m=>{
     selAllBtn.onclick = () => { Object.values(checkboxes).forEach(c => c.checked = true); };
     const deselAllBtn = el('button', { class: 'b alt sm', text: '✕ Deselect All' });
     deselAllBtn.onclick = () => { Object.values(checkboxes).forEach(c => c.checked = false); };
-
     const permMsg = el('span', { class: 'hint', style: 'margin-left:10px;' });
 
     savePermBtn.onclick = async () => {
@@ -1511,7 +1541,7 @@ VIEWS.logins=m=>{
         await api('users', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ her: { allowedTabs: selected } })
+          body: JSON.stringify({ adminHer: { allowedTabs: selected } })
         });
         permMsg.style.color = 'var(--ok)';
         permMsg.textContent = '✓ Saved! Ifra will now see ' + selected.length + ' tab' + (selected.length === 1 ? '' : 's') + '.';
@@ -1522,12 +1552,9 @@ VIEWS.logins=m=>{
         savePermBtn.disabled = false;
       }
     };
-
     btnRow.append(savePermBtn, selAllBtn, deselAllBtn, permMsg);
     permCard.append(btnRow);
     host.append(permCard);
-
-    host.append(el('p',{class:'hint',text:'Changing a password or username logs that person out everywhere, and they log in again with the new details.'}));
   }
   load();
 };
