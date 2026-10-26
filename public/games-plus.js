@@ -213,7 +213,7 @@
     body.innerHTML = '<h3>Love Striker ⚽</h3>' +
       '<p class="fun-sub" id="fbInfo">Choose a mode: ❤️ Romantic Shootout (5 penalties), ⚡ Sudden Death (first miss ends it) or 🧤 Beat the Keeper (3 lives, it learns). Hold to aim, release in the gold zone. Corners are x2 🎯</p>' +
       '<canvas id="fbCv" class="game-cv" width="' + W + '" height="' + H + '"></canvas>' +
-      '<div class="fb-modes" id="fbModes"><div class="fun-btn" data-m="romantic">❤️ Romantic Shootout</div><div class="fun-btn" data-m="sudden">⚡ Sudden Death</div><div class="fun-btn" data-m="beat">🧤 Beat the Keeper</div></div><div class="fun-btn" id="fbStart" style="display:none">Play again ⚽</div>';
+      '<div class="fb-modes" id="fbModes"><div class="fun-btn" data-m="romantic">❤️ Shootout</div><div class="fun-btn" data-m="sudden">⚡ Sudden Death</div><div class="fun-btn" data-m="beat">🧤 Beat the Keeper</div></div><div class="fun-btn" id="fbStart" style="display:none">Play again ⚽</div>';
     var cv = byId('fbCv');
     var dpr = (typeof LITE !== 'undefined' && LITE) ? 1 : Math.min(2, window.devicePixelRatio || 1);
     cv.width = W * dpr; cv.height = H * dpr;
