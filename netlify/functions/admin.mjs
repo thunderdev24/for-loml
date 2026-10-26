@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { sendToAll, sendToOne, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
-import { getUsers, newCredentials, ROLES } from './lib/authlib.mjs';
+import { getUsers, newCredentials, checkPw, ROLES } from './lib/authlib.mjs';
 import { getItemLocks, saveItemLocks, makeItemLock, publicItemLocks, isItemId } from './lib/itemlocks.mjs';
 import { LOCKABLE, getLocks, saveLocks, makeLock, checkLock, makeUnlockToken, unlockedTabs, missingUnlocks, lockedMessage, changedSections } from './lib/locks.mjs';
 
@@ -20,35 +20,87 @@ const safeEq = (a, b) => {
 };
 const sha = s => crypto.createHash('sha256').update(String(s)).digest();
 
-function makeToken() { const p = String(Date.now() + 12 * 3600e3); return p + '.' + sign(p); }
-function authed(req) {
-  if (!process.env.ADMIN_PASSWORD) return false;
+function makeToken(role = 'owner') {
+  const p = role + ':' + String(Date.now() + 24 * 3600e3);
+  return p + '.' + sign(p);
+}
+function authedUser(req) {
+  if (!process.env.ADMIN_PASSWORD) return null;
   const t = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const [p, s] = t.split('.');
-  return !!(p && s && safeEq(s, sign(p)) && Number(p) > Date.now());
+  if (!p || !s || !safeEq(s, sign(p))) return null;
+  if (!p.includes(':')) {
+    return Number(p) > Date.now() ? { role: 'owner' } : null;
+  }
+  const [role, exp] = p.split(':');
+  if (Number(exp) < Date.now()) return null;
+  return { role: role || 'owner' };
+}
+function authed(req) {
+  return !!authedUser(req);
 }
 const PRIVATE_KEYS = ['ntfyTopic', 'discordWebhook'];
 const userName = u => (u && (u.username || u.email)) || '';
 const validUsername = n => /^[a-z0-9._-]{3,30}$/.test(n) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(n);   // an old email login stays valid
 const lockHits = [];
 
+const DEFAULT_IFRA_TABS = ['texts', 'photos', 'playlist', 'when', 'story', 'surprises', 'games', 'jar', 'riddles', 'sweet', 'plans', 'diary'];
+
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').replace(/\/$/, '');
 
   if (route === 'login' && req.method === 'POST') {
-    if (!process.env.ADMIN_PASSWORD) return json({ error: 'ADMIN_PASSWORD is not set in Netlify yet.' }, 503);
-    let pw = '';
-    try { pw = String((await req.json()).password || ''); } catch (e) { }
-    if (crypto.timingSafeEqual(sha(pw), sha(process.env.ADMIN_PASSWORD))) return json({ token: makeToken() });
+    let pw = '', username = '';
+    try {
+      const b = await req.json();
+      pw = String(b.password || '');
+      username = String(b.username || '').trim().toLowerCase();
+    } catch (e) { }
+
+    // 1. Check if ADMIN_PASSWORD matches (Master Owner: Tayyab)
+    if (process.env.ADMIN_PASSWORD && (!username || username === 'admin' || username === 'tayyab')) {
+      if (crypto.timingSafeEqual(sha(pw), sha(process.env.ADMIN_PASSWORD))) {
+        return json({ token: makeToken('owner'), role: 'owner', name: 'Tayyab', allowedTabs: [] });
+      }
+    }
+
+    // 2. Check Ifra's credentials from users.json
+    const s = store();
+    const users = await getUsers(s);
+    if (users && users.her && checkPw(users.her, pw)) {
+      const herName = (userName(users.her) || '').toLowerCase();
+      if (!username || username === herName || username === 'ifra') {
+        const allowedTabs = Array.isArray(users.her.allowedTabs) ? users.her.allowedTabs : DEFAULT_IFRA_TABS;
+        return json({
+          token: makeToken('her'),
+          role: 'her',
+          name: users.her.username || 'Ifra',
+          allowedTabs
+        });
+      }
+    }
+
     await sleep(1200);
-    return json({ error: 'Wrong password' }, 401);
+    return json({ error: 'Wrong password or username' }, 401);
   }
 
-  if (!authed(req)) return json({ error: 'Not signed in' }, 401);
+  const auth = authedUser(req);
+  if (!auth) return json({ error: 'Not signed in' }, 401);
   const s = store();
   const locks = await getLocks(s);
   const open = unlockedTabs(req, locks);
   const locked = tabs => { const m = missingUnlocks(tabs, locks, open); return m.length ? json({ error: lockedMessage(m), locked: m }, 403) : null; };
+
+  const herAllowed = async (tab) => {
+    if (auth.role !== 'her') return true;
+    const u = await getUsers(s);
+    const list = (u.her && Array.isArray(u.her.allowedTabs)) ? u.her.allowedTabs : DEFAULT_IFRA_TABS;
+    return list.includes(tab);
+  };
+
+  if (auth.role === 'her' && (route === 'sitelocks' || route === 'locks' || route === 'private' || route === 'reset' || route === 'push-test')) {
+    return json({ error: 'Permission denied: This section is restricted to Tayyab' }, 403);
+  }
 
   // ---- locks on individual things of the public website (saved straight away, not part of Publish) ----
   if (route === 'sitelocks' && req.method === 'GET') {
@@ -152,13 +204,24 @@ export default async (req) => {
 
   // the two logins (me / her): emails are shown, passwords are never sent back
   if (route === 'users' && req.method === 'GET') {
+    if (auth.role === 'her') return json({ error: 'Permission denied: Logins are managed by Tayyab' }, 403);
     const u = await getUsers(s);
     const out = {};
-    ROLES.forEach(r => { out[r] = u[r] && u[r].hash ? { username: userName(u[r]) } : null; });
+    ROLES.forEach(r => {
+      if (u[r] && u[r].hash) {
+        out[r] = { username: userName(u[r]) };
+        if (r === 'her') {
+          out[r].allowedTabs = Array.isArray(u[r].allowedTabs) ? u[r].allowedTabs : DEFAULT_IFRA_TABS;
+        }
+      } else {
+        out[r] = null;
+      }
+    });
     return json(out);
   }
 
   if (route === 'users' && req.method === 'POST') {
+    if (auth.role === 'her') return json({ error: 'Permission denied: Logins are managed by Tayyab' }, 403);
     { const e = locked(['logins']); if (e) return e; }
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
@@ -167,6 +230,14 @@ export default async (req) => {
       const inp = body && body[r];
       if (!inp) continue;
       if (inp.remove) { delete users[r]; continue; }
+
+      // Updating permissions for her:
+      if (r === 'her' && Array.isArray(inp.allowedTabs)) {
+        users.her = users.her || {};
+        users.her.allowedTabs = inp.allowedTabs.map(String);
+        if (!inp.username && !inp.password) continue;
+      }
+
       const username = String(inp.username != null ? inp.username : (inp.email || '')).trim().toLowerCase();
       const pw = String(inp.password || '');
       const label = r === 'me' ? 'Your' : 'Her';
@@ -175,6 +246,8 @@ export default async (req) => {
       if (!old && !pw) return json({ error: label + ' login needs a password' }, 400);
       if (pw && pw.length < 8) return json({ error: label + ' password must be at least 8 characters' }, 400);
       const next = { username, salt: old && old.salt, hash: old && old.hash, ver: (old && old.ver) || 1 };
+      if (old && old.allowedTabs) next.allowedTabs = old.allowedTabs;
+      if (r === 'her' && Array.isArray(inp.allowedTabs)) next.allowedTabs = inp.allowedTabs.map(String);
       if (pw) Object.assign(next, newCredentials(pw), { ver: next.ver + 1 });
       else if (old && userName(old) !== username) next.ver += 1;
       users[r] = next;
@@ -183,11 +256,21 @@ export default async (req) => {
     if (new Set(mails).size !== mails.length) return json({ error: 'You and her need different usernames' }, 400);
     await s.setJSON('users.json', users);
     const out = {};
-    ROLES.forEach(r => { out[r] = users[r] ? { username: userName(users[r]) } : null; });
+    ROLES.forEach(r => {
+      if (users[r]) {
+        out[r] = { username: userName(users[r]) };
+        if (r === 'her') out[r].allowedTabs = users[r].allowedTabs || DEFAULT_IFRA_TABS;
+      } else {
+        out[r] = null;
+      }
+    });
     return json({ ok: true, users: out });
   }
 
   if (route === 'save' && req.method === 'POST') {
+    if (auth.role === 'her' && !(await herAllowed('publish'))) {
+      return json({ error: 'Publishing live is restricted to Tayyab' }, 403);
+    }
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: 'Bad JSON' }, 400); }
     const content = body && body.content;
@@ -204,7 +287,7 @@ export default async (req) => {
       if (e) return e;
     }
     await s.setJSON('content.json', content);
-    if (body.private && typeof body.private === 'object') {
+    if (auth.role !== 'her' && body.private && typeof body.private === 'object') {
       const priv = {};
       const topic = String(body.private.ntfyTopic || '').trim();
       const hook = String(body.private.discordWebhook || '').trim();
@@ -248,6 +331,7 @@ export default async (req) => {
   }
 
   if (route === 'push-info' && req.method === 'GET') {
+    if (!(await herAllowed('devices'))) return json({ error: 'Permission denied: Devices tab is not enabled for you' }, 403);
     const subs = await getSubs(s);
     let content = null;
     try { content = await s.get('content.json', { type: 'json' }); } catch (e) { }
@@ -286,6 +370,7 @@ export default async (req) => {
   }
 
   if (route === 'push-device-rename' && req.method === 'POST') {
+    if (!(await herAllowed('devices'))) return json({ error: 'Permission denied: Devices tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, endpoint, name } = body;
@@ -301,6 +386,7 @@ export default async (req) => {
   }
 
   if (route === 'push-device-delete' && req.method === 'POST') {
+    if (!(await herAllowed('devices'))) return json({ error: 'Permission denied: Devices tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, endpoint } = body;
@@ -313,6 +399,7 @@ export default async (req) => {
   }
 
   if (route === 'push-device-test' && req.method === 'POST') {
+    if (!(await herAllowed('devices'))) return json({ error: 'Permission denied: Devices tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, endpoint, settings } = body;
@@ -341,12 +428,14 @@ export default async (req) => {
   }
 
   if (route === 'plans' && req.method === 'GET') {
+    if (!(await herAllowed('plans'))) return json({ error: 'Permission denied: Dates & Plans tab is not enabled for you' }, 403);
     let plans = [];
     try { plans = (await s.get('plans/list.json', { type: 'json' })) || []; } catch (e) { }
     return json({ ok: true, plans });
   }
 
   if (route === 'plans-status' && req.method === 'POST') {
+    if (!(await herAllowed('plans'))) return json({ error: 'Permission denied: Dates & Plans tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, status } = body;
@@ -360,6 +449,7 @@ export default async (req) => {
   }
 
   if (route === 'plans-delete' && req.method === 'POST') {
+    if (!(await herAllowed('plans'))) return json({ error: 'Permission denied: Dates & Plans tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, all } = body;
@@ -375,12 +465,14 @@ export default async (req) => {
   }
 
   if (route === 'diary' && req.method === 'GET') {
+    if (!(await herAllowed('diary'))) return json({ error: 'Permission denied: Shared Diary tab is not enabled for you' }, 403);
     let entries = [];
     try { entries = (await s.get('diary/entries.json', { type: 'json' })) || []; } catch (e) { }
     return json({ ok: true, entries });
   }
 
   if (route === 'diary-delete' && req.method === 'POST') {
+    if (!(await herAllowed('diary'))) return json({ error: 'Permission denied: Shared Diary tab is not enabled for you' }, 403);
     let body = {};
     try { body = await req.json(); } catch (e) { }
     const { id, all } = body;
