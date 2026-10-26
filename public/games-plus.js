@@ -206,14 +206,14 @@
   };
 
   /* ---------- ⚽ LOVE STRIKER: penalty shootout. Hold to aim and charge, release to shoot ---------- */
-  var fbLevel = 1;
+  var fbLevel = 1, fbHist = [0, 0, 0];
   FUN.football = function (body) {
     var W = 300, H = 360, SHOTS = 5, GX1 = 55, GX2 = 245, GY1 = 82, GY2 = 152;
     var best = 0; try { best = +localStorage.getItem('ifraFootBest') || 0; } catch (e) { }
     body.innerHTML = '<h3>Love Striker ⚽</h3>' +
-      '<p class="fun-sub" id="fbInfo">Penalty shootout! Press and hold to aim, watch the power bar, release in the gold zone to shoot. Hit the glowing corners for x2 🎯</p>' +
+      '<p class="fun-sub" id="fbInfo">Choose a mode: ❤️ Romantic Shootout (5 penalties), ⚡ Sudden Death (first miss ends it) or 🧤 Beat the Keeper (3 lives, it learns). Hold to aim, release in the gold zone. Corners are x2 🎯</p>' +
       '<canvas id="fbCv" class="game-cv" width="' + W + '" height="' + H + '"></canvas>' +
-      '<div class="fun-btn" id="fbStart">Kick off ⚽</div>';
+      '<div class="fb-modes" id="fbModes"><div class="fun-btn" data-m="romantic">❤️ Romantic Shootout</div><div class="fun-btn" data-m="sudden">⚡ Sudden Death</div><div class="fun-btn" data-m="beat">🧤 Beat the Keeper</div></div><div class="fun-btn" id="fbStart" style="display:none">Play again ⚽</div>';
     var cv = byId('fbCv');
     var dpr = (typeof LITE !== 'undefined' && LITE) ? 1 : Math.min(2, window.devicePixelRatio || 1);
     cv.width = W * dpr; cv.height = H * dpr;
@@ -221,11 +221,21 @@
     var started = false, mode = 'wait', shots = SHOTS, pts = 0, goals = 0, streak = 0;
     var tx = 150, ty = 110, pw = 0, pdir = 1, holding = false, time = 0, last = 0, raf = 0, shake = 0, jump = 0, kick = 0, resT = 0;
     var fl = null, dive = null, msg = null, parts = [], netB = null, keeper = { x: 150, y: 128, rot: 0 };
+    var gm = 'romantic', taken = 0, misses = 0, lastKind = '', spin = 0;
     var crowd = [];
     for (var i = 0; i < 150; i++) crowd.push({ x: Math.random() * W, y: 6 + Math.random() * 64, h: Math.floor(Math.random() * 360), p: Math.random() * 6 });
+    var grass = document.createElement('canvas'); grass.width = W; grass.height = H - GY2 + 24;
+    (function () { var g = grass.getContext('2d'); for (var y = 0, i = 0; y < grass.height; y += 24, i++) { g.fillStyle = i % 2 ? '#1f7a3a' : '#27913f'; g.fillRect(0, y, W, 24); }
+      for (var n = 0; n < 1400; n++) { g.fillStyle = n % 2 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.08)'; g.fillRect(Math.random() * W, Math.random() * grass.height, 1, 3 + Math.random() * 3); } })();
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     function sfx(n) { if (window.PLUS) PLUS.sfx(n); }
     function setMsg(t, c) { msg = { t: t, c: c, l: 1.5 }; }
+    var CFG = (window.GAME_CONFIG && GAME_CONFIG.football) || {}, NAME = (window.GAME_CONFIG && GAME_CONFIG.playerName) || 'Ifra';
+    function pick(k, d) { var a = (CFG[k] && CFG[k].length) ? CFG[k] : d; return String(a[Math.floor(Math.random() * a.length)]).replace(/\{name\}/g, NAME); }
+    function say(t) { var i = byId('fbInfo'); if (i) i.textContent = t; }
+    function L() { return Math.min(10, fbLevel + (gm === 'beat' ? Math.floor(goals / 2) : 0)); }
+    function bkey() { return gm === 'romantic' ? 'ifraFootBest' : 'ifraFootBest_' + gm; }
+    function isOver() { if (gm === 'romantic') return shots <= 0; if (gm === 'sudden') return lastKind !== 'goal' || taken >= 15; return misses >= 3; }
     function confetti(n) { for (var k = 0; k < n; k++) parts.push({ x: 150, y: 190, vx: (Math.random() - 0.5) * 380, vy: -60 - Math.random() * 300, l: 1.3, c: 'hsl(' + Math.floor(Math.random() * 360) + ',90%,65%)' }); }
 
     /* ----- input ----- */
@@ -251,9 +261,13 @@
       if (p < 0.15) Y += (0.15 - p) * 320;          // too soft, falls short
       var inG = X > GX1 + 3 && X < GX2 - 3 && Y > GY1 + 3 && Y <= GY2;
       var post = !inG && (((Math.abs(X - GX1) < 8 || Math.abs(X - GX2) < 8) && Y > GY1 - 4 && Y < GY2) || (Math.abs(Y - GY1) < 5 && X > GX1 && X < GX2));
-      var skill = Math.min(0.78, 0.28 + 0.09 * fbLevel), g;
-      if (Math.random() < skill) g = { x: X + (Math.random() - 0.5) * 40, y: Y + (Math.random() - 0.5) * 24 };
-      else g = { x: GX1 + 15 + Math.random() * 160, y: GY1 + 10 + Math.random() * 55 };
+      /* the keeper cannot see where the ball is going: it guesses from how you usually shoot, and only a slow shot gives it time to react */
+      var skill = Math.min(0.85, 0.28 + 0.09 * L()), g, tot = fbHist[0] + fbHist[1] + fbHist[2] + 3, rr = Math.random() * tot;
+      var zn = rr < fbHist[0] + 1 ? 0 : rr < fbHist[0] + fbHist[1] + 2 ? 1 : 2;
+      if (Math.random() > skill) zn = Math.floor(Math.random() * 3);
+      g = { x: GX1 + 32 + zn * 63 + (Math.random() - 0.5) * 36, y: GY1 + 14 + Math.random() * 46 };
+      if (Math.random() < clamp(0.85 - p * 0.8, 0.05, 0.7) * Math.min(1, skill + 0.2)) g = { x: X + (Math.random() - 0.5) * 36, y: Y + (Math.random() - 0.5) * 24 };
+      fbHist = fbHist.map(function (v) { return v * 0.92; }); fbHist[X < GX1 + 63 ? 0 : X < GX1 + 127 ? 1 : 2]++;
       g.x = clamp(g.x, GX1 + 14, GX2 - 14); g.y = clamp(g.y, GY1 + 14, GY2 - 16);
       var corner = Y < GY1 + 18 && (X < GX1 + 32 || X > GX2 - 32);
       var rx = Math.max(14, 36 - p * 14 + (p < 0.3 ? 20 : 0) - (corner ? 8 : 0));
@@ -265,48 +279,48 @@
       var bonus = kind === 'goal' && (Math.hypot(X - (GX1 + 22), Y - (GY1 + 16)) < 13 || Math.hypot(X - (GX2 - 22), Y - (GY1 + 16)) < 13);
       fl = { t: 0, dur: 0.75 - p * 0.35, X: X, Y: Y, kind: kind, bonus: bonus };
       dive = { t: 0, x0: keeper.x, y0: keeper.y, x1: g.x, y1: g.y };
-      kick = 1; sfx('pop');
+      kick = 1; taken++; sfx('pop'); setTimeout(function () { sfx('flip'); }, 120);
     }
     function land() {
-      var k = fl.kind; mode = 'result'; resT = 1.4;
+      var k = fl.kind; mode = 'result'; resT = 1.4; lastKind = k; if (k !== 'goal') misses++;
       if (k === 'goal') {
         pts += fl.bonus ? 2 : 1; goals++; streak++;
         netB = { x: fl.X, y: fl.Y, l: 1 }; shake = 0.35; jump = 1; confetti(34);
-        setMsg(streak >= 3 ? 'ON FIRE! 🔥 x' + streak : fl.bonus ? 'TOP BINS! 🎯 +2' : ['GOAL! ⚽🔥', 'WHAT A STRIKE! 🚀', 'GOLAZO! ✨', 'BACK OF THE NET! 💥'][Math.floor(Math.random() * 4)], '#ffe3b0');
+        setMsg(streak >= 3 ? pick('streak', ['ON FIRE! 🔥']) + ' x' + streak : fl.bonus ? pick('bonus', ['TOP BINS! 🎯 +2']) : pick('goal', ['GOAL! ⚽🔥']), '#ffe3b0'); say(pick('loveGoal', ['GOAL! You just made my heart skip a beat ❤️']));
         sfx('win'); if (window.PLUS) PLUS.hit('good');
       } else {
         streak = 0; shake = k === 'post' ? 0.4 : 0.15;
-        setMsg({ saved: 'SAVED! 🧤', post: 'OFF THE POST! 😱', wide: 'WIDE! 😬', over: 'OVER THE BAR! 😬', short: 'TOO SOFT! 🐢' }[k], '#ffb4b4');
+        setMsg(pick(k, [k.toUpperCase() + '!']), '#ffb4b4'); say(pick('loveMiss', ['Missed it, but you still win my heart 💕']));
         sfx('bad'); if (window.PLUS) PLUS.hit('bad');
       }
     }
     function end() {
-      mode = 'over'; started = false;
-      var nb = pts > best; if (nb) { best = pts; try { localStorage.setItem('ifraFootBest', String(pts)); } catch (e) { } }
-      var m = pts >= 8 ? 'World-class! 🏆' : pts >= 5 ? 'What a performance! 💖' : pts >= 3 ? 'Nice finishing! The keeper is sweating 😉' : 'The keeper got lucky. One more round? 😉';
+      mode = 'over'; started = false; sfx('unlock');
+      var nb = pts > best; if (nb) { best = pts; try { localStorage.setItem(bkey(), String(pts)); } catch (e) { } }
+      var m = pick(pts >= 8 ? 'endGreat' : pts >= 5 ? 'endGood' : pts >= 3 ? 'endOk' : 'endLow', ['Great match! ❤️']);
       byId('fbInfo').textContent = pts + ' points (' + goals + ' goals). ' + m + (nb && pts > 0 ? ' 🏅 New best!' : ' Best: ' + best);
       var b = byId('fbStart'); b.textContent = 'Play again ⚽ (keeper gets smarter)'; b.style.display = '';
-      fbLevel = Math.min(8, fbLevel + 1);
+      byId('fbModes').style.display = ''; fbLevel = Math.min(8, fbLevel + 1);
       if (window.PLUS) { if (pts >= 3) PLUS.addStars(pts >= 5 ? 5 : 3, 'on the pitch'); if (nb && pts > 0) setTimeout(function () { PLUS.addStars(2, 'new record!'); }, 600); }
-      if (pts >= 4) setTimeout(function () { celebrate('You beat the keeper like you beat my heart.', '⚽ ' + pts + ' points | ' + goals + ' goals'); }, 900);
+      if (pts >= 4) setTimeout(function () { celebrate(pick('celebrate', ['You scored your way into my heart, {name}! ❤️⚽']), '⚽ ' + pts + ' points | ' + goals + ' goals'); }, 900);
     }
     function start() {
-      started = true; shots = SHOTS; pts = 0; goals = 0; streak = 0; mode = 'ready'; fl = null; netB = null;
-      byId('fbStart').style.display = 'none';
-      byId('fbInfo').textContent = 'Round ' + (fbLevel) + ': hold, aim, release in the gold zone 🎯';
+      started = true; shots = gm === 'romantic' ? SHOTS : 999; taken = 0; misses = 0; lastKind = ''; pts = 0; goals = 0; streak = 0; mode = 'ready'; fl = null; netB = null;
+      byId('fbStart').style.display = 'none'; byId('fbModes').style.display = 'none';
+      byId('fbInfo').textContent = ({ romantic: 'Romantic Shootout: 5 penalties', sudden: 'Sudden Death: the first miss ends it', beat: 'Beat the Keeper: 3 lives, it learns your habits' }[gm]) + '. Hold, aim, release in the gold zone 🎯';
       last = performance.now(); if (!raf) raf = requestAnimationFrame(loop);
     }
 
     /* ----- simulation ----- */
     function step(dt) {
-      time += dt; shake = Math.max(0, shake - dt * 2); jump = Math.max(0, jump - dt * 1.5); kick = Math.max(0, kick - dt * 3);
+      time += dt; if (mode === 'shot') spin += dt * 16; shake = Math.max(0, shake - dt * 2); jump = Math.max(0, jump - dt * 1.5); kick = Math.max(0, kick - dt * 3);
       if (netB) netB.l = Math.max(0, netB.l - dt * 0.7);
       if (msg) { msg.l -= dt; if (msg.l <= 0) msg = null; }
       parts.forEach(function (p) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt; p.l -= dt; });
       parts = parts.filter(function (p) { return p.l > 0; });
-      if (mode === 'aim' && holding) { pw += pdir * dt * (0.9 + 0.12 * fbLevel); if (pw >= 1) { pw = 1; pdir = -1; } if (pw <= 0) { pw = 0; pdir = 1; } }
+      if (mode === 'aim' && holding) { pw += pdir * dt * (0.9 + 0.12 * L()); if (pw >= 1) { pw = 1; pdir = -1; } if (pw <= 0) { pw = 0; pdir = 1; } }
       if (mode !== 'shot') {
-        if (mode !== 'result') { keeper.x = 150 + Math.sin(time * (1.6 + 0.2 * fbLevel)) * (26 + 3 * fbLevel); keeper.y = 128; keeper.rot = 0; }
+        if (mode !== 'result') { keeper.x = 150 + Math.sin(time * (1.6 + 0.2 * L())) * (26 + 3 * L()); keeper.y = 128; keeper.rot = 0; }
       } else {
         fl.t += dt; dive.t += dt;
         var d = Math.min(1, dive.t / 0.45), e = 1 - Math.pow(1 - d, 3);
@@ -314,7 +328,7 @@
         keeper.rot = clamp((dive.x1 - 150) / 70, -1.1, 1.1) * e;
         if (fl.t >= fl.dur) land();
       }
-      if (mode === 'result') { resT -= dt; if (resT <= 0) { if (shots <= 0) end(); else { mode = 'ready'; fl = null; keeper.rot = 0; } } }
+      if (mode === 'result') { resT -= dt; if (resT <= 0) { if (isOver()) end(); else { mode = 'ready'; fl = null; keeper.rot = 0; } } }
     }
 
     /* ----- drawing ----- */
@@ -352,11 +366,16 @@
     function draw() {
       ctx.save();
       if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 14, (Math.random() - 0.5) * shake * 14);
+      var zm = 1 + jump * 0.035; ctx.translate(W / 2, H / 2); ctx.scale(zm, zm); ctx.translate(-W / 2, -H / 2);
       var g = ctx.createLinearGradient(0, 0, 0, GY2); g.addColorStop(0, '#070c2a'); g.addColorStop(1, '#1c2c70');
       ctx.fillStyle = g; ctx.fillRect(-10, -10, W + 20, GY2 + 12);
       crowd.forEach(function (c) { ctx.fillStyle = 'hsl(' + c.h + ',65%,' + (42 + 14 * Math.sin(time * 3 + c.p)) + '%)'; ctx.fillRect(c.x, c.y - jump * Math.abs(Math.sin(time * 9 + c.p)) * 6, 3, 3); });
       [[18, 14], [282, 14]].forEach(function (l) { var rg = ctx.createRadialGradient(l[0], l[1], 0, l[0], l[1], 70); rg.addColorStop(0, 'rgba(255,255,230,.8)'); rg.addColorStop(1, 'rgba(255,255,230,0)'); ctx.fillStyle = rg; ctx.fillRect(l[0] - 70, l[1] - 70, 140, 140); });
-      for (var y = GY2, i2 = 0; y < H + 24; y += 24, i2++) { ctx.fillStyle = i2 % 2 ? '#1f7a3a' : '#27913f'; ctx.fillRect(-10, y, W + 20, 24); }
+      ctx.fillStyle = 'rgba(255,140,190,.35)';
+      for (var mi = 0; mi < 24; mi++) { var mx = (mi * 37 + Math.sin(time * 0.4 + mi) * 12) % W, my = ((mi * 53) - time * (8 + (mi % 5) * 3)) % GY2; if (my < 0) my += GY2; ctx.beginPath(); ctx.arc(mx, my, 1.6, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = '#1a0b2e'; ctx.fillRect(-10, GY1 - 14, W + 20, 12); ctx.fillStyle = '#ff6fa5'; ctx.font = '700 10px Poppins, sans-serif'; ctx.textAlign = 'center';
+      for (var hb = 14; hb < W; hb += 28) ctx.fillText('❤', hb, GY1 - 4);
+      ctx.fillStyle = '#1f7a3a'; ctx.fillRect(-20, GY2, W + 40, H); ctx.drawImage(grass, 0, GY2);
       ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(70, GY2); ctx.lineTo(25, 255); ctx.lineTo(275, 255); ctx.lineTo(230, GY2); ctx.moveTo(105, GY2); ctx.lineTo(88, 190); ctx.lineTo(212, 190); ctx.lineTo(195, GY2); ctx.stroke();
       ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(GX1, GY1, GX2 - GX1, GY2 - GY1);
@@ -381,7 +400,7 @@
       var b = ballPos();
       ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(b.x, Math.max(b.y + 8 * b.s, 296), 9 * b.s, 3 * b.s, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 9 * b.s, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#222'; [[0, -2], [-5, 3], [5, 3]].forEach(function (o) { ctx.beginPath(); ctx.arc(b.x + o[0] * b.s, b.y + o[1] * b.s, 2.4 * b.s, 0, TAU); ctx.fill(); });
+      ctx.fillStyle = '#222'; var ca = Math.cos(spin), sa = Math.sin(spin); [[0, -3], [-5, 3], [5, 3]].forEach(function (o) { ctx.beginPath(); ctx.arc(b.x + (o[0] * ca - o[1] * sa) * b.s, b.y + (o[0] * sa + o[1] * ca) * b.s, 2.4 * b.s, 0, TAU); ctx.fill(); });
       if (mode === 'aim') {                                                 /* crosshair + dotted line */
         ctx.setLineDash([4, 5]); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(150, 285); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
@@ -401,13 +420,14 @@
       }
       ctx.restore();
       /* HUD */
+      ctx.fillStyle = 'rgba(8,4,24,.7)'; ctx.fillRect(0, 0, W, 30);
       ctx.font = '600 14px Poppins, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 4;
-      var balls = ''; for (var s2 = 0; s2 < SHOTS; s2++) balls += s2 < shots ? '⚽' : '·';
+      var balls = ''; if (gm === 'romantic') { for (var s2 = 0; s2 < SHOTS; s2++) balls += s2 < shots ? '⚽' : '·'; } else if (gm === 'sudden') balls = '⚡ Shot ' + Math.max(1, taken + (mode === 'ready' || mode === 'aim' ? 1 : 0)) + '/15'; else for (var s3 = 0; s3 < 3; s3++) balls += s3 < 3 - misses ? '❤️' : '🖤';
       ctx.fillText(balls, 8, 20);
       ctx.textAlign = 'right'; ctx.fillText('⭐ ' + pts + '   🏅 ' + best, W - 8, 20);
       if (streak >= 2) { ctx.textAlign = 'center'; ctx.fillStyle = '#ffe3b0'; ctx.fillText('🔥 x' + streak, W / 2, 20); }
       ctx.shadowBlur = 0;
-      if (mode === 'wait') { ctx.textAlign = 'center'; ctx.font = '600 15px Poppins, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('Tap Kick off to start', W / 2, 230); }
+      if (mode === 'wait') { ctx.textAlign = 'center'; ctx.font = '600 15px Poppins, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('Pick a game mode below ⬇', W / 2, 230); }
       if (mode === 'ready' && shots === SHOTS) { ctx.textAlign = 'center'; ctx.font = '600 14px Poppins, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('Press & hold to aim 🎯', W / 2, 235); }
     }
     function loop(now) {
@@ -416,6 +436,7 @@
       raf = requestAnimationFrame(loop);
     }
     byId('fbStart').onclick = start;
+    byId('fbModes').querySelectorAll('[data-m]').forEach(function (bt) { bt.onclick = function () { gm = bt.dataset.m; try { best = +localStorage.getItem(bkey()) || 0; } catch (e) { best = 0; } start(); }; });
     funCleanup = function () { cancelAnimationFrame(raf); raf = 0; };
     last = performance.now(); raf = requestAnimationFrame(loop);
   };

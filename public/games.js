@@ -1019,6 +1019,7 @@ FUN.breaker = body => {
       const b = balls[i];
       b.x += b.vx * dt;
       b.y += b.vy * dt;
+      if (Math.abs(b.vy) < 90) b.vy = b.vy < 0 ? -90 : 90;   // never get stuck bouncing sideways
 
       if (b.x - b.r < 4) { b.x = 4 + b.r; b.vx = Math.abs(b.vx); }
       if (b.x + b.r > W - 4) { b.x = W - 4 - b.r; b.vx = -Math.abs(b.vx); }
