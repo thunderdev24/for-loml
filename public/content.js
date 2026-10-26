@@ -1742,15 +1742,6 @@ window.SITE_CONTENT = {
       "rest": 0
     },
     {
-      "id": "calendar",
-      "group": "surprises",
-      "emoji": "📅",
-      "label": "Plan a Date 💖",
-      "on": true,
-      "minutes": 0,
-      "rest": 0
-    },
-    {
       "id": "catch",
       "group": "play",
       "emoji": "🧺",
@@ -1822,15 +1813,6 @@ window.SITE_CONTENT = {
       "group": "play",
       "emoji": "⚽",
       "label": "Love Striker",
-      "on": true,
-      "minutes": 0,
-      "rest": 0
-    },
-    {
-      "id": "valorant",
-      "group": "play",
-      "emoji": "🎮",
-      "label": "Valorant Date",
       "on": true,
       "minutes": 0,
       "rest": 0
