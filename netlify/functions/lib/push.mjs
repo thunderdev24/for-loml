@@ -41,6 +41,23 @@ export async function sendToAll(store, payload) {
   return { sent, failed, removed: subs.length - keep.length, total: subs.length, errors };
 }
 
+export async function sendToOne(store, sub, payload) {
+  await getVapid(store);
+  try {
+    await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 60 * 60 * 12, urgency: 'high' });
+    return { ok: true };
+  } catch (e) {
+    const code = e && e.statusCode;
+    if (code === 404 || code === 410) {
+      const subs = await getSubs(store);
+      const keep = subs.filter(s => s.endpoint !== sub.endpoint);
+      if (keep.length !== subs.length) await store.setJSON('push/subs.json', keep);
+      throw new Error('Subscription has expired on this device (410/404). Device record removed.');
+    }
+    throw e;
+  }
+}
+
 export const DEFAULTS = {
   timezone: 'Asia/Karachi', birthdayDay: 4, birthdayMonth: 1,
   reminderDays: '30,21,14,10,7,5,3,2,1,0',
