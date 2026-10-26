@@ -1,0 +1,539 @@
+/* ===================================================================
+   🌸 Cute Floating AI Guide & Companion Widget (For Ifra)
+   =================================================================== */
+
+:root {
+  --agent-size: 76px;
+  --agent-accent: #ff4d6d;
+  --agent-accent-glow: rgba(255, 77, 109, 0.45);
+  --agent-bubble-bg: rgba(30, 8, 20, 0.92);
+  --agent-card-border: rgba(255, 110, 140, 0.35);
+  --agent-text: #fff0f5;
+  --agent-mut: #e6b8c8;
+}
+
+/* Floating Agent Container */
+#cuteAgentContainer {
+  position: fixed;
+  z-index: 9999;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: opacity 0.35s ease;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+}
+
+#cuteAgentContainer.pos-br {
+  right: 22px;
+  bottom: 22px;
+}
+
+#cuteAgentContainer.pos-bl {
+  left: 22px;
+  bottom: 22px;
+}
+
+/* Bobbing & Floating Animation */
+.agent-character-wrap {
+  position: relative;
+  width: var(--agent-size);
+  height: var(--agent-size);
+  cursor: grab;
+  animation: agentBob 3.8s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-character-wrap:active {
+  cursor: grabbing;
+}
+
+@keyframes agentBob {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-8px) rotate(-1.5deg);
+  }
+  70% {
+    transform: translateY(-13px) rotate(2deg);
+  }
+}
+
+/* Glow Halo & Sparkle Aura */
+.agent-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 130, 170, 0.45) 0%, rgba(255, 77, 109, 0.15) 60%, transparent 75%);
+  animation: haloPulse 2.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes haloPulse {
+  0% { transform: scale(0.92); opacity: 0.6; }
+  100% { transform: scale(1.16); opacity: 0.95; }
+}
+
+/* Character Body / Avatar */
+.agent-avatar-svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
+  overflow: visible;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.agent-character-wrap:hover .agent-avatar-svg {
+  transform: scale(1.08);
+}
+
+.agent-character-wrap:active .agent-avatar-svg {
+  transform: scale(0.94);
+}
+
+/* Custom Image Avatar */
+.agent-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff7597;
+  box-shadow: 0 0 16px rgba(255, 77, 109, 0.6);
+  background: #2a0d1a;
+  display: block;
+}
+
+/* Emitted floating particle sparkles */
+.agent-sparkle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 14px;
+  animation: sparkleFloat 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  z-index: 1;
+}
+
+@keyframes sparkleFloat {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(calc(var(--rx, 0) * 1px), -15px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--rx, 0) * 2px), -55px) scale(0.4);
+  }
+}
+
+/* Status / Unread Badge */
+.agent-status-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #ff2d55;
+  color: #fff;
+  border-radius: 12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 2px solid #2a0d1a;
+  animation: badgePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+/* ===================================================================
+   Speech Bubble & Companion Window
+   =================================================================== */
+
+.agent-bubble-window {
+  position: absolute;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--agent-bubble-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--agent-card-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(255, 77, 109, 0.2);
+  border-radius: 18px;
+  color: var(--agent-text);
+  font-family: system-ui, -apple-system, 'Poppins', sans-serif;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.85) translateY(12px);
+  transform-origin: bottom right;
+  transition: all 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+  overflow: hidden;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+#cuteAgentContainer.pos-br .agent-bubble-window {
+  right: 0;
+  bottom: calc(var(--agent-size) + 14px);
+  transform-origin: bottom right;
+}
+
+#cuteAgentContainer.pos-bl .agent-bubble-window {
+  left: 0;
+  bottom: calc(var(--agent-size) + 14px);
+  transform-origin: bottom left;
+}
+
+.agent-bubble-window.open {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translateY(0);
+}
+
+/* Little Pointer Tail */
+.agent-bubble-tail {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--agent-bubble-bg);
+  border-right: 1px solid var(--agent-card-border);
+  border-bottom: 1px solid var(--agent-card-border);
+  bottom: -8px;
+  transform: rotate(45deg);
+}
+
+#cuteAgentContainer.pos-br .agent-bubble-tail {
+  right: 32px;
+}
+
+#cuteAgentContainer.pos-bl .agent-bubble-tail {
+  left: 32px;
+}
+
+/* Header */
+.agent-b-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 77, 109, 0.16) 0%, transparent 100%);
+}
+
+.agent-b-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.agent-b-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-b-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.agent-b-sub {
+  font-size: 11px;
+  color: var(--agent-mut);
+}
+
+.agent-b-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+  color: var(--agent-mut);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.agent-b-close:hover {
+  background: rgba(255, 77, 109, 0.3);
+  color: #fff;
+}
+
+/* Content Body */
+.agent-b-body {
+  padding: 14px 14px 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #fbe9ef;
+  max-height: 380px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.agent-speech-bubble {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+/* Quick Action Pills */
+.agent-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.agent-act-btn {
+  background: rgba(255, 77, 109, 0.14);
+  border: 1px solid rgba(255, 77, 109, 0.32);
+  color: #ffe6ee;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.4, 1);
+  text-align: left;
+}
+
+.agent-act-btn:hover {
+  background: rgba(255, 77, 109, 0.3);
+  border-color: #ff6584;
+  transform: translateY(-1.5px);
+  color: #fff;
+}
+
+.agent-act-btn:active {
+  transform: translateY(0);
+}
+
+.agent-act-btn.full-w {
+  grid-column: span 2;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff4d6d, #d81b60);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(255, 77, 109, 0.35);
+}
+
+.agent-act-btn.full-w:hover {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+}
+
+/* Guided Tour HUD Controls */
+.agent-tour-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-tour-step {
+  font-size: 11px;
+  color: var(--agent-mut);
+  font-weight: 600;
+}
+
+.agent-tour-ctrls {
+  display: flex;
+  gap: 5px;
+}
+
+.agent-tour-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.agent-tour-btn:hover {
+  background: #ff4d6d;
+  border-color: #ff4d6d;
+}
+
+.agent-tour-btn.next {
+  background: #ff4d6d;
+  border-color: #ff4d6d;
+  font-weight: 600;
+}
+
+/* Chat Q&A View */
+.agent-chat-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.agent-chip {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffdbe5;
+  border-radius: 14px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.agent-chip:hover {
+  background: rgba(255, 77, 109, 0.25);
+  border-color: #ff7597;
+  color: #fff;
+}
+
+.agent-chat-input-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.agent-chat-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 11px;
+  color: #fff;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.agent-chat-input:focus {
+  border-color: #ff4d6d;
+}
+
+.agent-chat-send {
+  background: #ff4d6d;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: transform 0.15s ease;
+}
+
+.agent-chat-send:active {
+  transform: scale(0.92);
+}
+
+/* Ambient / Scroll Floating Tip Bubble */
+.agent-ambient-tip {
+  position: absolute;
+  background: rgba(20, 5, 13, 0.94);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 120, 150, 0.4);
+  color: #ffe6ee;
+  border-radius: 14px;
+  padding: 9px 13px;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 240px;
+  white-space: normal;
+  animation: ambientFloat 0.35s cubic-bezier(0.34, 1.5, 0.64, 1);
+  z-index: 9;
+}
+
+#cuteAgentContainer.pos-br .agent-ambient-tip {
+  right: calc(var(--agent-size) + 12px);
+  bottom: 14px;
+}
+
+#cuteAgentContainer.pos-bl .agent-ambient-tip {
+  left: calc(var(--agent-size) + 12px);
+  bottom: 14px;
+}
+
+@keyframes ambientFloat {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ===================================================================
+   Guided Tour Target Spotlight
+   =================================================================== */
+
+.agent-tour-spotlight {
+  position: relative;
+  outline: 3px solid #ff4d6d !important;
+  outline-offset: 6px;
+  border-radius: 16px;
+  box-shadow: 0 0 35px rgba(255, 77, 109, 0.6) !important;
+  animation: tourGlow 1.8s ease-in-out infinite alternate !important;
+  transition: all 0.4s ease;
+}
+
+@keyframes tourGlow {
+  0% {
+    outline-color: #ff4d6d;
+    box-shadow: 0 0 20px rgba(255, 77, 109, 0.4);
+  }
+  100% {
+    outline-color: #ff94b4;
+    box-shadow: 0 0 45px rgba(255, 77, 109, 0.85);
+  }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+  :root {
+    --agent-size: 66px;
+  }
+  #cuteAgentContainer.pos-br {
+    right: 14px;
+    bottom: 24px;
+  }
+  #cuteAgentContainer.pos-bl {
+    left: 14px;
+    bottom: 24px;
+  }
+  .agent-bubble-window {
+    width: 290px;
+  }
+}

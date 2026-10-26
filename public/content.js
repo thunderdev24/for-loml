@@ -1,4 +1,44 @@
 window.SITE_CONTENT = {
+  "agent": {
+    "enabled": true,
+    "name": "Mochi 🧚",
+    "avatar": "fairy",
+    "customAvatarUrl": "",
+    "personality": "sweet",
+    "welcomeMsg": "Assalam-o-Alaikum Ifra! 🌹 I am your little love guider made just for you by Tayyab. Tap me anytime for a magical tour, secrets, or a smile! ✨",
+    "ambientTips": true,
+    "sound": true,
+    "position": "bottom-right",
+    "tour": [
+      { "id": "intro", "target": ".card", "title": "Welcome, Ifra 🌹", "text": "This whole website was created with endless love by Tayyab, just for you! Every word, song, and memory here belongs to your heart." },
+      { "id": "playlist", "target": ".song-section", "title": "Our Romantic Playlist 🎶", "text": "Listen to sweet songs together while you browse! You can switch tracks anytime from the playlist dropdown." },
+      { "id": "letter", "target": "#letter", "title": "The Unfolding Love Letter 💌", "text": "A letter that opens slowly and gently, just like how love blossoms deeper and more beautiful each passing day." },
+      { "id": "remind", "target": "#remindBtn", "title": "Birthday Reminders 🎂", "text": "Tap this button once to turn on birthday reminders! Your phone will get sweet countdown notifications as your big day approaches." },
+      { "id": "gallery", "target": ".gallery-section", "title": "Our Memories Gallery 📸", "text": "A glimpse of precious moments. Tap 'Open Full Gallery' to see all photos and sweet captions full-screen!" },
+      { "id": "envelopes", "target": ".letters-section", "title": "Open When Letters 💌", "text": "Whenever you feel happy, sad, or miss him, open the envelope meant for your heart right now." },
+      { "id": "surprises", "target": ".surprises-section", "title": "Little Surprises 🎁", "text": "Scratch cards with love coupons, your flower bouquet, funny riddles, and sweet quizzes! Every single tile hides a treat." },
+      { "id": "games", "target": ".tile-grid.three", "title": "Play Together 🎮", "text": "Mini-games made for you two! Catch hearts, race the GT-R R34, and beat each other's scores!" },
+      { "id": "proposal", "target": ".proposal-section", "title": "One Last Thing... 💍", "text": "There is a question that comes straight from his heart. When you are ready, tap inside!" }
+    ],
+    "notes": [
+      "Ifra, your smile makes even the dullest days feel like pure magic ✨",
+      "You are Tayyab's favourite thought, morning and night 🌙",
+      "Did you know? In a room full of art, he would still only look at you 🎨❤️",
+      "Your laugh is Tayyab's absolute favourite sound in the whole universe 🎶",
+      "No distance can ever weaken a bond written by Allah 🤲💖",
+      "You are not just his choice, you are his answered prayer 🌹",
+      "Every love song he listens to reminds him of you 🎵",
+      "Your happiness is always his number one priority in life 💕"
+    ],
+    "qa": [
+      { "q": "Who made this website?", "a": "Tayyab made this website with all his heart, pouring hours of love and care just to make you smile! ❤️" },
+      { "q": "How much does Tayyab love me?", "a": "To infinity and beyond, more than words, stars, or numbers could ever count! 💖" },
+      { "q": "What should I explore first?", "a": "Start with our playlist 🎶, read the unfolding letter 💌, and then scratch some surprise cards 🎁!" },
+      { "q": "What if I miss him?", "a": "Open the 'Open When You Miss Me' envelope 💌 or send him a message through the 'Write Back To Me' surprise tile!" },
+      { "q": "Tell me a secret 🤫", "a": "Shh... Tap the red heart near the letter multiple times to reveal secret messages! 💖" },
+      { "q": "Why are you so cute?", "a": "Because I was designed to match a tiny fraction of Ifra's cuteness! 🥰✨" }
+    ]
+  },
   "rewards": [
     {
       "at": 5,

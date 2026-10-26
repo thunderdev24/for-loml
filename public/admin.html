@@ -206,7 +206,7 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['jar','🏺 Love Jar'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
-  ['proposal','Special'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+  ['proposal','Special'],['agent','🤖 Cute AI Guide'],['devices','📱 Subscribed Devices'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
 function go(t){cur=t;draw();window.scrollTo(0,0);}
@@ -605,6 +605,427 @@ VIEWS.proposal=m=>{
   m.append(listBox(()=>C.noTexts,[F.self('Text')],()=>''));
 };
 
+/* ---------- cute AI guide agent ---------- */
+function renderAdminAvatar(host, cfg) {
+  host.innerHTML = '';
+  const av = cfg.avatar || 'fairy';
+  if (av === 'custom' && cfg.customAvatarUrl) {
+    const img = el('img', { src: cfg.customAvatarUrl, style: 'width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #ff7597;' });
+    host.append(img);
+    return;
+  }
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('style', 'width:100%;height:100%;overflow:visible;');
+
+  if (av === 'bear') {
+    svg.innerHTML = `
+      <defs><radialGradient id="abear" cx="50%" cy="45%" r="50%"><stop offset="0%" stop-color="#d49b6a"/><stop offset="100%" stop-color="#9e663a"/></radialGradient></defs>
+      <circle cx="24" cy="26" r="14" fill="#9e663a"/><circle cx="24" cy="26" r="8" fill="#f8b4c4"/>
+      <circle cx="76" cy="26" r="14" fill="#9e663a"/><circle cx="76" cy="26" r="8" fill="#f8b4c4"/>
+      <circle cx="50" cy="50" r="38" fill="url(#abear)"/>
+      <ellipse cx="50" cy="58" rx="15" ry="12" fill="#fdead9"/>
+      <ellipse cx="50" cy="53" rx="5" ry="3.5" fill="#4a2810"/>
+      <path d="M 46 59 Q 50 63 54 59" stroke="#4a2810" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <circle cx="37" cy="46" r="4.5" fill="#2d1506"/><circle cx="38.5" cy="44.5" r="1.5" fill="#fff"/>
+      <circle cx="63" cy="46" r="4.5" fill="#2d1506"/><circle cx="64.5" cy="44.5" r="1.5" fill="#fff"/>
+      <circle cx="29" cy="54" r="5" fill="#ff708d" opacity="0.6"/><circle cx="71" cy="54" r="5" fill="#ff708d" opacity="0.6"/>
+      <path d="M 50 78 C 50 78, 42 70, 36 74 C 30 78, 34 88, 50 96 C 66 88, 70 78, 64 74 C 58 70, 50 78, 50 78 Z" fill="#ff2d55"/>
+    `;
+  } else if (av === 'kitty') {
+    svg.innerHTML = `
+      <defs><radialGradient id="acat" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#ffeef4"/></radialGradient></defs>
+      <polygon points="20,40 32,12 44,30" fill="#fff" stroke="#ffb3c6" stroke-width="2"/>
+      <polygon points="24,36 32,18 40,29" fill="#ff7597"/>
+      <polygon points="80,40 68,12 56,30" fill="#fff" stroke="#ffb3c6" stroke-width="2"/>
+      <polygon points="76,36 68,18 60,29" fill="#ff7597"/>
+      <circle cx="50" cy="52" r="36" fill="url(#acat)" stroke="#ffd1dc" stroke-width="2"/>
+      <path d="M 33 48 Q 40 43 45 49" stroke="#4a1525" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M 55 49 Q 60 43 67 48" stroke="#4a1525" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="28" cy="55" r="6" fill="#ff8aa3" opacity="0.65"/><circle cx="72" cy="55" r="6" fill="#ff8aa3" opacity="0.65"/>
+      <polygon points="48,55 52,55 50,58" fill="#ff4d6d"/>
+      <path d="M 46 60 Q 50 63 54 60" stroke="#4a1525" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="50" y="88" font-size="20" text-anchor="middle">🌹</text>
+    `;
+  } else if (av === 'bunny') {
+    svg.innerHTML = `
+      <defs><radialGradient id="abunny" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#fff0f5"/></radialGradient></defs>
+      <ellipse cx="34" cy="22" rx="9" ry="22" fill="#fff" stroke="#ffb3c6" stroke-width="2"/><ellipse cx="34" cy="22" rx="5" ry="16" fill="#ff8fa3"/>
+      <ellipse cx="66" cy="22" rx="9" ry="22" fill="#fff" stroke="#ffb3c6" stroke-width="2"/><ellipse cx="66" cy="22" rx="5" ry="16" fill="#ff8fa3"/>
+      <circle cx="50" cy="56" r="34" fill="url(#abunny)" stroke="#ffd1dc" stroke-width="2"/>
+      <ellipse cx="38" cy="54" rx="4" ry="5.5" fill="#38101a"/><circle cx="39.5" cy="52" r="1.8" fill="#fff"/>
+      <ellipse cx="62" cy="54" rx="4" ry="5.5" fill="#38101a"/><circle cx="63.5" cy="52" r="1.8" fill="#fff"/>
+      <ellipse cx="28" cy="61" rx="5.5" ry="4" fill="#ff7597" opacity="0.7"/><ellipse cx="72" cy="61" rx="5.5" ry="4" fill="#ff7597" opacity="0.7"/>
+      <polygon points="48,60 52,60 50,63" fill="#ff4d6d"/>
+      <path d="M 46 64 Q 50 68 54 64" stroke="#4a1525" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M 42 86 L 58 92 L 58 86 L 42 92 Z" fill="#ff4d6d"/><circle cx="50" cy="89" r="3.5" fill="#ff8aa3"/>
+    `;
+  } else if (av === 'heart') {
+    svg.innerHTML = `
+      <defs><radialGradient id="aheart" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#ff7597"/><stop offset="100%" stop-color="#e60049"/></radialGradient></defs>
+      <path d="M 20 45 C 5 35, 0 60, 16 68 C 22 72, 28 65, 28 60 Z" fill="#ffffff" opacity="0.85"/>
+      <path d="M 80 45 C 95 35, 100 60, 84 68 C 78 72, 72 65, 72 60 Z" fill="#ffffff" opacity="0.85"/>
+      <path d="M 50 25 C 40 10, 15 15, 18 42 C 20 62, 50 82, 50 82 C 50 82, 80 62, 82 42 C 85 15, 60 10, 50 25 Z" fill="url(#aheart)"/>
+      <ellipse cx="38" cy="44" rx="4" ry="5.5" fill="#2d0510"/><circle cx="39.5" cy="42" r="1.8" fill="#fff"/>
+      <ellipse cx="62" cy="44" rx="4" ry="5.5" fill="#2d0510"/><circle cx="63.5" cy="42" r="1.8" fill="#fff"/>
+      <circle cx="31" cy="50" r="4.5" fill="#ffb3c6" opacity="0.9"/><circle cx="69" cy="50" r="4.5" fill="#ffb3c6" opacity="0.9"/>
+      <path d="M 46 51 Q 50 56 54 51" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <polygon points="76,24 78,28 82,30 78,32 76,36 74,32 70,30 74,28" fill="#ffd700"/>
+    `;
+  } else if (av === 'chick') {
+    svg.innerHTML = `
+      <defs><radialGradient id="achick" cx="45%" cy="40%" r="55%"><stop offset="0%" stop-color="#fff575"/><stop offset="100%" stop-color="#fdbb2d"/></radialGradient></defs>
+      <circle cx="50" cy="52" r="36" fill="url(#achick)"/>
+      <circle cx="45" cy="18" r="4" fill="#ff4d6d"/><circle cx="55" cy="18" r="4" fill="#ff4d6d"/><circle cx="50" cy="14" r="4" fill="#ff4d6d"/><circle cx="50" cy="22" r="4" fill="#ff4d6d"/><circle cx="50" cy="18" r="3.5" fill="#ffd700"/>
+      <circle cx="38" cy="48" r="4.5" fill="#3a2505"/><circle cx="39.5" cy="46.5" r="1.5" fill="#fff"/>
+      <circle cx="62" cy="48" r="4.5" fill="#3a2505"/><circle cx="63.5" cy="46.5" r="1.5" fill="#fff"/>
+      <polygon points="45,54 55,54 50,62" fill="#ff6b35"/>
+      <circle cx="28" cy="56" r="6" fill="#ff7597" opacity="0.6"/><circle cx="72" cy="56" r="6" fill="#ff7597" opacity="0.6"/>
+      <ellipse cx="16" cy="56" rx="5" ry="12" fill="#fdbb2d"/><ellipse cx="84" cy="56" rx="5" ry="12" fill="#fdbb2d"/>
+    `;
+  } else if (av === 'bot') {
+    svg.innerHTML = `
+      <defs><linearGradient id="abot" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffb3c6"/><stop offset="100%" stop-color="#ff7597"/></linearGradient></defs>
+      <line x1="50" y1="24" x2="50" y2="14" stroke="#ff4d6d" stroke-width="3"/><circle cx="50" cy="12" r="5" fill="#ff2d55"/>
+      <rect x="20" y="24" width="60" height="52" rx="14" fill="url(#abot)" stroke="#ff4d6d" stroke-width="2"/>
+      <rect x="28" y="34" width="44" height="24" rx="8" fill="#1b0710"/>
+      <circle cx="40" cy="46" r="4.5" fill="#00ffcc"/><circle cx="60" cy="46" r="4.5" fill="#00ffcc"/>
+      <circle cx="26" cy="62" r="4" fill="#ff2d55" opacity="0.7"/><circle cx="74" cy="62" r="4" fill="#ff2d55" opacity="0.7"/>
+      <text x="50" y="94" font-size="20" text-anchor="middle">🌸</text>
+    `;
+  } else {
+    // fairy
+    svg.innerHTML = `
+      <defs>
+        <radialGradient id="afairy" cx="45%" cy="40%" r="55%"><stop offset="0%" stop-color="#fff5eb"/><stop offset="100%" stop-color="#ffe4dc"/></radialGradient>
+        <radialGradient id="awing" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#ffb3c6"/></radialGradient>
+      </defs>
+      <path d="M 24 45 C 5 25, 0 58, 20 65 C 28 68, 30 55, 30 50 Z" fill="url(#awing)" opacity="0.85"/>
+      <path d="M 76 45 C 95 25, 100 58, 80 65 C 72 68, 70 55, 70 50 Z" fill="url(#awing)" opacity="0.85"/>
+      <circle cx="50" cy="50" r="34" fill="#4a1a2c"/><circle cx="50" cy="52" r="28" fill="url(#afairy)"/>
+      <polygon points="40,28 45,34 50,26 55,34 60,28 58,36 42,36" fill="#ffd700"/><circle cx="50" cy="27" r="2" fill="#ff2d55"/>
+      <ellipse cx="41" cy="50" rx="3.5" ry="4.5" fill="#3a101d"/><circle cx="42.5" cy="48.5" r="1.5" fill="#fff"/>
+      <ellipse cx="59" cy="50" rx="3.5" ry="4.5" fill="#3a101d"/><circle cx="60.5" cy="48.5" r="1.5" fill="#fff"/>
+      <circle cx="35" cy="56" r="4.5" fill="#ff7597" opacity="0.75"/><circle cx="65" cy="56" r="4.5" fill="#ff7597" opacity="0.75"/>
+      <path d="M 47 57 Q 50 61 53 57" stroke="#b03050" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <line x1="68" y1="52" x2="84" y2="38" stroke="#ffd700" stroke-width="2"/>
+      <polygon points="84,38 86,34 90,34 87,37 88,41 85,39 82,41 83,37 80,34 84,34" fill="#ff4d6d"/>
+    `;
+  }
+  host.append(svg);
+}
+
+VIEWS.agent=m=>{
+  head(m,'🤖 Cute AI Guide & Companion','A floating cute character that guides Ifra through your site, offers interactive tours, whispers sweet notes, and answers her questions.');
+  C.agent=C.agent||clone((DEFAULTS&&DEFAULTS.agent)||{});
+  C.agent.tour=C.agent.tour||clone(((DEFAULTS&&DEFAULTS.agent)||{}).tour||[]);
+  C.agent.notes=C.agent.notes||clone(((DEFAULTS&&DEFAULTS.agent)||{}).notes||[]);
+  C.agent.qa=C.agent.qa||clone(((DEFAULTS&&DEFAULTS.agent)||{}).qa||[]);
+
+  // 1. Live Interactive Preview
+  const previewCard=el('div',{class:'card',style:'background:radial-gradient(circle at 80% 20%, rgba(255,77,109,0.18), #2a0d1a);border:1px solid #ff4d6d;'});
+  previewCard.append(el('h3',{text:'✨ Live Preview'}));
+  previewCard.append(el('p',{class:'hint',text:'This is how your cute guide floats and welcomes Ifra on the website:'}));
+
+  const previewBox=el('div',{style:'position:relative;height:160px;background:#16050c;border-radius:14px;overflow:hidden;border:1px solid #4a1a30;display:flex;align-items:center;padding:16px 20px;gap:20px;'});
+
+  function updatePreview(){
+    previewBox.innerHTML='';
+    const bubble=el('div',{style:'flex:1;background:rgba(30,8,20,0.92);border:1px solid rgba(255,110,140,0.4);border-radius:14px;padding:12px 14px;color:#fff0f5;font-size:13px;line-height:1.45;box-shadow:0 8px 20px rgba(0,0,0,0.5);'});
+    bubble.append(el('div',{style:'font-weight:600;color:#ff7597;margin-bottom:4px;',text:(C.agent.name||'Mochi 🧚')+' says:'}));
+    bubble.append(el('div',{text:C.agent.welcomeMsg||'Assalam-o-Alaikum Ifra! 🌹'}));
+
+    const char=el('div',{style:'width:76px;height:76px;flex:none;position:relative;animation:agentBob 3.8s ease-in-out infinite;'});
+    char.append(el('div',{style:'inset:-6px;position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,130,170,0.45) 0%,transparent 70%);'}));
+    const avHost=el('div',{style:'width:100%;height:100%;display:flex;align-items:center;justify-content:center;'});
+    renderAdminAvatar(avHost,C.agent);
+    char.append(avHost);
+
+    previewBox.append(bubble,char);
+  }
+  updatePreview();
+  previewCard.append(previewBox);
+  m.append(previewCard);
+
+  // 2. Main Settings
+  const mainCard=el('div',{class:'card'});
+  mainCard.append(el('h3',{text:'⚙️ Agent Settings'}));
+
+  const enableWrap=el('label',{class:'f',style:'display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px;'});
+  const enableInp=el('input',{type:'checkbox',style:'width:20px;height:20px;cursor:pointer;'});
+  enableInp.checked=C.agent.enabled!==false;
+  enableInp.onchange=()=>{C.agent.enabled=enableInp.checked;save();updatePreview();};
+  enableWrap.append(enableInp,el('b',{text:'Enable Cute AI Guide on the website'}));
+  mainCard.append(enableWrap);
+
+  mainCard.append(field('text',()=>C.agent.name||'',v=>{C.agent.name=v;updatePreview();},{label:'Agent Name (e.g. Mochi 🧚, Cupid 🏹, Lumi ✨, Chibi Tayyab)'}));
+
+  const avLabel=el('label',{class:'f'},el('span',{text:'Agent Avatar Style'}));
+  const avSelect=el('select');
+  const avOptions=[
+    ['fairy','🧚 Rose Fairy (Glowing wings, tiara & wand)'],
+    ['bear','🧸 Cuddle Teddy (Fluffy bear hugging a red heart)'],
+    ['kitty','🐱 Mochi Kitty (Sweet kitty with rose)'],
+    ['bunny','🐰 Sweet Bunny (Fluffy white bunny with pink bow)'],
+    ['heart','💖 Sparkle Heart (Anime glowing heart with wings)'],
+    ['chick','🐥 Pip the Chick (Yellow chick with flower)'],
+    ['bot','🤖 Lil Love Bot (Chibi pastel robot with antenna)'],
+    ['custom','🖼️ Custom Image / Photo (Upload your own photo)']
+  ];
+  avOptions.forEach(o=>{
+    const opt=el('option',{value:o[0],text:o[1]});
+    if((C.agent.avatar||'fairy')===o[0])opt.selected=true;
+    avSelect.append(opt);
+  });
+
+  const customImgWrap=el('div',{style:'margin-top:10px;'+(C.agent.avatar==='custom'?'':'display:none;')});
+  const customImgInp=el('input',{type:'text',placeholder:'https://... or upload below',value:C.agent.customAvatarUrl||''});
+  customImgInp.oninput=()=>{C.agent.customAvatarUrl=customImgInp.value;save();updatePreview();};
+
+  const uploadBtn=el('input',{type:'file',accept:'image/*',style:'display:none;'});
+  const pickBtn=el('button',{class:'b alt sm',text:'📁 Upload Avatar Image',style:'margin-top:6px;'});
+  pickBtn.onclick=()=>uploadBtn.click();
+  uploadBtn.onchange=async()=>{
+    if(!uploadBtn.files.length)return;
+    const f=uploadBtn.files[0];
+    status('Uploading avatar…',false);
+    try{
+      const url=await uploadPhoto(f);
+      C.agent.customAvatarUrl=url;
+      customImgInp.value=url;
+      save();
+      updatePreview();
+      status('Avatar image uploaded!',false);
+    }catch(e){
+      status('Upload failed: '+e.message,true);
+    }
+  };
+  customImgWrap.append(el('span',{class:'hint',text:'Custom Avatar Image URL or File:'}),customImgInp,pickBtn,uploadBtn);
+
+  avSelect.onchange=()=>{
+    C.agent.avatar=avSelect.value;
+    customImgWrap.style.display=C.agent.avatar==='custom'?'block':'none';
+    save();
+    updatePreview();
+  };
+  avLabel.append(avSelect,customImgWrap);
+  mainCard.append(avLabel);
+
+  const persOpts=[
+    ['sweet','Sweet & Loving (Gentle compliments, warm affection)'],
+    ['playful','Playful & Cute (Bubbly, energetic, fun)'],
+    ['caring','Gentle & Caring (Calming, protective, peaceful)'],
+    ['poetic','Poetic & Romantic (Urdu & English poetry expressions)']
+  ];
+  mainCard.append(field('select',()=>C.agent.personality||'sweet',v=>{C.agent.personality=v;},{label:'Personality Style',options:persOpts}));
+
+  mainCard.append(field('area',()=>C.agent.welcomeMsg||'',v=>{C.agent.welcomeMsg=v;updatePreview();},{label:'Opening Greeting Bubble (what the agent says when Ifra arrives)',rows:3}));
+
+  const ambientWrap=el('label',{class:'f',style:'display:flex;align-items:center;gap:10px;cursor:pointer;margin:8px 0;'});
+  const ambientInp=el('input',{type:'checkbox',style:'width:18px;height:18px;'});
+  ambientInp.checked=C.agent.ambientTips!==false;
+  ambientInp.onchange=()=>{C.agent.ambientTips=ambientInp.checked;save();};
+  ambientWrap.append(ambientInp,el('span',{text:'Show gentle floating speech tips when she scrolls near sections (Memories, Letters, Surprises, Games)'}));
+  mainCard.append(ambientWrap);
+
+  const soundWrap=el('label',{class:'f',style:'display:flex;align-items:center;gap:10px;cursor:pointer;margin:8px 0;'});
+  const soundInp=el('input',{type:'checkbox',style:'width:18px;height:18px;'});
+  soundInp.checked=C.agent.sound!==false;
+  soundInp.onchange=()=>{C.agent.sound=soundInp.checked;save();};
+  soundWrap.append(soundInp,el('span',{text:'Play sweet fairy chime sound effect when the agent is tapped'}));
+  mainCard.append(soundWrap);
+
+  const posOpts=[
+    ['bottom-right','Bottom Right corner (Default)'],
+    ['bottom-left','Bottom Left corner']
+  ];
+  mainCard.append(field('select',()=>C.agent.position||'bottom-right',v=>{C.agent.position=v;},{label:'Default Screen Corner',options:posOpts}));
+
+  m.append(mainCard);
+
+  // 3. Tour Stops
+  const tourCard=el('div',{class:'card'});
+  tourCard.append(el('h3',{text:'🗺️ Guided Tour Stops'}));
+  tourCard.append(el('p',{class:'hint',text:'When she taps “✨ Take Me on a Tour”, the agent guides her step-by-step through each of these stops with a glowing spotlight:'}));
+
+  const sectionOptions=[
+    ['.card','🌹 Welcome / Main Card'],
+    ['.song-section','🎶 Playlist Section'],
+    ['#letter','💌 The Unfolding Letter'],
+    ['#remindBtn','🎂 Birthday Reminders Button'],
+    ['.gallery-section','📸 Memories Gallery'],
+    ['.letters-section','💌 Open When Letters'],
+    ['.surprises-section','🎁 Little Surprises'],
+    ['.tile-grid.three','🎮 Play Together Games'],
+    ['.proposal-section','💍 The Question / Proposal']
+  ];
+
+  const tourFields=[
+    F.key('title','Stop Title'),
+    F.key('target','Target Section to Highlight',{type:'select',options:sectionOptions}),
+    F.key('text','What the agent says at this stop',{type:'area',rows:2})
+  ];
+  tourCard.append(listBox(()=>C.agent.tour,tourFields,()=>({id:'stop_'+Date.now(),target:'.card',title:'New Stop',text:'Look at this special section made with love!'}),{grid:'grid2'}));
+  m.append(tourCard);
+
+  // 4. Love Notes
+  const notesCard=el('div',{class:'card'});
+  notesCard.append(el('h3',{text:'💌 Sweet Whispers & Love Notes'}));
+  notesCard.append(el('p',{class:'hint',text:'When she taps “💌 Love Note”, the agent whispers one of these sweet thoughts from your heart:'}));
+  notesCard.append(listBox(()=>C.agent.notes,[F.self('Love Note',{type:'area',rows:2})],()=>'Ifra, your smile is my favourite sight in the whole world ❤️'));
+  m.append(notesCard);
+
+  // 5. Q&A Knowledge Base
+  const qaCard=el('div',{class:'card'});
+  qaCard.append(el('h3',{text:'💬 Interactive Q&A / Chat Knowledge'}));
+  qaCard.append(el('p',{class:'hint',text:'Questions she can ask the agent, and the loving answers the agent gives:'}));
+  const qaFields=[
+    F.key('q','Question (e.g. Who made this website?)'),
+    F.key('a','Agent Answer',{type:'area',rows:2})
+  ];
+  qaCard.append(listBox(()=>C.agent.qa,qaFields,()=>({q:'New question?',a:'Sweet answer from the agent!'})));
+  m.append(qaCard);
+};
+
+/* ---------- subscribed devices for birthday reminders ---------- */
+VIEWS.devices=m=>{
+  head(m,'📱 Subscribed Devices for Birthday Reminders','See what phones, tablets, and computers have enabled birthday reminder notifications. Inspect device models, rename them (e.g. “Ifra’s iPhone 15 Pro”), and test notification delivery to individual devices.');
+
+  const card=el('div',{class:'card'});
+  const statusMsg=el('p',{class:'hint',text:'Loading registered devices…'});
+  const listWrap=el('div',{style:'margin-top:14px;'});
+
+  const refreshBtn=el('button',{class:'b alt sm',text:'🔄 Refresh Devices'});
+  const testAllBtn=el('button',{class:'b sm',text:'🔔 Send Test Push to ALL Devices',style:'margin-left:8px;'});
+
+  const bar=el('div',{class:'bar'},refreshBtn,testAllBtn);
+  card.append(bar,statusMsg,listWrap);
+  m.append(card);
+
+  async function loadDevices(){
+    statusMsg.textContent='Fetching subscribed devices from server…';
+    listWrap.innerHTML='';
+    try{
+      const res=await api('push-info');
+      const devs=res.devices||[];
+      statusMsg.innerHTML='<b>'+devs.length+' device(s)</b> subscribed · <b>'+res.daysLeft+' days</b> until birthday.';
+      if(!devs.length){
+        listWrap.append(el('div',{style:'background:#12040b;border:1px dashed #4a1a30;border-radius:12px;padding:24px;text-align:center;'},
+          el('div',{style:'font-size:32px;margin-bottom:8px;',text:'📱'}),
+          el('h4',{style:'margin:0 0 6px;color:#ffb3c4;',text:'No devices have turned on reminders yet'}),
+          el('p',{class:'hint',style:'margin:0 auto;max-width:440px;',text:'When Ifra (or you) taps “Remind me before my birthday” on the website, her phone model (e.g. iPhone 15 Pro or Samsung Galaxy), device name, and push specs will automatically appear here!'})
+        ));
+        return;
+      }
+
+      devs.forEach((d,idx)=>{
+        const item=el('div',{class:'card',style:'background:#19060f;border:1px solid #4a1a30;margin:10px 0;padding:14px;position:relative;'});
+
+        const headRow=el('div',{style:'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;'});
+        const titleArea=el('div',{style:'display:flex;align-items:center;gap:10px;'});
+        const icon=el('span',{style:'font-size:26px;',text:d.type==='desktop'?'💻':(d.type==='tablet'?'📱':'📱')});
+        const nameBlock=el('div');
+        const nameHeading=el('h4',{style:'margin:0;font-size:16px;color:#fff;',text:d.name||('Device #'+(idx+1))});
+        const subSpecs=el('span',{style:'font-size:12px;color:var(--mut);',text:(d.model!=='Unknown Model'?d.model+' · ':'')+d.os+' ('+d.browser+')'});
+        nameBlock.append(nameHeading,subSpecs);
+        titleArea.append(icon,nameBlock);
+
+        const badges=el('div',{style:'display:flex;gap:6px;flex-wrap:wrap;'});
+        if(d.isStandalone)badges.append(el('span',{class:'tag',style:'background:#204020;color:#6ee7b7;',text:'📲 Home Screen App'}));
+        else badges.append(el('span',{class:'tag',text:'🌐 Browser'}));
+        if(d.pushProvider)badges.append(el('span',{class:'tag',style:'background:#3d1a2c;color:#ff9ab0;',text:d.pushProvider}));
+        if(d.screen)badges.append(el('span',{class:'tag',text:d.screen}));
+        headRow.append(titleArea,badges);
+
+        const grid=el('div',{class:'grid2',style:'font-size:12.5px;color:var(--mut);margin:8px 0;padding:8px 0;border-top:1px solid #2d0d1c;border-bottom:1px solid #2d0d1c;'});
+        const subDate=d.subscribedAt?new Date(d.subscribedAt).toLocaleString():'Earlier visit';
+        const lastDate=d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString():'Recently';
+        grid.append(
+          el('div',el('span',{text:'Subscribed: '}),el('b',{style:'color:#fff;',text:subDate})),
+          el('div',el('span',{text:'Last active: '}),el('b',{style:'color:#fff;',text:lastDate}))
+        );
+
+        const actBar=el('div',{class:'bar',style:'margin-top:10px;justify-content:flex-end;'});
+        const testBtn=el('button',{class:'b alt sm',text:'🔔 Test this device'});
+        testBtn.onclick=async()=>{
+          testBtn.disabled=true;
+          statusMsg.textContent='Sending test notification to '+d.name+'…';
+          try{
+            const r=await api('push-device-test',{
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({id:d.id,endpoint:d.endpoint,settings:C.settings})
+            });
+            statusMsg.textContent='✅ Notification sent successfully to '+(r.targetName||d.name)+'! Preview: “'+r.preview.title+'”';
+          }catch(e){
+            statusMsg.textContent='❌ Test failed for '+d.name+': '+e.message;
+          }
+          testBtn.disabled=false;
+        };
+
+        const renameBtn=el('button',{class:'b alt sm',text:'✏️ Rename'});
+        renameBtn.onclick=async()=>{
+          const newName=prompt('Enter a friendly name for this device (e.g. "Ifra\'s Pink Phone"):',d.name||'');
+          if(newName&&newName.trim()){
+            try{
+              await api('push-device-rename',{
+                method:'POST',
+                headers:{'content-type':'application/json'},
+                body:JSON.stringify({id:d.id,endpoint:d.endpoint,name:newName.trim()})
+              });
+              loadDevices();
+            }catch(e){
+              alert('Could not rename: '+e.message);
+            }
+          }
+        };
+
+        const delBtn=el('button',{class:'b del sm',text:'🗑️ Remove'});
+        delBtn.onclick=async()=>{
+          if(confirm('Are you sure you want to remove '+(d.name||'this device')+'? Reminders will no longer be delivered to this phone.')){
+            try{
+              await api('push-device-delete',{
+                method:'POST',
+                headers:{'content-type':'application/json'},
+                body:JSON.stringify({id:d.id,endpoint:d.endpoint})
+              });
+              loadDevices();
+            }catch(e){
+              alert('Could not remove: '+e.message);
+            }
+          }
+        };
+
+        actBar.append(testBtn,renameBtn,delBtn);
+        item.append(headRow,grid,actBar);
+        listWrap.append(item);
+      });
+    }catch(err){
+      if(err.message!=='auth')statusMsg.textContent='Could not load devices: '+err.message;
+    }
+  }
+
+  refreshBtn.onclick=loadDevices;
+  testAllBtn.onclick=async()=>{
+    testAllBtn.disabled=true;
+    statusMsg.textContent='Sending test notification to all subscribed devices…';
+    try{
+      const r=await api('push-test',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({settings:C.settings})
+      });
+      const x=r.result;
+      statusMsg.textContent='✅ Sent to '+x.sent+' of '+x.total+' device(s).'+(x.failed?' ('+x.failed+' failed)':'')+' Preview: “'+r.preview.title+'”';
+    }catch(e){
+      if(e.message!=='auth')statusMsg.textContent='Push test failed: '+e.message;
+    }
+    testAllBtn.disabled=false;
+  };
+
+  loadDevices();
+};
+
 /* ---------- logins (saved straight to the server, not part of the draft / Publish) ---------- */
 VIEWS.logins=m=>{
   head(m,'Logins','Two separate accounts guard the photo gallery, Our Story and the proposal: one for you, one for her. Each has its own username and password. Passwords are stored scrambled on the server, so nobody (not even you) can read them later: to change one, just type a new one. These save immediately, you do not need to press Publish live.');
@@ -798,6 +1219,7 @@ function remindersCard(m){
   card.append(field('text',()=>C.settings.timezone||'Asia/Karachi',v=>{C.settings.timezone=v;},{label:'Time zone (e.g. Asia/Karachi)'}));
   const info=el('p',{class:'hint',text:'Checking…'});
   const test=el('button',{class:'b alt',text:'🔔 Send a test notification now'});
+  const devBtn=el('button',{class:'b sm',text:'📱 View Subscribed Devices',onclick:()=>go('devices')});
   test.onclick=async()=>{
     test.disabled=true;
     try{
@@ -807,8 +1229,11 @@ function remindersCard(m){
     }catch(e){if(e.message!=='auth')info.textContent='Failed: '+e.message;}
     test.disabled=false;
   };
-  card.append(el('div',{class:'bar'},test),info);
-  api('push-info').then(r=>{info.textContent=r.subscribers+' device(s) subscribed · '+r.daysLeft+' days until the birthday';}).catch(()=>{info.textContent='';});
+  card.append(el('div',{class:'bar'},test,devBtn),info);
+  api('push-info').then(r=>{
+    info.innerHTML=r.subscribers+' device(s) subscribed · '+r.daysLeft+' days until the birthday · <a href="#" style="color:#ff7597;text-decoration:underline;cursor:pointer;">View device models & names 📱</a>';
+    info.querySelector('a').onclick=(e)=>{e.preventDefault();go('devices');};
+  }).catch(()=>{info.textContent='';});
   m.append(card);
 }
 VIEWS.settings=m=>{

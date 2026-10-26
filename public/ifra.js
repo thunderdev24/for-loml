@@ -2981,9 +2981,110 @@ function remindOn() {
   if (!canPush && !ios) { b.style.display = 'none'; return; }
   if (canPush && Notification.permission === 'granted' && localStorage.getItem('ifraRemind') === '1') remindOn();
 })();
-/* Get (or repair) this phone's push subscription and tell the server about it.
-   A subscription made with an old server key is silently rejected by the push service,
-   which is the usual reason a test notification never shows up, so it is replaced here. */
+/* Get (or repair) this phone's push subscription and tell the server about it. */
+/* Detect detailed device information (model, name, OS, browser, screen, app mode) */
+async function detectDeviceDetails() {
+  const ua = navigator.userAgent || '';
+  let model = '';
+  let os = 'Unknown OS';
+  let browser = 'Unknown Browser';
+  let type = 'mobile';
+  const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+
+  if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+    try {
+      const hints = await navigator.userAgentData.getHighEntropyValues(['model', 'platform', 'platformVersion', 'architecture']);
+      if (hints.model) model = hints.model;
+      if (hints.platform) os = hints.platform + (hints.platformVersion ? ' ' + hints.platformVersion.split('.')[0] : '');
+    } catch (e) { }
+  }
+
+  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    type = isIPad ? 'tablet' : 'mobile';
+    const m = ua.match(/OS (\d+[_\.]\d+)/);
+    os = (isIPad ? 'iPadOS' : 'iOS') + (m ? ' ' + m[1].replace(/_/g, '.') : '');
+    if (isIPad) {
+      model = 'Apple iPad';
+    } else {
+      const w = window.screen.width, h = window.screen.height, r = window.devicePixelRatio || 1;
+      const minD = Math.min(w, h), maxD = Math.max(w, h);
+      if (minD === 430 && maxD === 932) model = 'iPhone 15/16 Pro Max / Plus';
+      else if (minD === 393 && maxD === 852) model = 'iPhone 15/16 Pro / 15/16';
+      else if (minD === 390 && maxD === 844) model = 'iPhone 14 / 13 / 12';
+      else if (minD === 428 && maxD === 926) model = 'iPhone 14/13/12 Pro Max';
+      else if (minD === 414 && maxD === 896) model = r >= 3 ? 'iPhone 11 Pro Max / XS Max' : 'iPhone 11 / XR';
+      else if (minD === 375 && maxD === 812) model = 'iPhone 11 Pro / X / XS';
+      else if (minD === 375 && maxD === 667) model = 'iPhone SE / 8 / 7';
+      else model = 'Apple iPhone';
+    }
+  } else if (/Android/i.test(ua)) {
+    type = /Mobile/i.test(ua) ? 'mobile' : 'tablet';
+    const m = ua.match(/Android\s+([0-9.]+)/i);
+    os = 'Android' + (m ? ' ' + m[1] : '');
+    if (!model) {
+      const match = ua.match(/Android[^;]+;\s*([^;)]+)\s+(?:Build\/|;|\))/i);
+      if (match && match[1] && !/wv/i.test(match[1])) {
+        model = match[1].trim();
+      } else {
+        model = 'Android Device';
+      }
+    }
+  } else if (/Windows NT/i.test(ua)) {
+    type = 'desktop';
+    const m = ua.match(/Windows NT ([\d\.]+)/);
+    const v = m ? m[1] : '';
+    os = v === '10.0' ? 'Windows 10/11' : ('Windows ' + v);
+    model = 'Windows PC';
+  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+    type = 'desktop';
+    os = 'macOS';
+    model = 'Apple Mac';
+  } else if (/Linux/i.test(ua)) {
+    type = 'desktop';
+    os = 'Linux';
+    model = 'Linux PC';
+  }
+
+  if (/^SM-S9/i.test(model)) model = 'Samsung Galaxy S-Series (' + model + ')';
+  else if (/^SM-A/i.test(model)) model = 'Samsung Galaxy A-Series (' + model + ')';
+  else if (/^SM-F/i.test(model)) model = 'Samsung Galaxy Z-Series (' + model + ')';
+  else if (/^SM-G/i.test(model)) model = 'Samsung Galaxy (' + model + ')';
+  else if (/Pixel\s*\d/i.test(model)) model = 'Google ' + model;
+
+  if (/Edg\//i.test(ua)) browser = 'Microsoft Edge';
+  else if (/SamsungBrowser\//i.test(ua)) browser = 'Samsung Internet';
+  else if (/Chrome\//i.test(ua)) browser = 'Chrome';
+  else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+  else if (/Opera|OPR\//i.test(ua)) browser = 'Opera';
+
+  let name = '';
+  if (type === 'mobile' || type === 'tablet') {
+    if (/iPhone|iPad/i.test(model) || /iOS/i.test(os)) {
+      name = "Ifra's " + (model.includes('iPad') ? 'iPad' : 'iPhone');
+    } else if (/Samsung/i.test(model)) {
+      name = "Ifra's Galaxy";
+    } else {
+      name = "Ifra's Phone (" + (model || 'Mobile') + ")";
+    }
+  } else {
+    name = (model || 'Computer') + ' (' + browser + ')';
+  }
+
+  return {
+    name,
+    model: model || 'Unknown Model',
+    os,
+    browser,
+    type,
+    screen: window.screen.width + 'x' + window.screen.height + (window.devicePixelRatio ? ' @ ' + window.devicePixelRatio + 'x' : ''),
+    isStandalone: !!standalone,
+    timezone: (Intl && Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'Asia/Karachi',
+    language: navigator.language || 'en'
+  };
+}
+
 async function pushSubscribeAndSave() {
   const reg = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
@@ -2998,9 +3099,11 @@ async function pushSubscribeAndSave() {
     if (!same) { try { await sub.unsubscribe(); } catch (e) { } sub = null; }
   }
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes });
+  let device = null;
+  try { device = await detectDeviceDetails(); } catch (e) { }
   const r = await fetch('/api/push/subscribe', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON() })
+    body: JSON.stringify({ subscription: sub.toJSON(), device })
   });
   if (!r.ok) throw new Error('save');
   return sub;
