@@ -2,7 +2,7 @@
 // Set ADMIN_PASSWORD in Netlify > Site configuration > Environment variables.
 import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
-import { sendToAll, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
+import { sendToAll, sendToOne, getSubs, buildMessage, daysLeft, DEFAULTS } from './lib/push.mjs';
 import { getUsers, newCredentials, ROLES } from './lib/authlib.mjs';
 import { getItemLocks, saveItemLocks, makeItemLock, publicItemLocks, isItemId } from './lib/itemlocks.mjs';
 import { LOCKABLE, getLocks, saveLocks, makeLock, checkLock, makeUnlockToken, unlockedTabs, missingUnlocks, lockedMessage, changedSections } from './lib/locks.mjs';
@@ -252,7 +252,82 @@ export default async (req) => {
     let content = null;
     try { content = await s.get('content.json', { type: 'json' }); } catch (e) { }
     const st = Object.assign({}, DEFAULTS, (content && content.settings) || {});
-    return json({ subscribers: subs.length, daysLeft: daysLeft(Number(st.birthdayMonth), Number(st.birthdayDay), st.timezone) });
+    const devices = subs.map((sub, idx) => {
+      const dev = sub.device || {};
+      let provider = sub.pushProvider;
+      if (!provider) {
+        if (/fcm\.googleapis|android\.googleapis/i.test(sub.endpoint)) provider = 'Google FCM';
+        else if (/push\.apple\.com/i.test(sub.endpoint)) provider = 'Apple APNs';
+        else if (/notify\.windows\.com/i.test(sub.endpoint)) provider = 'Microsoft WNS';
+        else if (/mozilla/i.test(sub.endpoint)) provider = 'Mozilla Autopush';
+        else provider = 'Web Push';
+      }
+      return {
+        id: sub.id || ('dev_' + idx),
+        endpoint: sub.endpoint,
+        name: dev.name || sub.name || ('Device #' + (idx + 1)),
+        model: dev.model || sub.model || 'Unknown Model',
+        os: dev.os || sub.os || 'Unknown OS',
+        browser: dev.browser || sub.browser || 'Unknown Browser',
+        type: dev.type || sub.type || 'mobile',
+        screen: dev.screen || '',
+        isStandalone: !!dev.isStandalone,
+        pushProvider: provider,
+        subscribedAt: sub.subscribedAt || null,
+        lastSeenAt: sub.lastSeenAt || null,
+        country: sub.country || null
+      };
+    });
+    return json({
+      subscribers: subs.length,
+      daysLeft: daysLeft(Number(st.birthdayMonth), Number(st.birthdayDay), st.timezone),
+      devices
+    });
+  }
+
+  if (route === 'push-device-rename' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, endpoint, name } = body;
+    if (!name || !String(name).trim()) return json({ error: 'Device name cannot be empty' }, 400);
+    const subs = await getSubs(s);
+    const target = subs.find(x => (id && x.id === id) || (endpoint && x.endpoint === endpoint));
+    if (!target) return json({ error: 'Device not found' }, 404);
+    target.device = target.device || {};
+    target.device.name = String(name).trim();
+    target.name = String(name).trim();
+    await s.setJSON('push/subs.json', subs);
+    return json({ ok: true });
+  }
+
+  if (route === 'push-device-delete' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, endpoint } = body;
+    let subs = await getSubs(s);
+    const prevLen = subs.length;
+    subs = subs.filter(x => !((id && x.id === id) || (endpoint && x.endpoint === endpoint)));
+    if (subs.length === prevLen) return json({ error: 'Device not found' }, 404);
+    await s.setJSON('push/subs.json', subs);
+    return json({ ok: true, remaining: subs.length });
+  }
+
+  if (route === 'push-device-test' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, endpoint, settings } = body;
+    const subs = await getSubs(s);
+    const target = subs.find(x => (id && x.id === id) || (endpoint && x.endpoint === endpoint));
+    if (!target) return json({ error: 'Device not found' }, 404);
+    const st = Object.assign({}, DEFAULTS, settings || {});
+    const days = daysLeft(Number(st.birthdayMonth), Number(st.birthdayDay), st.timezone);
+    const msg = buildMessage(st, days);
+    try {
+      await sendToOne(s, target, { title: msg.title, body: msg.body, url: '/', tag: 'ifra-test-single' });
+      return json({ ok: true, preview: msg, targetName: (target.device && target.device.name) || 'device' });
+    } catch (err) {
+      return json({ error: 'Push delivery failed: ' + (err.message || err) }, 502);
+    }
   }
 
   if (route === 'push-test' && req.method === 'POST') {
