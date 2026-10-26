@@ -171,6 +171,7 @@ window.SITE_CONTENT = {
     "pageTitle": "For Ifra Malik ❤️",
     "storyButton": "📖 Read Our Story",
     "remindButton": "🔔 Remind me before my birthday",
+    "diaryButton": "📖 Personal Diary 🔒",
     "installButton": "📲 Install the app",
     "installBannerTitle": "Keep this on your phone 🌹",
     "installBannerText": "Install the app: it gets its own icon and opens in one tap, even without internet.",

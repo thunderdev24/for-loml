@@ -74,6 +74,7 @@
           <div class="agent-actions-grid" id="agentActionsGrid">
             <button class="agent-act-btn full-w" type="button" id="actTour">✨ Take Me on a Tour</button>
             <button class="agent-act-btn" type="button" id="actPlan">🎮 Plan Valorant / Date</button>
+            <button class="agent-act-btn" type="button" id="actDiary">📖 Personal Diary</button>
             <button class="agent-act-btn" type="button" id="actWhisper">💌 Love Note</button>
             <button class="agent-act-btn" type="button" id="actSurprise">🎁 Surprises</button>
             <button class="agent-act-btn" type="button" id="actMusic">🎵 Play Song</button>
@@ -336,6 +337,14 @@
       closeBubble();
       if (typeof window.openFun === 'function') window.openFun('calendar');
     };
+
+    const dBtn = document.getElementById('actDiary');
+    if (dBtn) {
+      dBtn.onclick = () => {
+        closeBubble();
+        if (typeof window.openFun === 'function') window.openFun('diary');
+      };
+    }
 
     document.getElementById('actWhisper').onclick = () => {
       const note = notesList[Math.floor(Math.random() * notesList.length)];

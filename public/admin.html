@@ -50,21 +50,22 @@ ol{padding-left:20px}
 
 <div id="gate" style="display:flex">
   <form onsubmit="return unlock(event)">
-    <h2>🔐 Admin</h2>
-    <p class="hint">Enter your admin password</p>
-    <input type="password" id="pass" autocomplete="off" autofocus>
+    <h2 id="gateTitle">🔐 Admin Sign In</h2>
+    <p class="hint">Enter Tayyab's master password or Ifra's login</p>
+    <input type="text" id="user" autocomplete="username" placeholder="Username (optional for Tayyab, e.g. ifra)" style="margin-bottom:8px">
+    <input type="password" id="pass" autocomplete="current-password" placeholder="Password" autofocus>
     <p id="gateErr" style="color:#ff8aa0;min-height:20px;margin:8px 0"></p>
     <button class="b" type="submit" id="gateBtn" style="width:100%">Sign in</button>
-    <button class="b alt" type="button" id="gateOfflineBtn" style="margin-top:10px;width:100%" onclick="unlockOffline()">✏️ Open Offline / Local Editor</button>
   </form>
 </div>
 
 <header>
-  <h1>🌹 Ifra site · Admin panel</h1>
+  <h1 id="panelTitle">🌹 Ifra site · Admin panel</h1>
   <span id="status">Ready</span>
   <button class="b alt sm" onclick="preview()">👁 Preview</button>
   <button class="b alt sm" id="lockNow" style="display:none" onclick="lockNow()">🔒 Lock now</button>
   <button class="b sm" id="pubTop" onclick="publish()">🚀 Publish live</button>
+  <button class="b alt sm" onclick="signOut()" style="margin-left:auto">🚪 Sign out</button>
 </header>
 <nav id="tabs"></nav>
 <main id="main"></main>
@@ -79,20 +80,6 @@ let UNLOCK={};try{UNLOCK=JSON.parse(sessionStorage.getItem('ifraUnlocks')||'{}')
 function saveUnlock(){try{sessionStorage.setItem('ifraUnlocks',JSON.stringify(UNLOCK));}catch(e){}}
 const isLocked=id=>!!LOCKS[id]&&!UNLOCK[id];
 async function api(path,opt){
-  if(TOKEN==='offline'){
-    if(path==='content') return {content:DEFAULTS};
-    if(path==='locks') return {locks:{}};
-    if(path==='private') return {};
-    if(path==='plans') return {plans:[]};
-    if(path==='push-info') return {devices:[],subscribers:0,daysLeft:0};
-    if(path==='users') return {};
-    if(path==='sitelocks') return {items:{}};
-    if(path==='save'){
-      try{localStorage.setItem('ifraDraft',JSON.stringify(C));localStorage.setItem('ifraDraftBase',JSON.stringify(C));localStorage.removeItem('ifraDraftDirty');}catch(e){}
-      return {ok:true};
-    }
-    return {};
-  }
   opt=opt||{};
   const r=await fetch('/api/admin/'+path,{method:opt.method||'GET',body:opt.body,headers:Object.assign({'Authorization':'Bearer '+TOKEN,'X-Unlocks':Object.keys(UNLOCK).map(k=>UNLOCK[k]).join(',')},opt.headers||{})});
   let j={};try{j=await r.json();}catch(e){}
@@ -105,27 +92,31 @@ function showGate(msg){document.getElementById('gate').style.display='flex';docu
 async function unlock(e){
   e.preventDefault();
   const btn=document.getElementById('gateBtn');btn.disabled=true;
+  const username=document.getElementById('user')?document.getElementById('user').value.trim():'';
+  const password=document.getElementById('pass').value;
   try{
-    const r=await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:document.getElementById('pass').value})});
+    const r=await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,password})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok){document.getElementById('gateErr').textContent=j.error||'Could not sign in';btn.disabled=false;return false;}
     TOKEN=j.token;sessionStorage.setItem('ifraToken',TOKEN);
+    sessionStorage.setItem('ifraRole',j.role||'owner');
+    sessionStorage.setItem('ifraUserName',j.name||'');
+    if(Array.isArray(j.allowedTabs))sessionStorage.setItem('ifraAllowedTabs',JSON.stringify(j.allowedTabs));
+    else sessionStorage.removeItem('ifraAllowedTabs');
     document.getElementById('gate').style.display='none';
     start();
   }catch(err){
-    const ge=document.getElementById('gateErr');
-    ge.innerHTML='Cannot reach server. <a href="#" style="color:#ff4d6d;text-decoration:underline;cursor:pointer;">Click here to edit in offline mode</a>';
-    const a=ge.querySelector('a');
-    if(a) a.onclick=(ev)=>{ev.preventDefault();unlockOffline();};
+    document.getElementById('gateErr').textContent='Cannot reach server. Please check your connection and try again.';
   }
   btn.disabled=false;return false;
 }
-function unlockOffline(){
-  TOKEN='offline';
-  sessionStorage.setItem('ifraToken','offline');
-  document.getElementById('gate').style.display='none';
-  start();
-  status('Offline / Local Draft Mode 💻');
+function signOut(){
+  TOKEN='';
+  sessionStorage.removeItem('ifraToken');
+  sessionStorage.removeItem('ifraRole');
+  sessionStorage.removeItem('ifraUserName');
+  sessionStorage.removeItem('ifraAllowedTabs');
+  location.reload();
 }
 window.addEventListener('DOMContentLoaded',()=>{ if(TOKEN){document.getElementById('gate').style.display='none';start();} });
 
@@ -233,16 +224,47 @@ function listBox(getArr,fields,mk,opts){const h=el('div');listEd(h,getArr,fields
 const TABS=[
   ['texts','📝 Page texts'],['photos','📸 Photos & captions'],['playlist','🎶 Playlist'],['when','💌 Open When'],['story','📖 Our Story'],
   ['poetry','🌙 Birthday poetry'],['surprises','🎁 Surprises'],['games','🎮 Games'],['jar','🏺 Love Jar'],['riddles','😄 Riddles'],['sweet','🧠 Sweet quiz'],
-  ['proposal','Special'],['agent','🤖 Cute AI Guide'],['devices','📱 Subscribed Devices'],['plans','📅 Dates & Plans'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
+  ['proposal','Special'],['agent','🤖 Cute AI Guide'],['devices','📱 Subscribed Devices'],['plans','📅 Dates & Plans'],['diary','📖 Shared Diary'],['logins','🔐 Logins'],['sitelocks','🌐 Website locks'],['locks','🔑 Section passwords'],['settings','⚙️ Dates & delivery'],['publish','⬇ Publish']
 ];
 let cur='texts';
 function go(t){cur=t;draw();window.scrollTo(0,0);}
+function getVisibleTabs(){
+  const role=sessionStorage.getItem('ifraRole')||'owner';
+  if(role==='her'){
+    let allowed=[];
+    try{allowed=JSON.parse(sessionStorage.getItem('ifraAllowedTabs')||'[]');}catch(e){}
+    if(!Array.isArray(allowed)||!allowed.length){
+      allowed=['texts','photos','playlist','when','story','surprises','games','jar','riddles','sweet','plans','diary'];
+    }
+    const forbidden=['logins','locks','sitelocks','settings'];
+    return TABS.filter(t=>allowed.includes(t[0])&&!forbidden.includes(t[0]));
+  }
+  return TABS;
+}
 function draw(){
+  const role=sessionStorage.getItem('ifraRole')||'owner';
+  const myTabs=getVisibleTabs();
+  if(!myTabs.some(t=>t[0]===cur)){
+    cur=myTabs[0]?myTabs[0][0]:'texts';
+  }
+  const pt=$('#panelTitle');
+  if(pt){
+    if(role==='her')pt.textContent="🌸 Ifra's Admin Panel 💕";
+    else pt.textContent="🌹 Ifra site · Admin panel";
+  }
+  const pubTop=$('#pubTop');
+  if(pubTop){
+    if(role==='her'){
+      pubTop.style.display=myTabs.some(t=>t[0]==='publish')?'':'none';
+    } else {
+      pubTop.style.display='';
+    }
+  }
   const nav=$('#tabs');nav.innerHTML='';
-  TABS.forEach(t=>nav.append(el('button',{class:t[0]===cur?'on':'',onclick:()=>go(t[0]),text:(isLocked(t[0])?'🔒 ':'')+t[1]})));
-  const lb=$('#lockNow');if(lb)lb.style.display=Object.keys(LOCKS).some(k=>LOCKS[k])?'':'none';
+  myTabs.forEach(t=>nav.append(el('button',{class:t[0]===cur?'on':'',onclick:()=>go(t[0]),text:(isLocked(t[0])?'🔒 ':'')+t[1]})));
+  const lb=$('#lockNow');if(lb)lb.style.display=(role!=='her'&&Object.keys(LOCKS).some(k=>LOCKS[k]))?'':'none';
   const m=$('#main');m.innerHTML='';
-  if(isLocked(cur))lockGate(m,cur); else VIEWS[cur](m);
+  if(isLocked(cur))lockGate(m,cur); else if(VIEWS[cur]) VIEWS[cur](m);
 }
 function head(m,t,h){m.append(el('h2',{text:t}));if(h)m.append(el('p',{class:'hint',text:h}));}
 function textField(m,key,label,area,rows){
@@ -1295,6 +1317,97 @@ VIEWS.plans=m=>{
   loadPlans();
 };
 
+/* ---------- shared diary entries from ifra ---------- */
+VIEWS.diary=m=>{
+  head(m,'📖 Diary Pages Shared by Ifra','Whenever Ifra writes a page in her Personal Diary and turns ON “Let Tayyab read this page”, it shows up here for you to read with love.');
+
+  const card=el('div',{class:'card'});
+  const statusMsg=el('p',{class:'hint',text:'Loading diary pages…'});
+  const listWrap=el('div',{style:'margin-top:14px;'});
+
+  const refreshBtn=el('button',{class:'b alt sm',text:'🔄 Refresh Diary'});
+  const clearAllBtn=el('button',{class:'b del sm',text:'🗑️ Clear All',style:'margin-left:8px;'});
+
+  const bar=el('div',{class:'bar'},refreshBtn,clearAllBtn);
+  card.append(bar,statusMsg,listWrap);
+  m.append(card);
+
+  async function loadDiary(){
+    statusMsg.textContent='Fetching shared diary pages from server…';
+    listWrap.innerHTML='';
+    try{
+      const res=await api('diary');
+      const entries=res.entries||[];
+      statusMsg.innerHTML='<b>'+entries.length+' diary page(s)</b> shared by Ifra.';
+      if(!entries.length){
+        listWrap.append(el('div',{style:'background:#12040b;border:1px dashed #4a1a30;border-radius:12px;padding:28px 20px;text-align:center;'},
+          el('div',{style:'font-size:36px;margin-bottom:8px;',text:'📖🔒'}),
+          el('h4',{style:'margin:0 0 6px;color:#ffb3c4;',text:'No shared diary pages yet'}),
+          el('p',{class:'hint',style:'margin:0 auto;max-width:440px;',text:'Ifra has a "Personal Diary" button on the website. Her diary entries stay private on her phone unless she checks "Let Tayyab read this page". When she chooses to share a page, it will appear here!'})
+        ));
+        return;
+      }
+
+      entries.forEach(e=>{
+        const item=el('div',{class:'card',style:'background:#1b0816;border:1px solid #ba68c8;margin:12px 0;padding:16px;'});
+        const headRow=el('div',{style:'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;'});
+        const titleArea=el('div',{style:'display:flex;align-items:center;gap:12px;'});
+        titleArea.append(el('span',{style:'font-size:32px;',text:e.mood||'📖'}));
+        const nameBlock=el('div');
+        nameBlock.append(
+          el('h4',{style:'margin:0;font-size:17px;color:#fff;',text:e.title||'Untitled Diary Page'}),
+          el('span',{style:'font-size:12px;color:var(--mut);',text:'Written: '+(e.dateFormatted||e.date||'Recently')+(e.sharedAt?' · Shared: '+new Date(e.sharedAt).toLocaleString():'')})
+        );
+        titleArea.append(nameBlock);
+        headRow.append(titleArea);
+
+        const textBox=el('div',{style:'font-size:14px;color:#fbe9ef;background:rgba(0,0,0,0.35);border-radius:10px;padding:14px;margin:10px 0;border-left:3px solid #ba68c8;line-height:1.65;white-space:pre-wrap;font-style:italic;',text:e.text});
+
+        const actBar=el('div',{class:'bar',style:'margin-top:10px;justify-content:flex-end;'});
+        const delBtn=el('button',{class:'b del sm',text:'🗑️ Delete Page'});
+        delBtn.onclick=async()=>{
+          if(confirm('Delete this shared page from your admin panel?')){
+            try{
+              await api('diary-delete',{
+                method:'POST',
+                headers:{'content-type':'application/json'},
+                body:JSON.stringify({id:e.id})
+              });
+              loadDiary();
+            }catch(err){
+              alert('Could not delete: '+err.message);
+            }
+          }
+        };
+
+        actBar.append(delBtn);
+        item.append(headRow,textBox,actBar);
+        listWrap.append(item);
+      });
+    }catch(err){
+      if(err.message!=='auth')statusMsg.textContent='Could not load diary pages: '+err.message;
+    }
+  }
+
+  refreshBtn.onclick=loadDiary;
+  clearAllBtn.onclick=async()=>{
+    if(confirm('Are you sure you want to delete all shared diary pages?')){
+      try{
+        await api('diary-delete',{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({all:true})
+        });
+        loadDiary();
+      }catch(err){
+        alert('Could not clear diary pages: '+err.message);
+      }
+    }
+  };
+
+  loadDiary();
+};
+
 /* ---------- logins (saved straight to the server, not part of the draft / Publish) ---------- */
 VIEWS.logins=m=>{
   head(m,'Logins','Two separate accounts guard the photo gallery, Our Story and the proposal: one for you, one for her. Each has its own username and password. Passwords are stored scrambled on the server, so nobody (not even you) can read them later: to change one, just type a new one. These save immediately, you do not need to press Publish live.');
@@ -1334,6 +1447,86 @@ VIEWS.logins=m=>{
         el('label',{class:'f'},el('span',{text:cur?'New password (optional)':'Password'}),pw),
         el('div',{class:'ctl'},ctl),msg));
     });
+
+    // Ifra Admin Panel Permissions Card
+    const IFRA_AVAILABLE_TABS = [
+      ['texts', '📝 Page texts', 'Headings, letters, and custom text on the site'],
+      ['photos', '📸 Photos & captions', 'Upload photos and edit album captions'],
+      ['playlist', '🎶 Playlist', 'Add, reorder or upload favorite songs'],
+      ['when', '💌 Open When', 'Edit romantic Open When letters and envelopes'],
+      ['story', '📖 Our Story', 'Relationship timeline & memories'],
+      ['poetry', '🌙 Birthday poetry', 'Romantic Urdu/English poetry & verses'],
+      ['surprises', '🎁 Surprises', 'Wishes, scratch cards, promises, love meter'],
+      ['games', '🎮 Games', 'Memory match, Tic-Tac-Toe, riddles, mini games'],
+      ['jar', '🏺 Love Jar', 'Jar of sweet love notes & daily reasons'],
+      ['riddles', '😄 Riddles', 'Playful riddles & answers'],
+      ['sweet', '🧠 Sweet quiz', 'Couples quiz questions and choices'],
+      ['proposal', '💍 Special / Proposal', 'Proposal question and interactive scenes'],
+      ['agent', '🤖 Cute AI Guide', 'Agent companion avatar, welcome msg & notes'],
+      ['plans', '📅 Dates & Plans', 'Review & confirm Valorant & date plans'],
+      ['diary', '📖 Shared Diary', 'Read shared diary pages & notes'],
+      ['devices', '📱 Subscribed Devices', 'View registered phones & test notifications'],
+      ['publish', '🚀 Publish live', 'Allow Ifra to publish draft changes to live site']
+    ];
+
+    const herObj = u.her || {};
+    const currentAllowed = Array.isArray(herObj.allowedTabs) ? herObj.allowedTabs : ['texts', 'photos', 'playlist', 'when', 'story', 'surprises', 'games', 'jar', 'riddles', 'sweet', 'plans', 'diary'];
+
+    const permCard = el('div', { class: 'card', style: 'background: radial-gradient(circle at top right, rgba(255,105,180,0.12), #200814); border: 1px solid #ff7597; margin-top:20px;' });
+    permCard.append(el('h3', { style: 'margin-top:0; color:#ff7597;', text: "🌸 Ifra's Admin Panel · Allowed Tabs & Permissions" }));
+    permCard.append(el('p', { class: 'hint', text: "Tayyab's Master Control: Select which tabs Ifra is permitted to see and edit when she signs into the admin panel. Unchecked tabs will be hidden from her completely. Sensitive master tabs (Logins, Website Locks, Section Passwords, and Settings) are always kept private to you." }));
+
+    const permGrid = el('div', { style: 'display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px; margin:16px 0;' });
+    const checkboxes = {};
+
+    IFRA_AVAILABLE_TABS.forEach(item => {
+      const id = item[0], label = item[1], desc = item[2];
+      const row = el('label', { style: 'display:flex; align-items:flex-start; gap:10px; padding:10px 12px; background:rgba(0,0,0,0.3); border:1px solid #4a1a2e; border-radius:8px; cursor:pointer;' });
+      const cb = el('input', { type: 'checkbox', style: 'width:18px; height:18px; margin-top:2px; cursor:pointer;' });
+      cb.checked = currentAllowed.includes(id);
+      checkboxes[id] = cb;
+      const textWrap = el('div');
+      textWrap.append(el('b', { style: 'display:block; font-size:13px; color:#fff;', text: label }));
+      textWrap.append(el('span', { style: 'font-size:11px; color:#a67c8a;', text: desc }));
+      row.append(cb, textWrap);
+      permGrid.append(row);
+    });
+    permCard.append(permGrid);
+
+    const btnRow = el('div', { class: 'ctl', style: 'display:flex; gap:10px; align-items:center; flex-wrap:wrap;' });
+    const savePermBtn = el('button', { class: 'b', text: '💾 Save Ifra Permissions' });
+    const selAllBtn = el('button', { class: 'b alt sm', text: '✓ Select All' });
+    selAllBtn.onclick = () => { Object.values(checkboxes).forEach(c => c.checked = true); };
+    const deselAllBtn = el('button', { class: 'b alt sm', text: '✕ Deselect All' });
+    deselAllBtn.onclick = () => { Object.values(checkboxes).forEach(c => c.checked = false); };
+
+    const permMsg = el('span', { class: 'hint', style: 'margin-left:10px;' });
+
+    savePermBtn.onclick = async () => {
+      savePermBtn.disabled = true;
+      permMsg.style.color = '';
+      permMsg.textContent = 'Saving permissions…';
+      const selected = Object.keys(checkboxes).filter(k => checkboxes[k].checked);
+      try {
+        await api('users', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ her: { allowedTabs: selected } })
+        });
+        permMsg.style.color = 'var(--ok)';
+        permMsg.textContent = '✓ Saved! Ifra will now see ' + selected.length + ' tab' + (selected.length === 1 ? '' : 's') + '.';
+        savePermBtn.disabled = false;
+      } catch(err) {
+        permMsg.style.color = '#ff8aa0';
+        permMsg.textContent = err.message || 'Failed to save permissions';
+        savePermBtn.disabled = false;
+      }
+    };
+
+    btnRow.append(savePermBtn, selAllBtn, deselAllBtn, permMsg);
+    permCard.append(btnRow);
+    host.append(permCard);
+
     host.append(el('p',{class:'hint',text:'Changing a password or username logs that person out everywhere, and they log in again with the new details.'}));
   }
   load();
@@ -1563,15 +1756,31 @@ VIEWS.publish=m=>{
 };
 
 async function start(){
+  const role=sessionStorage.getItem('ifraRole')||'owner';
+  const pt=$('#panelTitle');
+  if(pt){
+    if(role==='her')pt.textContent="🌸 Ifra's Admin Panel 💕";
+    else pt.textContent="🌹 Ifra site · Admin panel";
+  }
   // the public script hides the private parts once logins are on, so ask the server for the full saved content
   try{const f=await api('content');if(f&&f.content)PUBLISHED=clone(f.content);}catch(e){if(e.message==='auth')return;}
-  try{LOCKS=(await api('locks')).locks||{};}catch(e){if(e.message==='auth')return;}
+  if(role!=='her'){
+    try{LOCKS=(await api('locks')).locks||{};}catch(e){if(e.message==='auth')return;}
+  } else {
+    LOCKS={};
+  }
   loadDraft();
-  try{
-    const p=await api('private');
-    ['ntfyTopic','discordWebhook'].forEach(k=>{ if(!C.settings[k]) C.settings[k]=p[k]||''; });
-  }catch(e){ if(e.message==='auth')return; }
+  if(role!=='her'){
+    try{
+      const p=await api('private');
+      ['ntfyTopic','discordWebhook'].forEach(k=>{ if(!C.settings[k]) C.settings[k]=p[k]||''; });
+    }catch(e){ if(e.message==='auth')return; }
+  }
   draw();
+  if(role==='her'){
+    const herName=sessionStorage.getItem('ifraUserName')||'Ifra';
+    status('🌸 Welcome ' + herName + '! Ready to edit 💕');
+  }
 }
 </script>
 </body>

@@ -2439,6 +2439,309 @@ FUN.calendar = (body, initialType) => {
 
 FUN.valorant = body => FUN.calendar(body, 'valorant');
 
+/* ---------- 📖 PERSONAL DIARY ---------- */
+FUN.diary = body => {
+  const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  
+  function getEntries() {
+    try {
+      return JSON.parse(localStorage.getItem('ifraDiaryEntries') || '[]') || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveEntries(arr) {
+    try {
+      localStorage.setItem('ifraDiaryEntries', JSON.stringify(arr));
+    } catch (e) { }
+  }
+
+  let view = 'list'; // 'list' | 'edit'
+  let currentEntry = null;
+
+  const MOODS = [
+    ['💖', 'In Love'],
+    ['🌸', 'Happy & Sweet'],
+    ['🥺', 'Missing You'],
+    ['☕', 'Cozy & Calm'],
+    ['🌙', 'Night Thoughts'],
+    ['✨', 'Excited'],
+    ['💭', 'Reflective']
+  ];
+
+  function render() {
+    if (view === 'list') renderList();
+    else renderEdit();
+  }
+
+  function renderList() {
+    const entries = getEntries();
+    const sharedCount = entries.filter(e => e.shared).length;
+
+    let entriesHtml = '';
+    if (!entries.length) {
+      entriesHtml = `
+        <div class="diary-empty-box">
+          <div style="font-size:38px;margin-bottom:8px;">📖✨</div>
+          <h4 style="margin:0 0 6px;color:#ffcad4;">Your Diary is Empty</h4>
+          <p class="hint" style="margin:0 auto;max-width:320px;">Write down your thoughts, special memories, or secret feelings. Everything stays locked on your phone unless you choose to share a page with Tayyab 💕</p>
+        </div>
+      `;
+    } else {
+      entriesHtml = entries.map(e => `
+        <div class="diary-card ${e.shared ? 'is-shared' : ''}" data-id="${esc(e.id)}">
+          <div class="diary-card-head">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:1.3rem;">${esc(e.mood || '💖')}</span>
+              <div>
+                <b style="color:#fff;font-size:0.95rem;display:block;">${esc(e.title || 'Untitled Page')}</b>
+                <span style="font-size:0.75rem;color:var(--mut);">${esc(e.dateFormatted || e.date || 'Recently')}</span>
+              </div>
+            </div>
+            <span class="diary-badge ${e.shared ? 'shared' : 'private'}">
+              ${e.shared ? '💖 Shared with Tayyab' : '🔒 Private to You'}
+            </span>
+          </div>
+          <div class="diary-snippet">${esc(e.text || '')}</div>
+          <div class="bar" style="margin:4px 0 0;justify-content:flex-end;gap:6px;">
+            <div class="fun-btn sm" data-action="edit" data-id="${esc(e.id)}" style="font-size:0.78rem;padding:4px 10px;min-width:auto;">Read / Edit ✏️</div>
+            <div class="fun-btn sm" data-action="del" data-id="${esc(e.id)}" style="background:#7a1d33;font-size:0.78rem;padding:4px 8px;min-width:auto;">🗑️</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    body.innerHTML = `
+      <h3>Ifra's Personal Diary 📖🔒</h3>
+      <p class="fun-sub">A safe, quiet haven for your thoughts and feelings 💕</p>
+
+      <div class="diary-wrap">
+        <div class="diary-nav-bar">
+          <span style="font-size:0.8rem;color:var(--mut);">
+            <b>${entries.length}</b> page${entries.length === 1 ? '' : 's'} written ${sharedCount ? ` · <b style="color:#ffcad4;">${sharedCount} shared with Tayyab</b>` : ''}
+          </span>
+          <div class="fun-btn" id="diaryNewBtn" style="font-size:0.85rem;padding:6px 14px;margin:0;">✍️ Write New Page</div>
+        </div>
+
+        <div style="max-height:360px;overflow-y:auto;padding-right:2px;">
+          ${entriesHtml}
+        </div>
+      </div>
+    `;
+
+    const newBtn = body.querySelector('#diaryNewBtn');
+    if (newBtn) {
+      newBtn.onclick = () => {
+        const today = new Date();
+        currentEntry = {
+          id: 'entry_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+          title: '',
+          mood: '💖',
+          date: today.toISOString().slice(0, 10),
+          dateFormatted: today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+          text: '',
+          shared: false
+        };
+        view = 'edit';
+        render();
+      };
+    }
+
+    body.querySelectorAll('[data-action="edit"]').forEach(b => {
+      b.onclick = () => {
+        const id = b.dataset.id;
+        const found = entries.find(e => e.id === id);
+        if (found) {
+          currentEntry = JSON.parse(JSON.stringify(found));
+          view = 'edit';
+          render();
+        }
+      };
+    });
+
+    body.querySelectorAll('[data-action="del"]').forEach(b => {
+      b.onclick = async () => {
+        const id = b.dataset.id;
+        const found = entries.find(e => e.id === id);
+        if (confirm('Delete this diary page?')) {
+          if (found && found.shared) {
+            try {
+              fetch('/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'diary-unshare', id })
+              });
+            } catch (e) { }
+          }
+          const next = entries.filter(e => e.id !== id);
+          saveEntries(next);
+          toast('Diary page deleted');
+          render();
+        }
+      };
+    });
+  }
+
+  function renderEdit() {
+    const e = currentEntry || {
+      id: 'entry_' + Date.now(),
+      title: '',
+      mood: '💖',
+      date: new Date().toISOString().slice(0, 10),
+      dateFormatted: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+      text: '',
+      shared: false
+    };
+
+    const moodsHtml = MOODS.map(([emoji, label]) => `
+      <div class="diary-mood-chip ${e.mood === emoji ? 'active' : ''}" data-mood="${emoji}">${emoji} ${label}</div>
+    `).join('');
+
+    body.innerHTML = `
+      <h3>${e.text ? 'Edit Diary Page 📖' : 'Dear Diary... ✍️'}</h3>
+      <p class="fun-sub">Pour your heart out. You decide whether to keep it secret or share it with him 💕</p>
+
+      <div class="diary-wrap">
+        <div>
+          <span class="diary-field-label">How are you feeling right now?</span>
+          <div class="diary-mood-grid" id="diaryMoodChips">${moodsHtml}</div>
+        </div>
+
+        <div>
+          <span class="diary-field-label">Page Title / Topic</span>
+          <input type="text" class="diary-input-text" id="diaryTitleInp" placeholder="e.g. Thinking of you today, A happy dream..." value="${esc(e.title)}">
+        </div>
+
+        <div>
+          <span class="diary-field-label">Date: ${esc(e.dateFormatted || e.date)}</span>
+          <textarea class="diary-textarea" id="diaryTextInp" placeholder="Dear diary... write whatever you are thinking or feeling today 💕">${esc(e.text)}</textarea>
+        </div>
+
+        <!-- The Tayyab Visibility Toggle -->
+        <div class="diary-share-box">
+          <label class="diary-toggle-row">
+            <input type="checkbox" class="diary-toggle-check" id="diaryShareChk" ${e.shared ? 'checked' : ''}>
+            <div>
+              <b style="color:#ffe6ee;font-size:0.95rem;display:block;">💌 Let Tayyab read this page</b>
+              <span style="font-size:0.75rem;color:var(--mut);">Toggle ON if you want this specific page to be visible to Tayyab</span>
+            </div>
+          </label>
+          <p id="diaryShareHint" style="font-size:0.78rem;margin:8px 0 0;line-height:1.4;color:${e.shared ? '#ffcad4' : '#c9a0b0'};">
+            ${e.shared ?
+              '💖 <b>Shared with Tayyab:</b> When you save, this page will be delivered to Tayyab and he can read it in his admin panel!' :
+              '🔒 <b>Private:</b> This page stays 100% private on your phone. Nobody else can ever see it.'}
+          </p>
+        </div>
+
+        <div class="bar" style="justify-content:space-between;margin-top:6px;">
+          <div class="fun-btn sm" id="diaryBackBtn" style="background:#3a1526;">⬅️ Back</div>
+          <div class="fun-btn" id="diarySaveBtn">💾 Save Page</div>
+        </div>
+      </div>
+    `;
+
+    // Mood selection
+    body.querySelectorAll('.diary-mood-chip').forEach(ch => {
+      ch.onclick = () => {
+        body.querySelectorAll('.diary-mood-chip').forEach(c => c.classList.remove('active'));
+        ch.classList.add('active');
+        e.mood = ch.dataset.mood;
+      };
+    });
+
+    // Share toggle
+    const chk = body.querySelector('#diaryShareChk');
+    const hint = body.querySelector('#diaryShareHint');
+    if (chk) {
+      chk.onchange = () => {
+        e.shared = chk.checked;
+        if (e.shared) {
+          hint.style.color = '#ffcad4';
+          hint.innerHTML = '💖 <b>Shared with Tayyab:</b> When you save, this page will be delivered to Tayyab and he can read it in his admin panel!';
+        } else {
+          hint.style.color = '#c9a0b0';
+          hint.innerHTML = '🔒 <b>Private:</b> This page stays 100% private on your phone. Nobody else can ever see it.';
+        }
+      };
+    }
+
+    // Back button
+    const backBtn = body.querySelector('#diaryBackBtn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        view = 'list';
+        render();
+      };
+    }
+
+    // Save button
+    const saveBtn = body.querySelector('#diarySaveBtn');
+    if (saveBtn) {
+      saveBtn.onclick = async () => {
+        const titleVal = (body.querySelector('#diaryTitleInp').value || '').trim();
+        const textVal = (body.querySelector('#diaryTextInp').value || '').trim();
+
+        if (!textVal && !titleVal) {
+          toast('Please write something in your diary page 💕', 2400);
+          return;
+        }
+
+        saveBtn.classList.add('disabled');
+        saveBtn.textContent = 'Saving…';
+
+        e.title = titleVal || 'Diary Page';
+        e.text = textVal;
+        e.shared = !!(chk && chk.checked);
+
+        const all = getEntries();
+        const existingIdx = all.findIndex(x => x.id === e.id);
+        if (existingIdx >= 0) all[existingIdx] = e;
+        else all.unshift(e);
+        saveEntries(all);
+
+        if (e.shared) {
+          try {
+            await fetch('/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'diary',
+                diary: {
+                  id: e.id,
+                  title: e.title,
+                  mood: e.mood,
+                  date: e.date,
+                  dateFormatted: e.dateFormatted,
+                  text: e.text
+                }
+              })
+            });
+            burstCenter(20);
+            toast('Saved to your diary & shared with Tayyab 💕', 3200);
+          } catch (err) {
+            toast('Saved locally! Will sync when connection is ready 💕', 3000);
+          }
+        } else {
+          try {
+            fetch('/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'diary-unshare', id: e.id })
+            });
+          } catch (err) { }
+          toast('Saved privately to your personal diary 🔒', 2600);
+        }
+
+        view = 'list';
+        render();
+      };
+    }
+  }
+
+  render();
+};
+
 /* ---------- 🧺 GAME 1: CATCH THE HEARTS ---------- */
 FUN.catch = body => {
   const W = 300, H = 380;
