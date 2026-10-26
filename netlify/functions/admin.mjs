@@ -374,6 +374,27 @@ export default async (req) => {
     return json({ ok: true, remaining: plans.length });
   }
 
+  if (route === 'diary' && req.method === 'GET') {
+    let entries = [];
+    try { entries = (await s.get('diary/entries.json', { type: 'json' })) || []; } catch (e) { }
+    return json({ ok: true, entries });
+  }
+
+  if (route === 'diary-delete' && req.method === 'POST') {
+    let body = {};
+    try { body = await req.json(); } catch (e) { }
+    const { id, all } = body;
+    if (all) {
+      await s.setJSON('diary/entries.json', []);
+      return json({ ok: true, remaining: 0 });
+    }
+    let entries = [];
+    try { entries = (await s.get('diary/entries.json', { type: 'json' })) || []; } catch (e) { }
+    entries = entries.filter(e => e.id !== id);
+    await s.setJSON('diary/entries.json', entries);
+    return json({ ok: true, remaining: entries.length });
+  }
+
   if (route === 'reset' && req.method === 'POST') {
     { const e = locked(['publish']); if (e) return e; }
     await s.delete('content.json');

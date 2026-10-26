@@ -60,6 +60,53 @@ export default async (req) => {
     return json({ ok: true, plan: cleanPlan, notified: ok });
   }
 
+  const diary = body.diary && typeof body.diary === 'object' ? body.diary : null;
+  if (diary) {
+    const store = getStore('ifra-site');
+    const cleanEntry = {
+      id: String(diary.id || ('entry_' + Date.now().toString(36))),
+      title: String(diary.title || 'Untitled Entry').slice(0, 100),
+      mood: String(diary.mood || '💖').slice(0, 30),
+      date: String(diary.date || new Date().toISOString().slice(0, 10)).slice(0, 30),
+      dateFormatted: String(diary.dateFormatted || diary.date || '').slice(0, 60),
+      text: String(diary.text || '').slice(0, 5000),
+      sharedAt: new Date().toISOString()
+    };
+
+    try {
+      let list = (await store.get('diary/entries.json', { type: 'json' })) || [];
+      const idx = list.findIndex(e => e.id === cleanEntry.id);
+      if (idx >= 0) list[idx] = cleanEntry;
+      else list.unshift(cleanEntry);
+      if (list.length > 100) list = list.slice(0, 100);
+      await store.setJSON('diary/entries.json', list);
+    } catch (e) { }
+
+    if (!text) {
+      text = `📖 New Diary Page from Ifra: ${cleanEntry.mood} “${cleanEntry.title}”\n` +
+             `📅 Date: ${cleanEntry.dateFormatted || cleanEntry.date}\n\n` +
+             `“${cleanEntry.text.slice(0, 280)}${cleanEntry.text.length > 280 ? '…' : ''}”\n\n` +
+             `Read the full page in your admin panel 💖`;
+    }
+
+    const ok = await sendOwner(text, title || `📖 Diary Page from Ifra: ${cleanEntry.title} 💖`, {
+      tags: 'book,heart,pencil2',
+      priority: '4',
+      diary: cleanEntry
+    });
+    return json({ ok: true, entry: cleanEntry, notified: ok });
+  }
+
+  if (body.type === 'diary-unshare' && body.id) {
+    const store = getStore('ifra-site');
+    try {
+      let list = (await store.get('diary/entries.json', { type: 'json' })) || [];
+      list = list.filter(e => e.id !== body.id);
+      await store.setJSON('diary/entries.json', list);
+    } catch (e) { }
+    return json({ ok: true });
+  }
+
   if (!text) return json({ ok: false }, 400);
 
   const ok = await sendOwner(text, title || 'Message from Ifra');
