@@ -1739,6 +1739,15 @@ window.SITE_CONTENT = {
       "opt": {
         "lives": 3
       }
+    },
+    {
+      "id": "football",
+      "group": "play",
+      "emoji": "⚽",
+      "label": "Love Striker",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
     }
   ],
   "gameMsgs": {
