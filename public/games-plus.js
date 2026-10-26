@@ -211,7 +211,7 @@
     var W = 300, H = 360, SHOTS = 5, GX1 = 55, GX2 = 245, GY1 = 82, GY2 = 152;
     var best = 0; try { best = +localStorage.getItem('ifraFootBest') || 0; } catch (e) { }
     body.innerHTML = '<h3>Love Striker ⚽</h3>' +
-      '<p class="fun-sub" id="fbInfo">Choose a mode: ❤️ Romantic Shootout (5 penalties), ⚡ Sudden Death (first miss ends it) or 🧤 Beat the Keeper (3 lives, it learns). Hold to aim, release in the gold zone. Corners are x2 🎯</p>' +
+      '<p class="fun-sub" id="fbInfo">Choose a mode: ❤️Shootout (5 penalties), ⚡ Sudden Death (first miss ends it) or 🧤 Beat the Keeper (3 lives, it learns). Hold to aim, release in the gold zone. Corners are x2 🎯</p>' +
       '<canvas id="fbCv" class="game-cv" width="' + W + '" height="' + H + '"></canvas>' +
       '<div class="fb-modes" id="fbModes"><div class="fun-btn" data-m="romantic">❤️ Shootout</div><div class="fun-btn" data-m="sudden">⚡ Sudden Death</div><div class="fun-btn" data-m="beat">🧤 Beat the Keeper</div></div><div class="fun-btn" id="fbStart" style="display:none">Play again ⚽</div>';
     var cv = byId('fbCv');
