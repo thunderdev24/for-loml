@@ -99,6 +99,11 @@
     // Render Avatar
     renderAvatar(avatarHost, cfg);
 
+    if (C.planner && C.planner.enabled === false) {
+      const pBtn = document.getElementById('actPlan');
+      if (pBtn) pBtn.style.display = 'none';
+    }
+
     // Sparkle Particles Loop
     setInterval(() => {
       if (document.hidden) return;

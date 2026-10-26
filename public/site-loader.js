@@ -70,6 +70,13 @@
     });
   }
 
+  // Show / hide planner tiles if disabled
+  if (C.planner && C.planner.enabled === false) {
+    document.querySelectorAll('[data-fun="calendar"], [data-fun="valorant"]').forEach(function (el) {
+      el.style.display = 'none';
+    });
+  }
+
   if (preview) {
     var tag = document.createElement('div');
     tag.textContent = 'PREVIEW (unsaved draft)';

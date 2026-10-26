@@ -39,6 +39,34 @@ window.SITE_CONTENT = {
       { "q": "Why are you so cute?", "a": "Because I was designed to match a tiny fraction of Ifra's cuteness! 🥰✨" }
     ]
   },
+  "planner": {
+    "enabled": true,
+    "title": "Plan a Date / Game 📅🎮",
+    "subtitle": "Pick a day & time to play Valorant, watch a movie, or plan anything special! Tayyab’s phone gets the notification immediately 📲💕",
+    "submitBtnText": "Send Plan to Tayyab's Phone 🚀💖",
+    "notePlaceholder": "e.g. Lock in Reyna, let's play competitive! Don't be late 💕",
+    "showNote": true,
+    "showExactTime": true,
+    "showQuickDates": true,
+    "successTitle": "Plan Sent to Tayyab!",
+    "successSubtitle": "Your plan has been sent straight to his phone and devices! 📲",
+    "successHint": "He will receive an instant notification alert on his phone so you two can enjoy your time together! 💕",
+    "valorantModes": "Competitive 🏆, Swiftplay ⚡, Spike Rush 💥, Unrated 🎯, Custom 1v1 ⚔️",
+    "activities": [
+      { "id": "valorant", "label": "Valorant Date", "icon": "🎮", "enabled": true },
+      { "id": "movie", "label": "Movie Night", "icon": "🎬", "enabled": true },
+      { "id": "call", "label": "Late Night Call", "icon": "☕", "enabled": true },
+      { "id": "dinner", "label": "Dinner / Food", "icon": "🍕", "enabled": true },
+      { "id": "custom", "label": "Custom Plan", "icon": "🌸", "enabled": true }
+    ],
+    "timeSlots": [
+      { "label": "🌅 7:00 PM (Evening)", "time": "19:00" },
+      { "label": "🌙 9:00 PM (Prime)", "time": "21:00" },
+      { "label": "⚡ 9:30 PM (Valorant Time)", "time": "21:30" },
+      { "label": "🌌 10:30 PM (Late Night)", "time": "22:30" },
+      { "label": "🕛 Midnight", "time": "00:00" }
+    ]
+  },
   "rewards": [
     {
       "at": 5,
@@ -1714,6 +1742,15 @@ window.SITE_CONTENT = {
       "rest": 0
     },
     {
+      "id": "calendar",
+      "group": "surprises",
+      "emoji": "📅",
+      "label": "Plan a Date 💖",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
       "id": "catch",
       "group": "play",
       "emoji": "🧺",
@@ -1785,6 +1822,15 @@ window.SITE_CONTENT = {
       "group": "play",
       "emoji": "⚽",
       "label": "Love Striker",
+      "on": true,
+      "minutes": 0,
+      "rest": 0
+    },
+    {
+      "id": "valorant",
+      "group": "play",
+      "emoji": "🎮",
+      "label": "Valorant Date",
       "on": true,
       "minutes": 0,
       "rest": 0
