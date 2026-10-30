@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>For Ifra Malik ❤️</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#2b0014">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌹</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="ifra.css">
+  <link rel="stylesheet" href="plus.css">
+  <link rel="stylesheet" href="player.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="typography.css">
+  <link rel="stylesheet" href="shell.css">
+  <link rel="stylesheet" href="agent.css">
+  <link rel="stylesheet" href="diary.css">
+  <link rel="stylesheet" href="plan.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ifra 🌹">
+
+</head>
+
+<body>
+  <!-- 🌹 ROSE INTRO -->
+  <div id="roseScreen" onclick="dropPetals()" role="button" tabindex="0" aria-label="Tap the rose to open" data-kb>
+    <div class="flower">
+      <span class="petal p1"></span>
+      <span class="petal p2"></span>
+      <span class="petal p3"></span>
+      <span class="petal p4"></span>
+      <span class="petal p5"></span>
+      <span class="petal p6"></span>
+      <span class="petal p7"></span>
+    </div>
+
+    <div class="rose-name" aria-hidden="true" data-t="roseName">Ifra</div>
+    <div class="rose-text" data-t="roseText">Tap the rose 🌹</div>
+  </div>
+
+
+
+
+  <div class="toggle" onclick="toggleMode()" role="button" tabindex="0" aria-label="Toggle night mode" data-kb>🌙</div>
+  <div class="music-toggle" id="musicToggle" onclick="toggleMusic()" title="Music on/off" role="button" tabindex="0" aria-label="Music on/off" data-kb>🔇</div>
+
+  <div class="card">
+    <h1 data-t="mainTitle">Ifra Malik</h1>
+    <h2 data-t="subtitle">This website exists only for you</h2>
+    <audio id="bgMusic" preload="auto" playsinline muted>
+      <source src="bayaan_1.m4a" type="audio/mp4">
+    </audio>
+
+    <!-- 🎵 SONG SELECTION -->
+    <div class="song-section">
+      <h3 data-t="playlistTitle">Our Playlist 🎶</h3>
+      <select id="songSelect" onchange="changeSong()" class="custom-select">
+        <option value="bayaan_1.m4a">Maand</option>
+        <option value="reflections.m4a">Reflections</option>
+        <option value="makeen.m4a">Makeen</option>
+        <option value="bewajah.m4a">Bewajah</option>
+        <option value="majboor.m4a">Majboor</option>
+      </select>
+    </div>
+
+    <p data-t="intro">
+      "Ifra, tum sirf meri pasand nahi, meri zindagi ka sabse khoobsurat hissa ho. Mere paas koi bada tohfa toh nahi,
+      magar ye dil hai jo tumhare liye dhadakta hai. Tumhare sath guzra har lamha mere liye kisi tohfe se kam
+      nahi."
+    </p>
+
+    <div class="heart" role="button" tabindex="0" aria-label="Touch the heart" data-kb>❤️</div>
+
+    <div class="letter" id="letter">
+      <p data-t="letter">
+        Ifra,
+        yeh letter dheere dheere khulta hai,
+        bilkul us mohabbat ki tarah
+        jo roz tumhare liye barhti ja rahi hai.
+        Tum meri aadat, meri dua
+        aur mere har kal ka khwab ho.
+      </p>
+    </div>
+    <p id="countdown"></p>
+    <button id="remindBtn" class="remind-btn" onclick="enableReminders()" data-t="remindButton">🔔 Remind me before my birthday</button>
+    <button id="diaryBtn" class="remind-btn diary-btn" onclick="openFun('diary')" data-t="diaryButton">📖 Personal Diary 🔒</button>
+    <button id="installBtn" class="remind-btn" onclick="installApp()" data-t="installButton">📲 Install the app</button>
+
+    <!-- 📸 MEMORIES GALLERY -->
+    <div class="gallery-section">
+      <h3 data-t="galleryTitle">Our Memories</h3>
+      <div class="gallery-wrapper">
+        <!-- Preview thumbnails are generated from the memories list in ifra.js -->
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+      <button id="openGalleryBtn" onclick="openGallery()" data-t="galleryButton">Open Full Gallery 📸</button>
+    </div>
+
+    <!-- 💌 OPEN WHEN... LOVE LETTERS -->
+    <div class="letters-section">
+      <h3 data-t="openTitle">Open When...</h3>
+      <p class="letters-hint" data-t="openHint">Open an envelope whenever your heart needs one 💌</p>
+      <!-- envelopes are generated from content.js -->
+    </div>
+
+    <!-- 🎁 LITTLE SURPRISES -->
+    <div class="surprises-section">
+      <h3 data-t="surprisesTitle">Little Surprises</h3>
+      <p class="letters-hint" data-t="surprisesHint">Every tile hides a small wonder 🎁</p>
+      <div class="tile-grid">
+        <div class="s-tile" data-fun="wish" tabindex="0" role="button"><span>🌠</span>Make a Wish</div>
+        <div class="s-tile" data-fun="scratch" tabindex="0" role="button"><span>🎟️</span>Scratch Cards</div>
+        <div class="s-tile" data-fun="bouquet" tabindex="0" role="button"><span>💐</span>Your Bouquet</div>
+        <div class="s-tile" data-fun="quiz" tabindex="0" role="button"><span>😄</span>Funny Riddles</div>
+        <div class="s-tile" data-fun="sweet" tabindex="0" role="button"><span>🧠</span>Sweet Quiz</div>
+        <div class="s-tile" data-fun="promises" tabindex="0" role="button"><span>📜</span>My Promises</div>
+        <div class="s-tile" data-fun="meter" tabindex="0" role="button"><span>💗</span>Love Meter</div>
+        <div class="s-tile" data-fun="writeback" tabindex="0" role="button"><span>💌</span>Write Back To Me</div>
+        <div class="s-tile" data-fun="calendar" tabindex="0" role="button"><span>📅</span>Plan a Date 💖</div>
+        <div class="s-tile" data-fun="diary" tabindex="0" role="button"><span>📖</span>Personal Diary 🔒</div>
+      </div>
+    </div>
+
+    <!-- 🎮 PLAY TOGETHER -->
+    <div class="surprises-section">
+      <h3 data-t="playTitle">Play Together</h3>
+      <p class="letters-hint" data-t="playHint">Small games, made just for you 🎮</p>
+      <div class="tile-grid three">
+        <div class="s-tile" data-fun="valorant" tabindex="0" role="button"><span>🎮</span>Valorant Date</div>
+        <div class="s-tile" data-fun="catch" tabindex="0" role="button"><span>🧺</span>Catch Hearts</div>
+        <div class="s-tile" data-fun="match" tabindex="0" role="button"><span>🃏</span>Memory Match</div>
+        <div class="s-tile" data-fun="ttt" tabindex="0" role="button"><span>❌</span>Tic-Tac-Love</div>
+        <div class="s-tile" data-fun="gtr" tabindex="0" role="button"><span>🏎️</span>GT-R R34</div>
+        <div class="s-tile" data-fun="flight" tabindex="0" role="button"><span>🕊️</span>Love Flight</div>
+        <div class="s-tile" data-fun="breaker" tabindex="0" role="button"><span>🧱</span>Love Breaker</div>
+        <div class="s-tile" data-fun="football" tabindex="0" role="button"><span>⚽</span>Love Striker</div>
+      </div>
+    </div>
+
+    <!-- 💍 THE QUESTION -->
+    <div class="proposal-section">
+      <h3 data-t="lastTitle">One Last Thing</h3>
+      <p class="letters-hint" data-t="lastHint">There is a question I have been carrying in my heart 💍</p>
+      <button class="proposal-btn story-btn" id="storyBtn" onclick="openStory()" data-t="storyButton" style="display:none">📖 Read Our Story</button>
+      <button class="proposal-btn" onclick="openProposal()" data-t="questionButton">💍&nbsp; I Have a Question For You</button>
+    </div>
+
+    <p id="loveDays" class="love-days" style="display:none"></p>
+
+    <button onclick="showFinale()" data-t="foreverButton">Forever Yours ❤️</button>
+
+    <!-- Spotify Embed -->
+    <!-- <p style="font-size:.85rem;opacity:.9">🎶 Ifra, yeh gaana tumhari yaad dilata hai</p>
+    <iframe
+      style="border-radius:12px"
+      src="https://open.spotify.com/embed/track/2ZzZ2qwZBWlDKs420hhloc"
+      width="100%"
+      height="80"
+      frameborder="0"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
+    </iframe> -->
+
+    <button onclick="showMessage()" data-t="careButton">Tap to see how much I care</button>
+
+    <div class="hidden-msg" id="msg" data-t="careMessage">
+      Main bohot mohabbat karta hoon tumse Ifra.
+      Tum meri dua, meri muskurahat
+      aur mere dil ka sukoon ho 💖
+    </div>
+
+    <div class="hidden-msg" id="secret" data-t="secretMessage">
+      Yeh raaz sirf tumhare liye hai 💌<br>
+      Agar duniya bhi khafa ho jaye,<br>
+      main hamesha tumhare sath khara rahunga.
+    </div>
+  </div>
+
+
+  <div id="birthdayScene">
+    <h1 data-t="birthdayTitle">Happy Birthday<br>Ifra 🎂❤️</h1>
+  </div>
+
+  <div id="finale" onclick="hideFinale()" ontouchstart="hideFinale()">
+    <h1 data-t="finaleTitle">I LOVE YOU ❤️</h1>
+  </div>
+
+  <!-- 💌 POETRY OVERLAY -->
+  <div id="cinemaOverlay">
+    <div id="cinemaCountdown">10</div>
+    <div id="cinemaMessage">Get Ready...</div>
+  </div>
+
+  <div id="poetryOverlay">
+    <div id="poetryLine"></div>
+    <!-- <div class="tapHint">Tap anywhere ❤️</div> -->
+  </div>
+
+  <!-- 🎁 SURPRISE / GAME WINDOW -->
+  <div id="funModal" class="fun-modal" aria-hidden="true" onclick="closeFun(event)">
+    <div class="fun-box" onclick="event.stopPropagation()">
+      <span class="fun-close" role="button" tabindex="0" aria-label="Close" data-kb onclick="closeFun()">&times;</span>
+      <div id="funBody"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <!-- 📲 INSTALL SUGGESTION (shown a few seconds after she opens the rose) -->
+  <div id="installBanner" class="install-banner" role="dialog" aria-live="polite" aria-hidden="true">
+    <div class="ib-ic">📲</div>
+    <div class="ib-tx">
+      <b data-t="installBannerTitle">Keep this on your phone 🌹</b>
+      <span id="ibText" data-t="installBannerText">Install the app: it gets its own icon and opens in one tap, even without internet.</span>
+    </div>
+    <div class="ib-btns">
+      <button id="ibYes" type="button" onclick="installFromBanner()" data-t="installBannerYes">Install</button>
+      <button id="ibNo" type="button" class="ib-no" onclick="dismissInstallBanner()" data-t="installBannerNo">Not now</button>
+    </div>
+  </div>
+
+  <!-- 🖼️ FULL GALLERY -->
+  <div id="galleryOverlay" class="gallery-overlay" aria-hidden="true">
+    <div class="gallery-head">
+      <div>
+        <h3>Our Memories 💕</h3>
+        <span id="galleryCount"></span>
+      </div>
+      <span class="gallery-close" role="button" tabindex="0" aria-label="Close gallery" data-kb onclick="closeGallery()">&times;</span>
+    </div>
+    <div class="gallery-masonry" id="galleryMasonry"></div>
+  </div>
+
+  <!-- 🖼️ LIGHTBOX MODAL -->
+  <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+    <div class="lightbox-content" onclick="event.stopPropagation()">
+      <span class="close-btn" role="button" tabindex="0" aria-label="Close" data-kb onclick="closeLightbox()">&times;</span>
+      <div class="lightbox-body">
+        <div class="lightbox-img-container">
+          <button class="lightbox-arrow left-arrow" onclick="prevLightboxImage(event)">&#10094;</button>
+          <img id="lightbox-img" src="" alt="Popup Image">
+          <button class="lightbox-arrow right-arrow" onclick="nextLightboxImage(event)">&#10095;</button>
+        </div>
+        <div class="lightbox-text">
+          <p id="lightbox-desc"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="content.js"></script>
+  <script src="/api/live.js"></script>
+  <script src="site-loader.js"></script>
+  <script src="ifra.js"></script>
+  <script src="game-config.js"></script>
+  <script src="games-plus.js"></script>
+  <script src="plus.js"></script>
+  <script src="player.js"></script>
+  <script src="polish.js"></script>
+  <script src="game-shell.js"></script>
+  <script src="diary.js"></script>
+  <script src="plan.js"></script>
+  <script src="agent.js"></script>
+</body>
+
+</html>
