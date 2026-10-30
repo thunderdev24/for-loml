@@ -158,3 +158,94 @@
 html.lite .dy *, html.lite .dy *::before, html.lite .dy *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .dy *, .dy *::before, .dy *::after { animation: none !important; transition: none !important; } }
 @media (max-width: 360px) { .dy-stat span { font-size: .58rem; } .dy .dy-cell { border-radius: 10px; } .dy-grid { gap: 4px; padding: 6px; } }
+
+/* =====================================================================
+   📓 NOTEBOOK LOOK: reading and writing happen on a real-looking diary page
+   (leather cover, binding holes, red margin, ruled paper, handwriting, washi tape, sticker, ribbon)
+   ===================================================================== */
+.dy { --hand: 'Caveat', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
+  --pp1: #fff7ee; --pp2: #fbe6dc; --ink: #4a2a35; --rule: rgba(150, 110, 130, .28); --cv1: #7a1230; --cv2: #3d0518; --tape: rgba(255, 143, 163, .82); --mg: rgba(214, 72, 96, .4); }
+.dy[data-theme="lavender"] { --pp1: #faf4ff; --pp2: #ecdffb; --ink: #3b2a5a; --rule: rgba(120, 100, 170, .28); --cv1: #55208a; --cv2: #2a0f4a; --tape: rgba(190, 150, 255, .82); --mg: rgba(150, 90, 220, .4); }
+.dy[data-theme="midnight"] { --pp1: #f2f7ff; --pp2: #dbe7fb; --ink: #1f2c4d; --rule: rgba(80, 110, 170, .28); --cv1: #223a85; --cv2: #0f1a40; --tape: rgba(120, 170, 255, .78); --mg: rgba(220, 90, 110, .4); }
+.dy[data-theme="gold"] { --pp1: #fff8e4; --pp2: #f5e5b8; --ink: #45300f; --rule: rgba(150, 120, 60, .3); --cv1: #86521a; --cv2: #43270a; --tape: rgba(232, 194, 122, .92); --mg: rgba(190, 80, 60, .4); }
+
+.dy button[disabled] { opacity: .35; pointer-events: none; }
+
+/* leather cover with stitching, spine and a ribbon bookmark peeking out of the bottom */
+.dy-book { position: relative; margin: 6px 0 26px; padding: 10px 10px 12px 17px; border-radius: 10px 20px 20px 10px;
+  background: linear-gradient(135deg, var(--cv1), var(--cv2));
+  box-shadow: 0 14px 28px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.dy-book::before { content: ''; position: absolute; inset: 5px 5px 6px 10px; border: 1.5px dashed rgba(255, 215, 160, .42); border-radius: 8px 16px 16px 8px; pointer-events: none; }
+.dy-book::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 11px; border-radius: 10px 0 0 10px; background: linear-gradient(90deg, rgba(0, 0, 0, .55), rgba(255, 255, 255, .1) 60%, rgba(0, 0, 0, .25)); pointer-events: none; }
+.dy-ribbon { position: absolute; z-index: 3; right: 34px; bottom: -17px; width: 18px; height: 46px; background: linear-gradient(#e0314f, #9d1229); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+.dy-ribbon.is-shared { background: linear-gradient(#ff7a96, #d81b60); }
+
+/* the paper page */
+.dy-page { position: relative; padding: 16px 14px 12px 46px; border-radius: 4px 12px 12px 4px; color: var(--ink); overflow: hidden;
+  background:
+    linear-gradient(90deg, transparent 39px, var(--mg) 39px, var(--mg) 40px, transparent 40px),
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, .55), transparent 55%),
+    linear-gradient(180deg, var(--pp1), var(--pp2));
+  box-shadow: inset 16px 0 16px -14px rgba(0, 0, 0, .38), inset 0 0 0 1px rgba(0, 0, 0, .06); }
+.dy-page::before { content: ''; position: absolute; left: 11px; top: 16px; bottom: 16px; width: 14px; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(40, 15, 20, .6) 0 4.5px, rgba(0, 0, 0, .12) 5px 6px, transparent 6.5px) 0 0 / 14px 38px repeat-y; }
+.dy-page::after { content: ''; position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; pointer-events: none;
+  background: linear-gradient(135deg, var(--pp1) 0 46%, rgba(0, 0, 0, .28) 49%, var(--cv2) 50.5% 100%); }
+
+.dy-pagehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.dy-tape { position: relative; display: inline-block; max-width: calc(100% - 66px); margin-top: 4px; padding: 5px 16px 4px; transform: rotate(-1.8deg);
+  font: 600 1.25rem/1.15 var(--hand); color: var(--ink);
+  background: repeating-linear-gradient(45deg, var(--tape) 0 7px, rgba(255, 255, 255, .42) 7px 14px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+  clip-path: polygon(0 0, 100% 0, 98% 25%, 100% 50%, 98% 75%, 100% 100%, 0 100%, 2% 75%, 0 50%, 2% 25%); }
+.dy-tape small { font-size: .9rem; opacity: .75; }
+.dy-sticker { flex: none; width: 52px; height: 52px; display: grid; place-items: center; font-size: 1.75rem; line-height: 1; border-radius: 50%;
+  background: #fff; border: 2px dashed rgba(0, 0, 0, .16); box-shadow: 0 3px 8px rgba(0, 0, 0, .25); transform: rotate(9deg); }
+.dy-sticker.pop { animation: dyPop .45s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes dyPop { from { transform: rotate(-20deg) scale(.4); } }
+
+.dy-page .dy-feel { margin: 6px 0; font: 500 1.2rem/1.3 var(--hand); color: var(--ink); opacity: .82; }
+.dy .dy-page .dy-moods { gap: 5px; margin-bottom: 4px; }
+.dy .dy-page .dy-mood { padding: 3px 10px; font: 500 1.02rem/1.3 var(--hand); color: var(--ink); background: rgba(255, 255, 255, .72); border: 1px solid rgba(0, 0, 0, .14); box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.dy .dy-page .dy-mood.on { color: var(--dy-on); background: linear-gradient(135deg, var(--dy-a), var(--dy-b)); border-color: transparent; box-shadow: 0 3px 8px var(--dy-glow); }
+
+.dy .dy-htitle { margin: 10px 0 4px; padding: 4px 2px; border: 0; border-bottom: 2px dashed rgba(0, 0, 0, .2); border-radius: 0; background: transparent; color: var(--ink); font: 700 1.75rem/1.25 var(--hand); }
+.dy .dy-htitle::placeholder { color: var(--ink); opacity: .35; }
+.dy .dy-htitle:focus { box-shadow: none; border-bottom-color: var(--dy-a); }
+
+/* ruled writing area: 32px lines, text sits on the lines */
+.dy .dy-page .dy-paper { min-height: 256px; padding: 0 2px; border: 0; border-radius: 0; box-shadow: none; caret-color: var(--dy-a); color: var(--ink);
+  font: 500 1.5rem/32px var(--hand);
+  background-color: transparent; background-image: linear-gradient(to bottom, transparent 31px, var(--rule) 32px); background-size: 100% 32px; background-attachment: local; }
+.dy .dy-page .dy-paper:focus { box-shadow: none; border: 0; }
+.dy .dy-page .dy-paper::placeholder { color: var(--ink); opacity: .38; font-style: normal; }
+.dy-pagefoot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font: 500 1.05rem/1.2 var(--hand); color: var(--ink); opacity: .66; }
+.dy-pagefoot .dy-count, .dy-pagefoot #dyCount { margin: 0; }
+
+/* reading */
+.dy-rtitle { margin: 10px 0 8px; font: 700 1.95rem/1.2 var(--hand); color: var(--ink); text-decoration: underline wavy var(--mg); text-underline-offset: 7px; word-break: break-word; }
+.dy-rtext { min-height: 128px; font: 500 1.5rem/32px var(--hand); color: var(--ink); white-space: pre-wrap; word-break: break-word;
+  background-image: linear-gradient(to bottom, transparent 31px, var(--rule) 32px); background-size: 100% 32px; }
+.dy-sign { margin-top: 14px; text-align: right; font: 700 1.55rem/1.2 var(--hand); color: var(--ink); }
+.dy-readnav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 4px 12px; }
+.dy-readnav span { font: 600 1.15rem var(--hand); color: var(--dy-mut); }
+
+/* pages turning */
+.dy-page.turn-n, .dy-page.turn-p, .dy-page.turn-o { transform-origin: left center; }
+.dy-page.turn-n { animation: dyTurnN .55s cubic-bezier(.22, 1, .36, 1); }
+.dy-page.turn-p { animation: dyTurnP .55s cubic-bezier(.22, 1, .36, 1); }
+.dy-page.turn-o { animation: dyOpen .5s cubic-bezier(.22, 1, .36, 1); }
+@keyframes dyTurnN { from { transform: perspective(1000px) rotateY(-62deg); opacity: .25; } }
+@keyframes dyTurnP { from { transform: perspective(1000px) rotateY(42deg); opacity: .3; } }
+@keyframes dyOpen { from { transform: perspective(1000px) rotateY(-28deg); opacity: .2; } }
+
+/* sticky note for writing prompts */
+.dy .dy-prompt { margin: 0 6px 16px; padding: 12px 14px 12px; border: 0; border-radius: 3px 3px 14px 3px; transform: rotate(-1.2deg);
+  background: linear-gradient(160deg, #fff4a8, #ffe680); color: #4a3b10; box-shadow: 0 6px 12px rgba(0, 0, 0, .35); }
+.dy .dy-prompt small { color: #8a6d10; }
+.dy .dy-prompt p { font: 500 1.3rem/1.25 var(--hand); color: #4a3b10; }
+.dy .dy-prompt .dy-btn { background: rgba(0, 0, 0, .12); color: #4a3b10; box-shadow: none; border: 0; font-weight: 600; }
+.dy .dy-prompt .dy-btn.ghost { background: transparent; border: 1px dashed rgba(74, 59, 16, .5); }
+
+.dy-edit-hero { display: none; }
+@media (max-width: 380px) { .dy-page { padding-left: 42px; } .dy-page .dy-paper, .dy-rtext { font-size: 1.4rem; } }

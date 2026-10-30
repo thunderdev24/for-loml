@@ -99,7 +99,7 @@
 
     var now = new Date(); now.setHours(0, 0, 0, 0);
     var todayK = kOf(now);
-    var st = { view: c.defaultView === 'list' ? 'list' : 'cal', back: 'cal', y: now.getFullYear(), m: now.getMonth(), sel: todayK, q: '', entry: null, prompt: -1 };
+    var st = { view: c.defaultView === 'list' ? 'list' : 'cal', back: 'cal', y: now.getFullYear(), m: now.getMonth(), sel: todayK, q: '', entry: null, prompt: -1, rback: 'cal', readId: '' };
 
     function moodLabel(e) { for (var i = 0; i < c.moods.length; i++) if (c.moods[i].emoji === e) return c.moods[i].label || ''; return ''; }
     function canWrite(k) { return k <= todayK && (c.allowBackfill || k === todayK); }
@@ -219,7 +219,7 @@
         '<b>' + esc(e.title || 'Untitled Page') + '</b>' + (!showDate && tm ? '<small>' + esc(tm) + '</small>' : '') + '</div>' +
         (c.allowSharing || e.shared ? '<span class="dy-badge ' + (e.shared ? 'shared' : 'private') + '">' + (e.shared ? '💖 Shared' : '🔒 Private') + '</span>' : '') + '</div>' +
         '<div class="dy-snip">' + esc(e.text || '') + '</div>' +
-        '<div class="dy-card-act"><button type="button" class="dy-btn sm" data-a="edit">Read / Edit ✏️</button>' +
+        '<div class="dy-card-act"><button type="button" class="dy-btn sm" data-a="read">📖 Read</button>' +
         '<button type="button" class="dy-btn sm danger" data-a="del" aria-label="Delete page">🗑️</button></div></article>';
     }
 
@@ -232,7 +232,7 @@
 
       var md = st.sel.slice(5), yr = st.sel.slice(0, 4), past = null;
       sorted().some(function (e) { if (e.date && e.date.slice(5) === md && e.date.slice(0, 4) < yr) { past = e; return true; } return false; });
-      if (past) h += '<div class="dy-otd" data-id="' + esc(past.id) + '" data-a="edit" role="button" tabindex="0"><small>🕰️ On this day · ' + esc(past.date.slice(0, 4)) + '</small><p>' +
+      if (past) h += '<div class="dy-otd" data-id="' + esc(past.id) + '" data-a="read" role="button" tabindex="0"><small>🕰️ On this day · ' + esc(past.date.slice(0, 4)) + '</small><p>' +
         esc((past.title ? past.title + ': ' : '') + String(past.text || '').slice(0, 130)) + (String(past.text || '').length > 130 ? '…' : '') + '</p></div>';
 
       if (list.length) h += list.map(function (e) { return cardHtml(e, false); }).join('');
@@ -273,6 +273,14 @@
 
     /* ----- clicks inside day panel / list ----- */
     function find(id) { var l = sorted(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+    function copy(o) { return JSON.parse(JSON.stringify(o)); }
+    function armDelete(a) {
+      if (a.classList.contains('armed')) return true;
+      var was = a.textContent;
+      a.classList.add('armed'); a.textContent = 'Sure? 🗑️';
+      setTimeout(function () { if (a.isConnected) { a.classList.remove('armed'); a.textContent = was; } }, 3000);
+      return false;
+    }
     function dayClick(ev) {
       var t = ev.target, a = t.closest ? t.closest('[data-a]') : null, card = t.closest ? t.closest('.dy-card') : null;
       if (a) {
@@ -280,28 +288,93 @@
         if (act === 'new') { openEdit(newEntry(st.sel)); return; }
         if (act === 'new-today') { openEdit(newEntry(todayK)); return; }
         var id = a.getAttribute('data-id') || (card && card.getAttribute('data-id')), e = id && find(id);
-        if (act === 'edit' && e) { openEdit(JSON.parse(JSON.stringify(e))); return; }
-        if (act === 'del' && e) {
-          if (!a.classList.contains('armed')) {
-            a.classList.add('armed'); a.textContent = 'Sure? 🗑️';
-            setTimeout(function () { if (a.isConnected) { a.classList.remove('armed'); a.textContent = '🗑️'; } }, 3000);
-            return;
-          }
-          remove(e); return;
-        }
+        if (act === 'read' && e) { st.rback = st.view; openRead(e.id, ''); return; }
+        if (act === 'edit' && e) { openEdit(copy(e)); return; }
+        if (act === 'del' && e) { if (armDelete(a)) remove(e); return; }
       }
-      if (card) card.classList.toggle('open');
+      if (card && card.getAttribute('data-id')) { st.rback = st.view; openRead(card.getAttribute('data-id'), ''); }
     }
 
-    function remove(e) {
+    function removeEntry(e) {
       if (e.shared) { try { fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'diary-unshare', id: e.id }) }).catch(function () { }); } catch (x) { } }
       store(load().filter(function (x) { return x.id !== e.id; }));
       say('Diary page deleted');
+    }
+    function remove(e) {
+      removeEntry(e);
       drawStats();
       if (st.view === 'cal') { drawGrid(''); drawMoods(); drawDay(); } else fillList();
     }
 
-    /* ===== editor ===== */
+    /* ===== the notebook look (shared by reading and writing) ===== */
+    function writer() { var n = document.querySelector('.rose-name'), t = n && String(n.textContent || '').trim(); return t || 'Ifra'; }
+    function pageNo(e) {
+      var asc = load().filter(function (x) { return x && x.id; }).sort(function (a, b) {
+        var da = a.date || '', db = b.date || ''; return da < db ? -1 : da > db ? 1 : stamp(a) - stamp(b);
+      });
+      for (var i = 0; i < asc.length; i++) if (asc[i].id === e.id) return i + 1;
+      return asc.length + 1;
+    }
+    function pageHead(k, mood) {
+      var d = parseKey(k), day = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      return '<div class="dy-pagehead"><span class="dy-tape">' + esc(day) + ' <small>' + d.getFullYear() + '</small></span>' +
+        '<span class="dy-sticker" id="dySticker">' + esc(mood || '💖') + '</span></div>';
+    }
+
+    /* ===== reader: open book, turn pages ===== */
+    function openRead(id, dir) {
+      var l = sorted(), i = -1, k;
+      for (k = 0; k < l.length; k++) if (l[k].id === id) { i = k; break; }
+      if (i < 0) { st.view = st.rback || 'cal'; renderMain(); return; }
+      st.view = 'read'; st.readId = id;
+      renderRead(l, i, dir);
+      try { if (box) box.scrollTop = 0; } catch (x) { }
+    }
+
+    function renderRead(l, i, dir) {
+      var e = l[i], n = l.length, lab = moodLabel(e.mood);
+      var turn = dir === 'n' ? ' turn-n' : dir === 'p' ? ' turn-p' : ' turn-o';
+      body.innerHTML = wrap(
+        '<button type="button" class="dy-back" id="dyBack">‹ Back</button>' +
+        '<div class="dy-book dy-read"><i class="dy-ribbon' + (e.shared ? ' is-shared' : '') + '"></i>' +
+        '<div class="dy-page' + turn + '">' + pageHead(e.date, e.mood) +
+        (lab ? '<div class="dy-feel">Feeling ' + esc(lab) + '</div>' : '') +
+        '<h4 class="dy-rtitle">' + esc(e.title || 'Untitled Page') + '</h4>' +
+        '<div class="dy-rtext">' + esc(e.text || '') + '</div>' +
+        '<div class="dy-sign">— ' + esc(writer()) + ' ' + esc(e.mood || '💖') + '</div>' +
+        '<div class="dy-pagefoot"><span>' + (e.shared ? '💖 shared with Tayyab' : '🔒 only for me') + '</span><span>page ' + (n - i) + ' of ' + n + '</span></div>' +
+        '</div></div>' +
+        '<div class="dy-readnav"><button type="button" class="dy-btn sm ghost" id="dyOlder"' + (i >= n - 1 ? ' disabled' : '') + '>‹ Older</button>' +
+        '<span>' + (n - i) + ' / ' + n + '</span>' +
+        '<button type="button" class="dy-btn sm ghost" id="dyNewer"' + (i <= 0 ? ' disabled' : '') + '>Newer ›</button></div>' +
+        '<div class="dy-actions"><button type="button" class="dy-btn" id="dyEditBtn">✏️ Edit this page</button>' +
+        '<button type="button" class="dy-btn ghost danger" id="dyDelBtn" aria-label="Delete page">🗑️</button></div>');
+
+      function back() { st.view = st.rback || 'cal'; renderMain(); }
+      function older() { if (i < n - 1) openRead(l[i + 1].id, 'p'); }
+      function newer() { if (i > 0) openRead(l[i - 1].id, 'n'); }
+      $('#dyBack').onclick = back;
+      $('#dyOlder').onclick = older;
+      $('#dyNewer').onclick = newer;
+      $('#dyEditBtn').onclick = function () { openEdit(copy(e)); };
+      $('#dyDelBtn').onclick = function () {
+        if (!armDelete(this)) return;
+        removeEntry(e);
+        var rest = sorted();
+        if (!rest.length) { back(); return; }
+        openRead((rest[i] || rest[i - 1] || rest[0]).id, '');
+      };
+      var bk = $('.dy-book'), sx = 0, sy = 0;
+      if (bk) {
+        bk.addEventListener('touchstart', function (ev) { var t = ev.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+        bk.addEventListener('touchend', function (ev) {
+          var t = ev.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+          if (Math.abs(dx) > 60 && Math.abs(dy) < 45) { if (dx < 0) newer(); else older(); }
+        }, { passive: true });
+      }
+    }
+
+    /* ===== editor: writing in a real-looking diary ===== */
     function newEntry(k) {
       var n = Date.now();
       return { id: 'entry_' + n.toString(36) + '_' + Math.random().toString(36).slice(2, 6), title: '', mood: c.moods[0].emoji, date: k,
@@ -323,18 +396,18 @@
       body.innerHTML = wrap(
         '<button type="button" class="dy-back" id="dyBack">‹ Back</button>' +
         '<div class="dy-hero"><h3>' + esc(e._new ? c.editTitle : 'Edit Diary Page 📖') + '</h3><p class="fun-sub">' + esc(c.editSub) + '</p></div>' +
-        '<div class="dy-datechip">📅 ' + esc(longDate(e.date)) + '</div>' +
-        '<span class="dy-label">How are you feeling right now?</span><div class="dy-moods" id="dyMoodRow">' + moods + '</div>' +
-        '<span class="dy-label">Page title</span><input type="text" class="dy-input" id="dyTitle" maxlength="90" placeholder="e.g. Thinking of you today, A happy dream…" value="' + esc(e.title) + '">' +
-        (c.showPrompts ? '<span class="dy-label">Need a spark?</span><div class="dy-prompt"><small>💡 Writing prompt</small><p id="dyPrompt"></p><div class="row">' +
+        (c.showPrompts ? '<div class="dy-prompt"><small>💡 Need a spark?</small><p id="dyPrompt"></p><div class="row">' +
           '<button type="button" class="dy-btn sm" id="dyUse">Use this ✍️</button><button type="button" class="dy-btn sm ghost" id="dyShuf">Another 🔄</button></div></div>' : '') +
-        '<span class="dy-label">Your page</span><textarea class="dy-paper" id="dyText" placeholder="' + esc(c.placeholder) + '"></textarea>' +
-        '<div class="dy-count" id="dyCount"></div>' +
+        '<div class="dy-book"><i class="dy-ribbon"></i><div class="dy-page turn-o">' + pageHead(e.date, e.mood) +
+        '<div class="dy-feel">Today I feel…</div><div class="dy-moods" id="dyMoodRow">' + moods + '</div>' +
+        '<input type="text" class="dy-input dy-htitle" id="dyTitle" maxlength="90" placeholder="Title of this page…" value="' + esc(e.title) + '">' +
+        '<textarea class="dy-paper" id="dyText" placeholder="' + esc(c.placeholder) + '"></textarea>' +
+        '<div class="dy-pagefoot"><span id="dyCount"></span><span>page ' + pageNo(e) + '</span></div></div></div>' +
         (c.allowSharing ? '<div class="dy-share"><label><input type="checkbox" id="dyShare"' + (e.shared ? ' checked' : '') + '><div><b>' + esc(c.shareTitle) + '</b><span>' + esc(c.shareSub) + '</span></div></label>' +
           '<p id="dyShareHint"></p></div>' : '') +
         '<div class="dy-actions"><button type="button" class="dy-btn ghost" id="dyCancel">Cancel</button><button type="button" class="dy-btn" id="dySave">💾 Save Page</button></div>');
 
-      var ta = $('#dyText'), ti = $('#dyTitle'), cnt = $('#dyCount'), chk = $('#dyShare'), hint = $('#dyShareHint'), t = 0;
+      var ta = $('#dyText'), ti = $('#dyTitle'), cnt = $('#dyCount'), chk = $('#dyShare'), hint = $('#dyShareHint'), sticker = $('#dySticker'), t = 0;
       ta.value = e.text || '';
       function count() { var w = words(ta.value); cnt.textContent = w + (w === 1 ? ' word' : ' words'); }
       function hintUpdate() { if (!hint) return; hint.style.color = e.shared ? '#ffd0da' : '#d9a9b9'; hint.innerHTML = e.shared ? c.shareOn : c.shareOff; }
@@ -350,19 +423,21 @@
       Array.prototype.forEach.call(body.querySelectorAll('.dy-mood'), function (b) {
         b.onclick = function () {
           Array.prototype.forEach.call(body.querySelectorAll('.dy-mood'), function (x) { x.classList.remove('on'); });
-          b.classList.add('on'); e.mood = b.getAttribute('data-m'); draft();
+          b.classList.add('on'); e.mood = b.getAttribute('data-m');
+          if (sticker) { sticker.textContent = e.mood; sticker.classList.remove('pop'); void sticker.offsetWidth; sticker.classList.add('pop'); }
+          draft();
         };
       });
       if (chk) chk.onchange = function () { e.shared = chk.checked; hintUpdate(); draft(); };
 
       if (c.showPrompts) {
         var pe = $('#dyPrompt');
-        function nextPrompt() {
+        var nextPrompt = function () {
           var n = c.prompts.length, i = st.prompt;
           if (i < 0) { var d = parseKey(e.date); i = (Math.floor(d.getTime() / 864e5)) % n; }
           else if (n > 1) { var j; do { j = Math.floor(Math.random() * n); } while (j === i); i = j; }
           st.prompt = i; pe.textContent = c.prompts[i];
-        }
+        };
         nextPrompt();
         $('#dyShuf').onclick = nextPrompt;
         $('#dyUse').onclick = function () {
@@ -372,7 +447,11 @@
         };
       }
 
-      function leave() { st.entry = null; st.view = st.back; renderMain(); }
+      function leave() {
+        st.entry = null;
+        if (st.back === 'read' && !e._new && find(e.id)) { openRead(e.id, ''); return; }
+        st.view = st.back === 'read' ? (st.rback || 'cal') : st.back; renderMain();
+      }
       $('#dyBack').onclick = leave;
       $('#dyCancel').onclick = leave;
 
@@ -390,7 +469,9 @@
 
         function done() {
           var d = parseKey(rec.date);
-          st.y = d.getFullYear(); st.m = d.getMonth(); st.sel = rec.date; st.entry = null; st.view = st.back; renderMain();
+          st.y = d.getFullYear(); st.m = d.getMonth(); st.sel = rec.date; st.entry = null;
+          if (st.back === 'read') { openRead(rec.id, ''); return; }
+          st.view = st.back; renderMain();
         }
         if (rec.shared) {
           fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' },
