@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="ifra.css">
+  <link rel="stylesheet" href="rose-shards.css">
   <link rel="stylesheet" href="plus.css">
   <link rel="stylesheet" href="player.css">
   <link rel="stylesheet" href="polish.css">
@@ -32,6 +33,10 @@
 <body>
   <!-- 🌹 ROSE INTRO -->
   <div id="roseScreen" onclick="dropPetals()" role="button" tabindex="0" aria-label="Tap the rose to open" data-kb>
+    <!-- Ambient glass-shard background: decorative and behind the rose -->
+    <div id="roseShards" class="rose-shards" aria-hidden="true">
+      <canvas id="roseShardsCanvas" class="rose-shards-canvas"></canvas>
+    </div>
     <div class="flower">
       <span class="petal p1"></span>
       <span class="petal p2"></span>
@@ -267,6 +272,7 @@
   <script src="diary.js"></script>
   <script src="plan.js"></script>
   <script src="agent.js"></script>
+  <script src="rose-shards.js" defer></script>
 </body>
 
 </html>

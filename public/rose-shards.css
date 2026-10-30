@@ -1,0 +1,27 @@
+/* Romantic Aero Shards — scoped to the opening rose screen */
+#roseScreen {
+  isolation: isolate;
+  overflow: hidden;
+}
+#roseScreen .rose-shards {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+#roseScreen .rose-shards-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: .96;
+}
+#roseScreen .flower,
+#roseScreen .rose-name,
+#roseScreen .rose-text {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  #roseScreen .rose-shards-canvas { opacity: .58; }
+}
