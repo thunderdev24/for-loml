@@ -1317,9 +1317,65 @@ VIEWS.plans=m=>{
   loadPlans();
 };
 
+/* ---------- diary settings (what Ifra sees in her Personal Diary) ---------- */
+function diarySettings(m){
+  if(!C.diary)C.diary=clone(DEFAULTS.diary||{});
+  const D=C.diary, DD=DEFAULTS.diary||{};
+  ['moods','prompts'].forEach(k=>{if(!Array.isArray(D[k]))D[k]=clone(DD[k]||[]);});
+  const card=el('div',{class:'card'});
+  card.append(el('h3',{style:'margin-top:0',text:'🎨 Diary settings (Ifra\'s calendar diary)'}));
+  card.append(el('p',{class:'hint',text:'Controls the Personal Diary on the website: look, what is shown, texts, moods and writing prompts. Changes go live after you press Publish.'}));
+  card.append(el('div',{class:'bar',style:'margin-bottom:12px;gap:8px;flex-wrap:wrap;'},
+    el('button',{class:'b alt sm',onclick:preview,text:'👁 Preview site'}),
+    el('button',{class:'b sm',onclick:publish,text:'🚀 Publish live'}),
+    el('button',{class:'b alt sm',onclick:()=>{if(confirm('Reset ALL diary settings, moods and prompts to the defaults?')){C.diary=clone(DD);save();draw();}},text:'↺ Reset to defaults'})));
+
+  function toggle(label,desc,key){
+    const lab=el('label',{class:'f',style:'display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:8px 0;'});
+    const chk=el('input',{type:'checkbox',style:'width:18px;height:18px;margin-top:2px;'});
+    chk.checked=D[key]!==false;
+    chk.onchange=()=>{D[key]=chk.checked;save();};
+    lab.append(chk,el('div',el('span',{style:'color:#fff;font-size:14px;',text:label}),desc?el('small',{class:'hint',style:'display:block;font-size:11.5px;',text:desc}):null));
+    return lab;
+  }
+  const tg=el('div',{class:'card',style:'background:#14050d;border:1px solid #3d1424;margin:12px 0;padding:12px 14px;'});
+  tg.append(el('h4',{style:'margin:0 0 6px;color:#ffcad4;',text:'👁️ What is shown'}),
+    toggle('Enable the Personal Diary','Off = the diary button and tile disappear from the website completely.','enabled'),
+    toggle('Show day streak','The 🔥 counter of days in a row she wrote.','showStreak'),
+    toggle('Show monthly mood summary','“This month you wrote 5 pages, mostly feeling 💖” under the calendar.','showMoodSummary'),
+    toggle('Show writing prompts','A “Need a spark?” idea box inside the editor (prompts are listed below).','showPrompts'),
+    toggle('Allow sharing pages with you','Off = no “Let Tayyab read this page” switch; every page stays private on her phone.','allowSharing'),
+    toggle('Allow writing for past days','Off = she can only write on the day itself (no back-filling old days).','allowBackfill'));
+  card.append(tg);
+
+  card.append(field('select',()=>D.theme||'rose',v=>{D.theme=v;},{label:'Colour theme',options:[['rose','🌹 Rose'],['lavender','💜 Lavender'],['midnight','🌌 Midnight blue'],['gold','✨ Golden']]}));
+  card.append(field('select',()=>D.defaultView||'calendar',v=>{D.defaultView=v;},{label:'What opens first',options:[['calendar','📅 Calendar'],['list','📜 All pages list']]}));
+
+  const tx=[['title','Diary title'],['subtitle','Subtitle under the title'],['writeButton','“Write” button text'],['emptyTitle','Empty day: heading'],['emptyText','Empty day: text'],['futureText','Future day: text'],['lockedText','Past day locked: text (only used when back-filling is OFF)'],['editTitle','Editor heading'],['editSub','Editor subtitle'],['placeholder','Writing box placeholder'],['shareTitle','Share switch: title'],['shareSub','Share switch: small text'],['shareOn','Share ON message (HTML allowed)'],['shareOff','Share OFF message (HTML allowed)'],['savedPrivate','Toast after saving privately'],['savedShared','Toast after saving & sharing'],['footNote','Small note at the bottom']];
+  const long=new Set(['emptyText','futureText','lockedText','editSub','shareOn','shareOff','placeholder']);
+  const tcard=el('div',{class:'card',style:'background:#14050d;border:1px solid #3d1424;margin:12px 0;padding:12px 14px;'});
+  tcard.append(el('h4',{style:'margin:0 0 6px;color:#ffcad4;',text:'✏️ Texts'}));
+  tx.forEach(([k,l])=>tcard.append(field(long.has(k)?'area':'text',()=>D[k]==null?(DD[k]||''):D[k],v=>{D[k]=v;},{label:l,rows:2})));
+  card.append(tcard);
+
+  const mcard=el('div',{class:'card',style:'background:#14050d;border:1px solid #3d1424;margin:12px 0;padding:12px 14px;'});
+  mcard.append(el('h4',{style:'margin:0 0 6px;color:#ffcad4;',text:'😊 Moods she can pick'}),
+    el('p',{class:'hint',text:'The first one is the default for a new page. The emoji shows on the calendar day.'}),
+    listBox(()=>D.moods,[F.key('emoji','Emoji (e.g. 💖)'),F.key('label','Name (e.g. In Love)')],()=>({emoji:'🌼',label:'New mood'}),{grid:'grid2'}));
+  card.append(mcard);
+
+  const pcard=el('div',{class:'card',style:'background:#14050d;border:1px solid #3d1424;margin:12px 0;padding:12px 14px;'});
+  pcard.append(el('h4',{style:'margin:0 0 6px;color:#ffcad4;',text:'💡 Writing prompts'}),
+    el('p',{class:'hint',text:'Ideas shown in the editor. Today\'s prompt changes every day; she can tap “Another” for more.'}),
+    listBox(()=>D.prompts,[F.self('Prompt',{type:'area',rows:2})],()=>'Write about something that made you smile…'));
+  card.append(pcard);
+  m.append(card);
+}
+
 /* ---------- shared diary entries from ifra ---------- */
 VIEWS.diary=m=>{
   head(m,'📖 Diary Pages Shared by Ifra','Whenever Ifra writes a page in her Personal Diary and turns ON “Let Tayyab read this page”, it shows up here for you to read with love.');
+  diarySettings(m);
 
   const card=el('div',{class:'card'});
   const statusMsg=el('p',{class:'hint',text:'Loading diary pages…'});
