@@ -1,8 +1,8 @@
 /* Ifra site service worker:
    1) shows the birthday reminders (push notifications)
    2) lets the site be installed as an app and keep working offline */
-const VERSION = 'ifra-v11';
-const SHELL = ['/', '/index.html', '/ifra.css', '/ifra.js', '/plus.js', '/plus.css', '/player.js', '/player.css', '/polish.js', '/polish.css', '/typography.css', '/shell.css', '/agent.css', '/agent.js', '/diary.js', '/diary.css', '/game-config.js', '/game-shell.js', '/games.js', '/games-plus.js', '/content.js', '/site-loader.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/notif-badge.png', '/notif-banner.jpg'];
+const VERSION = 'ifra-v12';
+const SHELL = ['/', '/index.html', '/ifra.css', '/ifra.js', '/plus.js', '/plus.css', '/player.js', '/player.css', '/polish.js', '/polish.css', '/typography.css', '/shell.css', '/agent.css', '/agent.js', '/diary.js', '/diary.css', '/plan.js', '/plan.css', '/game-config.js', '/game-shell.js', '/games.js', '/games-plus.js', '/content.js', '/site-loader.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/notif-badge.png', '/notif-banner.jpg'];
 const MEDIA_RE = /\.(m4a|mp3|mp4|wav|ogg|oga|aac|opus|webm)$/i;
 const FILE_RE = /\.(webp|jpe?g|png|gif|svg|ico|avif|woff2?)$/i;
 const MAX_MEDIA = 25 * 1024 * 1024;   // do not store a single song bigger than this

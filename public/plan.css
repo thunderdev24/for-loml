@@ -1,0 +1,83 @@
+/* 💖 PLAN A DATE: visual layer on top of the existing planner (logic in ifra.js is unchanged).
+   Accent colour follows the chosen plan type (Valorant red, movie violet, call amber, dinner coral, rose otherwise).
+   No blur, light shadows; moving parts switch off in calm mode. */
+
+.fun-box.pl-wide { width: min(100%, 460px); padding: 24px 14px 20px; }
+.fun-box.pl-wide h3 { margin-bottom: 4px; }
+.fun-box.pl-wide > #funBody > .fun-sub { color: #d9a9b9; font-size: .8rem; max-width: 340px; margin: 0 auto 14px; }
+
+.planner-wrap {
+  --pa: #ff4d6d; --pb: #ff8fa3; --pg: rgba(255, 77, 109, .42);
+  display: flex; flex-direction: column; gap: 12px; text-align: left;
+}
+
+/* each step is a soft card */
+.planner-wrap > div:not(.fun-btn):not(.pl-sum) {
+  padding: 13px 12px 14px; border-radius: 20px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02));
+  border: 1px solid rgba(255, 255, 255, .09);
+}
+.planner-wrap .plan-sec-title { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; font: 600 .88rem/1.2 'Poppins', sans-serif; color: #fff; }
+.planner-wrap .pl-step { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-size: .72rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--pa), var(--pb)); box-shadow: 0 4px 12px var(--pg); }
+.planner-wrap .plan-sec-title em { margin-left: auto; padding: 3px 10px; border-radius: 12px; font-style: normal; font-size: .7rem; font-weight: 500; white-space: nowrap; color: var(--pb); background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .13); }
+
+/* chips */
+.planner-wrap .plan-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.planner-wrap .plan-chip { padding: 8px 13px; border-radius: 16px; font-size: .8rem; color: #ffe6ee; cursor: pointer; user-select: none; -webkit-user-select: none; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .13); transition: transform .15s ease, background .2s ease, border-color .2s ease; }
+.planner-wrap .plan-chip:hover { border-color: var(--pb); }
+.planner-wrap .plan-chip:active { transform: scale(.94); }
+.planner-wrap .plan-chip.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--pa), var(--pb)); box-shadow: 0 6px 16px var(--pg); }
+.planner-wrap #planTypeChips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.planner-wrap #planTypeChips .plan-chip { padding: 12px 8px; text-align: center; border-radius: 16px; font-weight: 500; }
+.planner-wrap #planTypeChips .plan-chip:last-child:nth-child(odd) { grid-column: span 2; }
+.planner-wrap #subTypeWrap span { color: var(--pb) !important; letter-spacing: .03em; }
+.planner-wrap #quickToday, .planner-wrap #quickTomorrow, .planner-wrap #quickWeekend { padding: 6px 12px; font-size: .74rem; border-style: dashed; }
+
+/* calendar */
+.planner-wrap .cal-box { padding: 0; background: none; border: 0; box-shadow: none; }
+.planner-wrap .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.planner-wrap .cal-btn { all: unset; box-sizing: border-box; flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; font-size: .8rem; color: #fff; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .13); -webkit-tap-highlight-color: transparent; transition: background .2s ease, transform .15s ease; }
+.planner-wrap .cal-btn:hover { background: rgba(255, 255, 255, .14); }
+.planner-wrap .cal-btn:active { transform: scale(.9); }
+.planner-wrap .cal-btn:focus-visible { outline: 2px solid var(--pb); outline-offset: 2px; }
+.planner-wrap .cal-month-title { flex: 1; text-align: center; font: italic 500 1.3rem/1.1 'Newsreader', Georgia, serif; color: #fff; }
+.planner-wrap .cal-days-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; padding: 8px; border-radius: 18px; background: rgba(0, 0, 0, .27); border: 1px solid rgba(255, 255, 255, .07); }
+.planner-wrap .cal-dow { text-align: center; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: #d9a9b9; padding: 2px 0 4px; }
+.planner-wrap .cal-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: .86rem; color: #f6dbe4; cursor: pointer; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .06); transition: transform .15s ease, background .2s ease, border-color .2s ease; }
+.planner-wrap .cal-cell:hover:not(.disabled) { border-color: var(--pb); background: rgba(255, 255, 255, .09); }
+.planner-wrap .cal-cell:active:not(.disabled) { transform: scale(.9); }
+.planner-wrap .cal-cell.disabled { opacity: .26; cursor: default; }
+.planner-wrap .cal-cell.disabled:empty { opacity: 1; background: none; border-color: transparent; }
+.planner-wrap .cal-cell.today { border-color: var(--pb); box-shadow: 0 0 0 1px var(--pb); color: var(--pb); font-weight: 700; }
+.planner-wrap .cal-cell.selected { color: #fff; font-weight: 700; border-color: transparent; background: linear-gradient(135deg, var(--pa), var(--pb)); box-shadow: 0 6px 16px var(--pg); }
+
+/* time + note */
+.planner-wrap .plan-time-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.planner-wrap .plan-time-input { box-sizing: border-box; padding: 9px 12px; border-radius: 12px; color: #fff; font: inherit; font-size: .95rem; outline: none; color-scheme: dark; background: rgba(0, 0, 0, .36); border: 1px solid rgba(255, 255, 255, .16); }
+.planner-wrap .plan-time-input:focus, .planner-wrap .plan-note-input:focus { border-color: var(--pb); box-shadow: 0 0 0 3px rgba(255, 255, 255, .06); }
+.planner-wrap .plan-note-input { display: block; width: 100%; box-sizing: border-box; min-height: 92px; resize: vertical; padding: 10px 14px; border-radius: 14px; color: #fff; outline: none; font: italic 400 1rem/1.55 'Newsreader', Georgia, serif; background: rgba(18, 4, 15, .6); border: 1px solid rgba(255, 255, 255, .15); }
+.planner-wrap .plan-note-input::placeholder { color: rgba(255, 220, 230, .42); }
+
+/* live summary ribbon */
+.planner-wrap .pl-sum { padding: 12px 14px; border-radius: 18px; text-align: center; background: linear-gradient(135deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02)); border: 1px dashed var(--pb); }
+.pl-sum small { display: block; margin-bottom: 4px; font-size: .62rem; letter-spacing: .18em; text-transform: uppercase; color: var(--pb); }
+.pl-sum b { display: block; font: 600 .98rem/1.35 'Poppins', sans-serif; color: #fff; }
+.pl-sum span { display: block; margin-top: 2px; font-size: .8rem; color: #ffe6ee; }
+
+/* send button */
+.planner-wrap > .fun-btn { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; margin-top: 0 !important; padding: 15px 18px; font-weight: 600; text-align: center; background: linear-gradient(135deg, var(--pa), var(--pb)); box-shadow: 0 10px 24px var(--pg); }
+.planner-wrap > .fun-btn::after { content: ''; position: absolute; top: 0; bottom: 0; width: 38%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent); animation: plShine 3.6s ease-in-out infinite; }
+@keyframes plShine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+.planner-wrap > .fun-btn.disabled { opacity: .6; pointer-events: none; }
+.planner-wrap > .fun-btn.disabled::after { display: none; }
+
+/* success ticket */
+.plan-success-wrap .plan-summary-box { position: relative; margin: 14px auto; max-width: 320px; padding: 18px 16px; border-radius: 18px; line-height: 1.9; text-align: center; color: #fff; background: linear-gradient(160deg, rgba(255, 77, 109, .22), rgba(60, 10, 40, .65)); border: 1px dashed rgba(255, 150, 175, .6); }
+.plan-success-wrap .plan-summary-box::before, .plan-success-wrap .plan-summary-box::after { content: ''; position: absolute; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: #1d0314; border: 1px dashed rgba(255, 150, 175, .6); }
+.plan-success-wrap .plan-summary-box::before { left: -10px; clip-path: inset(0 0 0 50%); }
+.plan-success-wrap .plan-summary-box::after { right: -10px; clip-path: inset(0 50% 0 0); }
+
+/* calm mode / reduced motion */
+html.lite .planner-wrap *, html.lite .planner-wrap *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .planner-wrap *, .planner-wrap *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 360px) { .planner-wrap .cal-days-grid { gap: 4px; padding: 6px; } .planner-wrap .cal-cell { border-radius: 10px; font-size: .8rem; } }
