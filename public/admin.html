@@ -770,6 +770,7 @@ VIEWS.agent=m=>{
   C.agent.tour=C.agent.tour||clone(((DEFAULTS&&DEFAULTS.agent)||{}).tour||[]);
   C.agent.notes=C.agent.notes||clone(((DEFAULTS&&DEFAULTS.agent)||{}).notes||[]);
   C.agent.qa=C.agent.qa||clone(((DEFAULTS&&DEFAULTS.agent)||{}).qa||[]);
+  C.agent.sections=C.agent.sections||[];
 
   // 1. Live Interactive Preview
   const previewCard=el('div',{class:'card',style:'background:radial-gradient(circle at 80% 20%, rgba(255,77,109,0.18), #2a0d1a);border:1px solid #ff4d6d;'});
@@ -892,9 +893,45 @@ VIEWS.agent=m=>{
 
   m.append(mainCard);
 
+  // 2b. Welcome screen & guided journey
+  const jCard=el('div',{class:'card'});
+  jCard.append(el('h3',{text:'🌹 Welcome Screen & Guided Journey'}));
+  jCard.append(el('p',{class:'hint',text:'When Ifra taps the rose, the guide welcomes her with a full-screen greeting and offers to walk her through every section of the website, one at a time, with a small question at each stop. The journey is built automatically from what is really on the site (your songs, letters, games, locks, planner, diary), so it stays correct when you change things.'}));
+  function agToggle(label,desc,key,dflt){
+    const lab=el('label',{class:'f',style:'display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:8px 0;'});
+    const chk=el('input',{type:'checkbox',style:'width:18px;height:18px;margin-top:2px;'});
+    chk.checked=C.agent[key]===undefined?dflt:C.agent[key]!==false;
+    chk.onchange=()=>{C.agent[key]=chk.checked;save();};
+    lab.append(chk,el('div',el('span',{style:'color:#fff;font-size:14px;',text:label}),desc?el('small',{class:'hint',style:'display:block;font-size:11.5px;',text:desc}):null));
+    return lab;
+  }
+  jCard.append(
+    agToggle('Show the big welcome screen after she taps the rose','Off = only the small speech bubble appears.','welcomeScreen',true),
+    agToggle('Ask a small question at each stop (survey style)','Each stop asks “What would you like to do?” with tappable answers, plus 😍 🙂 😐 reactions. At the end she can send her favourite parts to you with “Write Back To Me”.','survey',true),
+    agToggle('Let the guide chat about everything (small talk)','Greetings, thanks, jokes, comfort, the time and date. Questions about the website are always answered.','smallTalk',true),
+    agToggle('Use my own custom tour stops instead of the automatic journey','Only turn this on if you want the old, simple tour made from the “Guided Tour Stops” list below.','useCustomTour',false)
+  );
+  jCard.append(field('text',()=>C.agent.welcomeTitle||'Assalam-o-Alaikum, {name} 🌹',v=>{C.agent.welcomeTitle=v;},{label:'Welcome screen heading, first visit ({name} becomes her name)'}));
+  jCard.append(field('text',()=>C.agent.welcomeBackTitle||'Welcome back, {name} 💕',v=>{C.agent.welcomeBackTitle=v;},{label:'Welcome screen heading, when she comes back'}));
+  jCard.append(field('area',()=>C.agent.finalNote||'',v=>{C.agent.finalNote=v;},{label:'Message at the end of the journey',rows:2}));
+  m.append(jCard);
+
+  // 2c. Section notes (override what the guide says about a section)
+  const secCard=el('div',{class:'card'});
+  secCard.append(el('h3',{text:'🧭 Section Notes (optional)'}));
+  secCard.append(el('p',{class:'hint',text:'The guide already explains every section by itself. Add a note here only if you want to replace what it says about one section (leave a field empty to keep the automatic text).'}));
+  const secOpts=[['basics','🧭 Finding your way around'],['playlist','🎶 Our Playlist'],['heart','❤️ The big heart'],['reminders','🎂 Birthday countdown & reminders'],['diary','📖 Personal Diary'],['install','📲 Install the app'],['gallery','📸 Our Memories'],['envelopes','💌 Open When letters'],['surprises','🎁 Little Surprises'],['planner','📅 Plan a Date'],['writeback','✍️ Write Back To Me'],['games','🎮 Play Together'],['jar','🏺 Love Jar'],['proposal','💍 One Last Thing'],['forever','🌹 Forever Yours'],['letter','✉️ The hidden letter']];
+  secCard.append(listBox(()=>C.agent.sections,[
+    F.key('id','Which section?',{type:'select',options:secOpts}),
+    F.key('title','New title (optional)'),
+    F.key('text','What the guide says about it (optional)',{type:'area',rows:3}),
+    F.key('tip','Tip line (optional)',{type:'area',rows:2})
+  ],()=>({id:'playlist',title:'',text:'',tip:''}),{grid:'grid2'}));
+  m.append(secCard);
+
   // 3. Tour Stops
   const tourCard=el('div',{class:'card'});
-  tourCard.append(el('h3',{text:'🗺️ Guided Tour Stops'}));
+  tourCard.append(el('h3',{text:'🗺️ Guided Tour Stops (only used when “custom tour” is on)'}));
   tourCard.append(el('p',{class:'hint',text:'When she taps “✨ Take Me on a Tour”, the agent guides her step-by-step through each of these stops with a glowing spotlight:'}));
 
   const sectionOptions=[
@@ -927,9 +964,10 @@ VIEWS.agent=m=>{
   // 5. Q&A Knowledge Base
   const qaCard=el('div',{class:'card'});
   qaCard.append(el('h3',{text:'💬 Interactive Q&A / Chat Knowledge'}));
-  qaCard.append(el('p',{class:'hint',text:'Questions she can ask the agent, and the loving answers the agent gives:'}));
+  qaCard.append(el('p',{class:'hint',text:'Your own answers always win. The guide already knows how the whole website works (playlist, photos, diary, reminders, plans, games, locks, what you can see…); add questions here for anything personal, or to change an answer. “Other words” helps it recognise different ways of asking (Roman Urdu works too).'}));
   const qaFields=[
     F.key('q','Question (e.g. Who made this website?)'),
+    F.key('k','Other words she might use (comma-separated, e.g. website, creator, banaya)'),
     F.key('a','Agent Answer',{type:'area',rows:2})
   ];
   qaCard.append(listBox(()=>C.agent.qa,qaFields,()=>({q:'New question?',a:'Sweet answer from the agent!'})));

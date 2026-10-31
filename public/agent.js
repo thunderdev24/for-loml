@@ -1,11 +1,14 @@
 /* ===================================================================
    🌸 Cute Floating AI Guide & Companion Widget (For Ifra)
+   - Grand welcome right after she taps the rose
+   - A guided journey through every section, with a small "survey" question at each stop
+   - Chat that knows the whole website (see agent-brain.js)
+   Everything is controlled from admin → Cute AI Guide.
    =================================================================== */
 
 (function () {
   'use strict';
 
-  // Wait for DOM and SITE content to be ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCuteAgent);
   } else {
@@ -21,15 +24,36 @@
       customAvatarUrl: '',
       personality: 'sweet',
       welcomeMsg: 'Assalam-o-Alaikum Ifra! 🌹 I am your little love guider made by Tayyab. Tap me anytime for a magical tour, secrets, or a smile! ✨',
+      welcomeScreen: true,
+      welcomeTitle: 'Assalam-o-Alaikum, {name} 🌹',
+      welcomeBackTitle: 'Welcome back, {name} 💕',
+      finalNote: 'That was everything! Thank you for letting me show you around. Tayyab put his whole heart into every corner of this place. 🌹',
+      survey: true,
+      smallTalk: true,
+      autoStartTour: false,
+      useCustomTour: false,
       ambientTips: true,
       sound: true,
       position: 'bottom-right',
       tour: [],
+      sections: [],
       notes: [],
       qa: []
     }, C.agent || {});
 
     if (cfg.enabled === false) return;
+    const Brain = window.AgentBrain || null;
+    const LITE_MODE = document.documentElement.classList.contains('lite') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const HER = ((document.querySelector('.rose-name') || {}).textContent || (C.text && C.text.roseName) || 'Ifra').trim() || 'Ifra';
+    const AGENT_FIRST = String(cfg.name || 'Mochi').replace(/\s*[^\w\s].*$/, '').trim() || 'Mochi';
+
+    /* ---------- saved progress (this phone only) ---------- */
+    const GK = 'ifraGuide';
+    let G = { visits: 0, step: 0, done: {}, react: {}, answers: {}, completed: false };
+    try { G = Object.assign(G, JSON.parse(localStorage.getItem(GK) || '{}') || {}); } catch (e) { }
+    function saveG() { try { localStorage.setItem(GK, JSON.stringify(G)); } catch (e) { } }
+    const returning = G.visits > 0;
+    G.visits = (G.visits || 0) + 1; saveG();
 
     // Build DOM
     const container = document.createElement('div');
@@ -51,6 +75,9 @@
       }
     } catch (e) { }
 
+    const diaryOff = C.diary && C.diary.enabled === false;
+    const plannerOff = C.planner && C.planner.enabled === false;
+
     container.innerHTML = `
       <div class="agent-character-wrap" id="agentCharacter" role="button" tabindex="0" aria-label="Cute AI Guide">
         <div class="agent-halo"></div>
@@ -58,7 +85,7 @@
         <div class="agent-status-badge" id="agentBadge" style="display:none">1</div>
       </div>
       <div class="agent-ambient-tip" id="agentAmbientTip" style="display:none"></div>
-      <div class="agent-bubble-window" id="agentBubble">
+      <div class="agent-bubble-window" id="agentBubble" role="dialog" aria-label="${escapeHtml(cfg.name)}">
         <div class="agent-bubble-tail"></div>
         <div class="agent-b-head">
           <div class="agent-b-icon">✨</div>
@@ -72,13 +99,14 @@
           <div class="agent-speech-bubble" id="agentSpeech">${escapeHtml(cfg.welcomeMsg)}</div>
           <div id="agentDynamicContent"></div>
           <div class="agent-actions-grid" id="agentActionsGrid">
-            <button class="agent-act-btn full-w" type="button" id="actTour">✨ Take Me on a Tour</button>
-            <button class="agent-act-btn" type="button" id="actPlan">🎮 Plan Valorant / Date</button>
-            <button class="agent-act-btn" type="button" id="actDiary">📖 Personal Diary</button>
+            <button class="agent-act-btn full-w" type="button" id="actTour">✨ Show Me Around</button>
+            <button class="agent-act-btn" type="button" id="actChat">💬 Ask Me Anything</button>
+            <button class="agent-act-btn" type="button" id="actJump">🧭 Jump to a Section</button>
+            <button class="agent-act-btn" type="button" id="actPlan"${plannerOff ? ' style="display:none"' : ''}>📅 Plan a Date</button>
+            <button class="agent-act-btn" type="button" id="actDiary"${diaryOff ? ' style="display:none"' : ''}>📖 My Diary</button>
             <button class="agent-act-btn" type="button" id="actWhisper">💌 Love Note</button>
             <button class="agent-act-btn" type="button" id="actSurprise">🎁 Surprises</button>
             <button class="agent-act-btn" type="button" id="actMusic">🎵 Play Song</button>
-            <button class="agent-act-btn" type="button" id="actChat">💬 Chat / Q&A</button>
           </div>
         </div>
       </div>
@@ -97,13 +125,7 @@
     const badgeEl = document.getElementById('agentBadge');
     const ambientTipEl = document.getElementById('agentAmbientTip');
 
-    // Render Avatar
     renderAvatar(avatarHost, cfg);
-
-    if (C.planner && C.planner.enabled === false) {
-      const pBtn = document.getElementById('actPlan');
-      if (pBtn) pBtn.style.display = 'none';
-    }
 
     // Sparkle Particles Loop
     setInterval(() => {
@@ -113,17 +135,21 @@
 
     // State
     let isBubbleOpen = false;
-    let tourIndex = -1;
+    let steps = [];
+    let tourIndex = -1;          // -1 = no journey running
     let activeSpotlight = null;
+    let spotRestore = null;
+    let view = 'menu';
+    let chatLog = [];
 
-    // Play Sound Helper
+    /* ---------- sound ---------- */
     function playChime() {
       if (!cfg.sound) return;
       if (!window.AudioContext && !window.webkitAudioContext) return;
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (ctx.state === 'suspended') ctx.resume();
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -139,7 +165,7 @@
       } catch (e) { }
     }
 
-    // Toggle Bubble
+    /* ---------- bubble open / close ---------- */
     function openBubble() {
       bubbleWin.classList.add('open');
       isBubbleOpen = true;
@@ -147,22 +173,15 @@
       hideAmbientTip();
       playChime();
     }
-
-    function closeBubble() {
+    function closeBubble() {                 // keeps a running journey so she can come back to it
       bubbleWin.classList.remove('open');
       isBubbleOpen = false;
-      stopTour();
     }
-
     function toggleBubble() {
       if (isBubbleOpen) closeBubble();
       else openBubble();
     }
-
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeBubble();
-    });
+    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeBubble(); });
 
     // Touch & Mouse Dragging Physics
     let isDragging = false;
@@ -172,6 +191,7 @@
 
     charWrap.addEventListener('mousedown', onDragStart);
     charWrap.addEventListener('touchstart', onDragStart, { passive: false });
+    charWrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBubble(); } });
 
     function onDragStart(e) {
       if (e.target.closest('.agent-b-close')) return;
@@ -180,35 +200,28 @@
       dragDistance = 0;
       startX = evt.clientX;
       startY = evt.clientY;
-
       const rect = container.getBoundingClientRect();
       initialLeft = rect.left;
       initialTop = rect.top;
-
       window.addEventListener('mousemove', onDragMove);
       window.addEventListener('mouseup', onDragEnd);
       window.addEventListener('touchmove', onDragMove, { passive: false });
       window.addEventListener('touchend', onDragEnd);
     }
-
     function onDragMove(e) {
       if (!isDragging) return;
       const evt = e.touches ? e.touches[0] : e;
       const dx = evt.clientX - startX;
       const dy = evt.clientY - startY;
       dragDistance = Math.hypot(dx, dy);
-
       if (dragDistance > 5) {
         if (e.cancelable) e.preventDefault();
         container.style.right = 'auto';
         container.style.bottom = 'auto';
-        const newLeft = Math.max(10, Math.min(window.innerWidth - 85, initialLeft + dx));
-        const newTop = Math.max(10, Math.min(window.innerHeight - 85, initialTop + dy));
-        container.style.left = newLeft + 'px';
-        container.style.top = newTop + 'px';
+        container.style.left = Math.max(10, Math.min(window.innerWidth - 85, initialLeft + dx)) + 'px';
+        container.style.top = Math.max(10, Math.min(window.innerHeight - 85, initialTop + dy)) + 'px';
       }
     }
-
     function onDragEnd() {
       if (!isDragging) return;
       isDragging = false;
@@ -216,11 +229,9 @@
       window.removeEventListener('mouseup', onDragEnd);
       window.removeEventListener('touchmove', onDragMove);
       window.removeEventListener('touchend', onDragEnd);
-
       if (dragDistance < 6) {
         toggleBubble();
       } else {
-        // Save dragged position
         try {
           const rect = container.getBoundingClientRect();
           localStorage.setItem('ifraAgentPos', JSON.stringify({ x: rect.left, y: rect.top }));
@@ -228,272 +239,508 @@
       }
     }
 
-    // Auto welcome bubble on first arrival
-    setTimeout(() => {
-      const rose = document.getElementById('roseScreen');
-      if (!rose || rose.style.display === 'none' || rose.classList.contains('hide')) {
-        openBubble();
-      } else {
-        // Wait until rose screen is tapped
-        const onRoseDone = () => {
-          setTimeout(openBubble, 1200);
-          rose.removeEventListener('click', onRoseDone);
-        };
-        rose.addEventListener('click', onRoseDone);
-      }
-    }, 2400);
-
-    // Guided Tour Feature
-    const tourList = (cfg.tour && cfg.tour.length) ? cfg.tour : [
-      { id: 'intro', target: '.card', title: 'Welcome, Ifra 🌹', text: 'This whole website was created with endless love by Tayyab, just for you! Every word, song, and memory here belongs to your heart.' },
-      { id: 'playlist', target: '.song-section', title: 'Our Romantic Playlist 🎶', text: 'Listen to sweet songs together while you browse! You can switch tracks anytime from the playlist dropdown.' },
-      { id: 'letter', target: '#letter', title: 'The Unfolding Love Letter 💌', text: 'A letter that opens slowly and gently, just like how love blossoms deeper and more beautiful each passing day.' },
-      { id: 'remind', target: '#remindBtn', title: 'Birthday Reminders 🎂', text: 'Tap this button once to turn on birthday reminders! Your phone will get sweet countdown notifications as your big day approaches.' },
-      { id: 'gallery', target: '.gallery-section', title: 'Our Memories Gallery 📸', text: 'A glimpse of precious moments. Tap "Open Full Gallery" to see all photos and sweet captions full-screen!' },
-      { id: 'envelopes', target: '.letters-section', title: 'Open When Letters 💌', text: 'Whenever you feel happy, sad, or miss him, open the envelope meant for your heart right now.' },
-      { id: 'surprises', target: '.surprises-section', title: 'Little Surprises 🎁', text: 'Scratch cards with love coupons, your flower bouquet, funny riddles, and sweet quizzes! Every single tile hides a treat.' },
-      { id: 'games', target: '.tile-grid.three', title: 'Play Together 🎮', text: 'Mini-games made for you two! Catch hearts, race the GT-R R34, and beat each other\'s scores!' },
-      { id: 'proposal', target: '.proposal-section', title: 'One Last Thing... 💍', text: 'There is a question that comes straight from his heart. When you are ready, tap inside!' }
-    ];
-
-    function startTour() {
-      tourIndex = 0;
-      actionsGrid.style.display = 'none';
-      showTourStep(tourIndex);
-    }
-
-    function showTourStep(idx) {
-      if (idx < 0 || idx >= tourList.length) {
-        stopTour();
-        return;
-      }
-      tourIndex = idx;
-      const step = tourList[idx];
-
-      // Clean old spotlight
-      if (activeSpotlight) {
-        activeSpotlight.classList.remove('agent-tour-spotlight');
-        activeSpotlight = null;
-      }
-
-      // Find target element
-      const targetEl = document.querySelector(step.target);
-      if (targetEl) {
-        targetEl.classList.add('agent-tour-spotlight');
-        activeSpotlight = targetEl;
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      speechEl.innerHTML = `<b>${escapeHtml(step.title)}</b><br><br>${escapeHtml(step.text)}`;
-
-      dynamicEl.innerHTML = `
-        <div class="agent-tour-bar">
-          <span class="agent-tour-step">Step ${idx + 1} of ${tourList.length}</span>
-          <div class="agent-tour-ctrls">
-            ${idx > 0 ? '<button class="agent-tour-btn" id="tourPrev">⬅️ Back</button>' : ''}
-            <button class="agent-tour-btn next" id="tourNext">${idx < tourList.length - 1 ? 'Next ➡️' : 'Finish ✨'}</button>
-            <button class="agent-tour-btn" id="tourExit">✕ Exit</button>
-          </div>
-        </div>
-      `;
-
-      playChime();
-
-      document.getElementById('tourNext').onclick = () => {
-        if (tourIndex < tourList.length - 1) showTourStep(tourIndex + 1);
-        else stopTour();
-      };
-      if (document.getElementById('tourPrev')) {
-        document.getElementById('tourPrev').onclick = () => showTourStep(tourIndex - 1);
-      }
-      document.getElementById('tourExit').onclick = stopTour;
-    }
-
-    function stopTour() {
-      if (activeSpotlight) {
-        activeSpotlight.classList.remove('agent-tour-spotlight');
-        activeSpotlight = null;
-      }
+    /* ---------- tiny view helpers ---------- */
+    function E(s) { return escapeHtml(s); }
+    function fmt(t) { return Brain ? Brain.html(t) : E(t); }
+    function say(html) { speechEl.innerHTML = html; }
+    function setView(v) { view = v; bubbleWin.setAttribute('data-view', v); }
+    function showMenu() {
+      clearSpotlight();
       tourIndex = -1;
+      setView('menu');
       dynamicEl.innerHTML = '';
       actionsGrid.style.display = 'grid';
-      speechEl.innerHTML = escapeHtml(cfg.welcomeMsg);
+      const resume = G.step > 0 && !G.completed;
+      document.getElementById('actTour').textContent = resume ? '✨ Continue the Journey' : (G.completed ? '✨ Take the Journey Again' : '✨ Show Me Around');
+      say(E(cfg.welcomeMsg));
+    }
+    function hideMenu() { actionsGrid.style.display = 'none'; }
+    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    /* ---------- spotlight on the part of the page we are talking about ---------- */
+    function clearSpotlight() {
+      if (activeSpotlight) {
+        activeSpotlight.classList.remove('agent-tour-spotlight');
+        if (spotRestore !== null) activeSpotlight.style.position = spotRestore;
+      }
+      activeSpotlight = null; spotRestore = null;
+    }
+    function findTarget(sel) {
+      if (!sel) return null;
+      const list = Array.isArray(sel) ? sel : [sel];
+      for (const s of list) { try { const el = document.querySelector(s); if (el) return el; } catch (e) { } }
+      return null;
+    }
+    function spotlight(sel) {
+      clearSpotlight();
+      const el = findTarget(sel);
+      if (!el) return null;
+      if (getComputedStyle(el).position === 'static') { spotRestore = el.style.position; el.style.position = 'relative'; }
+      el.classList.add('agent-tour-spotlight');
+      activeSpotlight = el;
+      try { el.scrollIntoView({ behavior: LITE_MODE ? 'auto' : 'smooth', block: 'center' }); } catch (e) { }
+      return el;
     }
 
-    document.getElementById('actTour').onclick = startTour;
+    /* ---------- running a "try it" button, then coming back afterwards ---------- */
+    let backTimer = null;
+    function watchReturn(onBack) {
+      clearInterval(backTimer);
+      let sawOpen = false, quiet = 0, ticks = 0;
+      backTimer = setInterval(() => {
+        ticks++;
+        const open = Brain && Brain.overlayOpen();
+        if (open) { sawOpen = true; quiet = 0; }
+        else quiet++;
+        if ((sawOpen && quiet >= 2) || (!sawOpen && ticks >= 8) || ticks > 1200) {
+          clearInterval(backTimer);
+          onBack();
+        }
+      }, 700);
+    }
+    function doAct(act, fromStep) {
+      if (!Brain) return;
+      if (act === 'next') { nextStep(); return; }
+      if (act === 'tour') { startJourney(); return; }
+      if (act === 'whisper') { whisper(); return; }
+      if (act.indexOf('goto:') === 0) { gotoSection(act.slice(5)); return; }
+      if (act.indexOf('tiles:') === 0) { showDirectory(act.slice(6)); return; }
+      if (act.indexOf('ask:') === 0) { askTayyab(act.slice(4)); return; }
+      const r = Brain.run(act);
+      if (r === 'modal') {
+        closeBubble();
+        watchReturn(() => {
+          if (tourIndex >= 0 && fromStep) {
+            showAmbientTip('Welcome back! Tap me to continue the tour ✨');
+          } else {
+            showAmbientTip('Anything else? I’m right here 🌸');
+          }
+        });
+      } else if (r === 'ok' && fromStep) {
+        // an inline action (play, switch look...): keep the bubble open
+      } else if (r === false) {
+        toastSay('Hmm, I can’t find that on this page right now. 🌸');
+      }
+    }
+    function toastSay(t) {
+      const n = document.createElement('div'); n.className = 'ag-note'; n.textContent = t;
+      dynamicEl.appendChild(n); setTimeout(() => n.remove(), 3500);
+    }
+    function askTayyab(q) {
+      try { if (typeof writebackPrefill !== 'undefined') writebackPrefill = 'A question for you, Tayyab: ' + q + '\n'; } catch (e) { }
+      doAct('tile:writeback', false);
+    }
 
-    // Love Notes Feature
+    /* ===============================================================
+       WELCOME (right after she taps the rose)
+       =============================================================== */
+    let welcomeEl = null;
+    function greetingByTime() {
+      const h = new Date().getHours();
+      return h < 5 ? 'It’s late, and you’re still here with me 🌙' : h < 12 ? 'A soft good morning to you ☀️' : h < 17 ? 'A gentle afternoon for you 🌤️' : h < 21 ? 'A calm evening, just for you 🌆' : 'A quiet night, just for you 🌙';
+    }
+    function insideChips() {
+      const chips = [];
+      if (!Brain) return chips;
+      const secs = Brain.sections();
+      const has = id => secs.some(s => s.id === id);
+      const songs = (C.songs || []).filter(s => s && s.file).length;
+      if (songs) chips.push(['🎶', songs + (songs === 1 ? ' song' : ' songs')]);
+      const env = document.querySelectorAll('.envelope').length;
+      if (env) chips.push(['💌', env + (env === 1 ? ' letter' : ' letters')]);
+      const st = Brain.tiles('surprises').length;
+      if (st) chips.push(['🎁', st + ' surprises']);
+      const pg = Brain.tiles('play').length;
+      if (pg) chips.push(['🎮', pg + (pg === 1 ? ' game' : ' games')]);
+      if (has('diary')) chips.push(['📖', 'your diary']);
+      if (has('planner')) chips.push(['📅', 'plan a date']);
+      return chips.slice(0, 6);
+    }
+    function showWelcome() {
+      if (welcomeEl || cfg.welcomeScreen === false) { return false; }
+      const title = (returning && G.visits > 1 ? cfg.welcomeBackTitle : cfg.welcomeTitle).replace(/\{name\}/g, HER);
+      const resume = G.step > 0 && !G.completed;
+      const first = !returning;
+      const chips = insideChips().map(c => `<span class="agw-chip"><i>${c[0]}</i>${E(c[1])}</span>`).join('');
+      const primary = resume ? '✨ Continue where I left off' : (G.completed ? '✨ Take the journey again' : '✨ Show me around');
+      welcomeEl = document.createElement('div');
+      welcomeEl.className = 'agent-welcome';
+      welcomeEl.setAttribute('role', 'dialog');
+      welcomeEl.setAttribute('aria-modal', 'true');
+      welcomeEl.setAttribute('aria-label', 'Welcome');
+      welcomeEl.innerHTML = `
+        <div class="agw-card">
+          <div class="agw-av" id="agwAv"><div class="agw-halo"></div><div class="agw-avhost" id="agwAvHost"></div></div>
+          <h2 class="agw-title">${E(title)}</h2>
+          <p class="agw-time">${E(greetingByTime())}</p>
+          <p class="agw-msg" id="agwMsg"></p>
+          ${first && chips ? `<div class="agw-inside"><span class="agw-lbl">Inside, you’ll find</span><div class="agw-chips">${chips}</div></div>` : ''}
+          <div class="agw-btns">
+            <button type="button" class="agw-go" id="agwGo">${primary}</button>
+            <button type="button" class="agw-skip" id="agwSkip">${first ? 'I’ll explore on my own' : 'Not now'}</button>
+          </div>
+          <p class="agw-foot">${E(AGENT_FIRST)} · your little guide</p>
+        </div>`;
+      document.body.appendChild(welcomeEl);
+      renderAvatar(welcomeEl.querySelector('#agwAvHost'), cfg);
+      requestAnimationFrame(() => welcomeEl && welcomeEl.classList.add('show'));
+      playChime();
+      try { if (typeof burstCenter === 'function' && !LITE_MODE) burstCenter(14); } catch (e) { }
+
+      // the one orchestrated moment: the message types itself out
+      const msgEl = welcomeEl.querySelector('#agwMsg');
+      const text = returning && !resume
+        ? 'It’s so good to see you again. Come in, the roses are still here. If you want, I can show you anything you missed. 🌸'
+        : resume ? 'Welcome back! We stopped in the middle of the journey. Shall we carry on from there? 🌸' : cfg.welcomeMsg;
+      if (LITE_MODE) msgEl.textContent = text;
+      else {
+        let i = 0; const step = Math.max(1, Math.round(text.length / 70));
+        (function type() {
+          if (!welcomeEl) return;
+          i += step; msgEl.textContent = text.slice(0, i);
+          if (i < text.length) setTimeout(type, 28);
+        })();
+      }
+
+      const go = welcomeEl.querySelector('#agwGo'), skip = welcomeEl.querySelector('#agwSkip');
+      function leave(cb) {
+        if (!welcomeEl) return;
+        const w = welcomeEl; welcomeEl = null;
+        w.classList.remove('show'); w.classList.add('out');
+        document.removeEventListener('keydown', onKey, true);
+        setTimeout(() => { w.remove(); if (cb) cb(); }, LITE_MODE ? 0 : 380);
+      }
+      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); leave(afterSkip); } }
+      function afterSkip() {
+        showAmbientTip(first ? 'I’m here if you want a tour. Just tap me 🌸' : 'Tap me anytime 🌸');
+      }
+      go.onclick = () => leave(() => { openBubble(); startJourney(); });
+      skip.onclick = () => leave(afterSkip);
+      document.addEventListener('keydown', onKey, true);
+      setTimeout(() => { try { go.focus({ preventScroll: true }); } catch (e) { } }, 450);
+      return true;
+    }
+
+    // wait for the rose to be tapped, let the card appear, then welcome her
+    (function waitForRose() {
+      let seenAt = 0, tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        let opened = false;
+        try { opened = (typeof roseOpened !== 'undefined') ? !!roseOpened : false; } catch (e) { }
+        const rose = document.getElementById('roseScreen');
+        if (!rose) opened = true;
+        if (opened && !seenAt) seenAt = Date.now();
+        if (opened && Date.now() - seenAt >= (rose ? 4300 : 800)) {
+          clearInterval(iv);
+          const shown = showWelcome();
+          if (!shown) setTimeout(() => { if (!isBubbleOpen) openBubble(); }, 600);
+          else if (cfg.autoStartTour && !returning) { /* handled by her tapping the big button; kept for admin flag */ }
+        }
+        if (tries > 3000) clearInterval(iv);
+      }, 400);
+    })();
+
+    /* ===============================================================
+       THE JOURNEY (section by section, with a little survey)
+       =============================================================== */
+    function legacySteps() {
+      return (cfg.tour || []).filter(s => s && s.target).map((s, i) => ({
+        id: s.id || ('stop' + i), icon: '✨', sel: s.target, title: s.title || 'Stop ' + (i + 1), what: s.text || '', how: [], tip: '', q: '', opts: [], ask: []
+      }));
+    }
+    function loadSteps() {
+      if (cfg.useCustomTour && cfg.tour && cfg.tour.length) return legacySteps();
+      return Brain ? Brain.sections() : legacySteps();
+    }
+
+    function startJourney(from) {
+      steps = loadSteps();
+      if (!steps.length) { say(E('There is nothing to show yet.')); return; }
+      if (!isBubbleOpen) openBubble();
+      let i = (typeof from === 'number') ? from : (G.step > 0 && !G.completed && G.step < steps.length ? G.step : 0);
+      if (G.completed && typeof from !== 'number') { i = 0; G.completed = false; G.done = {}; G.react = {}; G.answers = {}; }
+      hideMenu();
+      showStep(i);
+    }
+    function gotoSection(id) {
+      steps = loadSteps();
+      const i = steps.findIndex(s => s.id === id);
+      if (i < 0) return;
+      if (!isBubbleOpen) openBubble();
+      hideMenu();
+      showStep(i, true);
+    }
+
+    function showStep(idx, single) {
+      if (idx < 0) idx = 0;
+      if (idx >= steps.length) { showSummary(); return; }
+      tourIndex = idx; setView('step');
+      const st = steps[idx];
+      if (!single) { G.step = idx; saveG(); }
+      spotlight(st.sel);
+
+      const pct = Math.round(((idx + 1) / steps.length) * 100);
+      say(`
+        ${single ? '' : `<div class="ag-prog" aria-label="Step ${idx + 1} of ${steps.length}"><span style="width:${pct}%"></span></div>`}
+        <div class="ag-h"><span class="ag-ic">${E(st.icon || '✨')}</span><b>${E(st.title)}</b></div>
+        <p class="ag-what">${E(st.what)}</p>
+        ${st.how && st.how.length ? `<details class="ag-how"><summary>How it works</summary><ol>${st.how.map(h => `<li>${E(h)}</li>`).join('')}</ol></details>` : ''}
+        ${st.tip ? `<p class="ag-tip">💡 ${E(st.tip)}</p>` : ''}
+      `);
+
+      let ctl = '';
+      if (cfg.survey !== false && st.q) {
+        const prev = G.answers[st.id];
+        ctl += `<div class="ag-q"><div class="ag-qt">${E(st.q)}</div><div class="ag-opts">${(st.opts || []).map((o, k) =>
+          `<button type="button" class="ag-opt${prev === o.l ? ' on' : ''}" data-k="${k}">${E(o.l)}</button>`).join('')}</div><div class="ag-reply" id="agReply"></div></div>`;
+      }
+      if (cfg.survey !== false && !single) {
+        const r = G.react[st.id];
+        ctl += `<div class="ag-react"><span>How does this part feel?</span>${[['😍', 'love'], ['🙂', 'ok'], ['😐', 'meh']].map(x =>
+          `<button type="button" class="ag-rx${r === x[1] ? ' on' : ''}" data-r="${x[1]}" aria-label="${x[1]}">${x[0]}</button>`).join('')}</div>`;
+      }
+      ctl += `<div class="agent-tour-bar">
+          ${single ? '' : `<span class="agent-tour-step">Step ${idx + 1} of ${steps.length}</span>`}
+          <div class="agent-tour-ctrls">
+            ${single ? `<button class="agent-tour-btn" id="tourMenu">⬅️ Menu</button>` : (idx > 0 ? '<button class="agent-tour-btn" id="tourPrev">⬅️</button>' : '')}
+            <button class="agent-tour-btn" id="tourPeek" title="Hide me for a moment">👁 Peek</button>
+            ${single ? '' : `<button class="agent-tour-btn next" id="tourNext">${idx < steps.length - 1 ? 'Next ➡️' : 'Finish ✨'}</button>`}
+            <button class="agent-tour-btn" id="tourExit">✕</button>
+          </div>
+        </div>`;
+      dynamicEl.innerHTML = ctl;
+      playChime();
+
+      dynamicEl.querySelectorAll('.ag-opt').forEach(b => {
+        b.onclick = () => {
+          const o = st.opts[Number(b.dataset.k)];
+          if (!o) return;
+          G.answers[st.id] = o.l; G.done[st.id] = 1; saveG();
+          dynamicEl.querySelectorAll('.ag-opt').forEach(x => x.classList.toggle('on', x === b));
+          if (o.reply) { const rp = document.getElementById('agReply'); if (rp) rp.textContent = o.reply; }
+          if (o.act) doAct(o.act, !single);
+        };
+      });
+      dynamicEl.querySelectorAll('.ag-rx').forEach(b => {
+        b.onclick = () => {
+          G.react[st.id] = b.dataset.r; G.done[st.id] = 1; saveG();
+          dynamicEl.querySelectorAll('.ag-rx').forEach(x => x.classList.toggle('on', x === b));
+          try { if (b.dataset.r === 'love' && typeof burstOn === 'function' && !LITE_MODE) burstOn(b, 6); } catch (e) { }
+        };
+      });
+      const byId = id => document.getElementById(id);
+      if (byId('tourNext')) byId('tourNext').onclick = nextStep;
+      if (byId('tourPrev')) byId('tourPrev').onclick = () => showStep(tourIndex - 1);
+      if (byId('tourMenu')) byId('tourMenu').onclick = showMenu;
+      byId('tourExit').onclick = () => { showMenu(); };
+      byId('tourPeek').onclick = () => { closeBubble(); showAmbientTip('Tap me when you’re ready to go on ✨'); };
+      const body = document.getElementById('agentBody'); if (body) body.scrollTop = 0;
+    }
+    function nextStep() {
+      const st = steps[tourIndex];
+      if (st) { G.done[st.id] = 1; saveG(); }
+      showStep(tourIndex + 1);
+    }
+
+    function showSummary() {
+      clearSpotlight();
+      tourIndex = steps.length;
+      setView('summary');
+      G.completed = true; G.step = 0; saveG();
+      const loved = steps.filter(s => G.react[s.id] === 'love');
+      const explored = steps.filter(s => G.done[s.id]).length;
+      const chips = loved.map(s => `<span class="ag-chip-on">${E(s.icon || '')} ${E(s.title)}</span>`).join('');
+      say(`
+        <div class="ag-h"><span class="ag-ic">🎉</span><b>We made it, ${E(HER)}!</b></div>
+        <p class="ag-what">${E(cfg.finalNote)}</p>
+        <p class="ag-what">You explored <b>${explored}</b> of <b>${steps.length}</b> places.${loved.length ? ' You loved:' : ''}</p>
+        ${chips ? `<div class="ag-chips">${chips}</div>` : ''}
+      `);
+      dynamicEl.innerHTML = `
+        <div class="ag-opts col">
+          ${cfg.survey !== false ? `<button type="button" class="ag-opt solid" id="sumSend">💌 Tell ${E('Tayyab')} what I loved</button>` : ''}
+          <button type="button" class="ag-opt" id="sumChat">💬 Ask me anything</button>
+          <button type="button" class="ag-opt" id="sumAgain">🔁 Start again</button>
+          <button type="button" class="ag-opt" id="sumClose">✕ Done</button>
+        </div>`;
+      playChime();
+      try { if (typeof burstCenter === 'function' && !LITE_MODE) burstCenter(16); } catch (e) { }
+      const by = id => document.getElementById(id);
+      if (by('sumSend')) by('sumSend').onclick = () => {
+        const L = steps.filter(s => G.react[s.id] === 'love').map(s => s.title);
+        const M = steps.filter(s => G.react[s.id] === 'meh').map(s => s.title);
+        let msg = 'I just finished the tour you made for me 🌹\n';
+        msg += L.length ? 'The parts I loved most: ' + L.join(', ') + '.\n' : 'I explored everything, and it was beautiful.\n';
+        if (M.length) msg += 'Not my favourite: ' + M.join(', ') + '.\n';
+        msg += 'Thank you for all of this 💕';
+        try { if (typeof writebackPrefill !== 'undefined') writebackPrefill = msg; } catch (e) { }
+        doAct('tile:writeback', false);
+      };
+      by('sumChat').onclick = () => showChat();
+      by('sumAgain').onclick = () => { G.done = {}; G.react = {}; G.answers = {}; G.completed = false; saveG(); startJourney(0); };
+      by('sumClose').onclick = () => { showMenu(); closeBubble(); };
+    }
+
+    /* ===============================================================
+       JUMP TO A SECTION + TILE DIRECTORY
+       =============================================================== */
+    function showJump() {
+      clearSpotlight(); steps = loadSteps(); setView('jump');
+      hideMenu();
+      say(`<div class="ag-h"><span class="ag-ic">🧭</span><b>Where would you like to go?</b></div><p class="ag-what">Pick a place and I’ll take you there and explain it.</p>`);
+      dynamicEl.innerHTML = `<div class="ag-jump">${steps.map(s => `<button type="button" class="ag-j" data-id="${E(s.id)}"><span>${E(s.icon || '✨')}</span>${E(s.title)}</button>`).join('')}</div>
+        <div class="agent-tour-bar"><div class="agent-tour-ctrls"><button class="agent-tour-btn" id="jumpBack">⬅️ Menu</button></div></div>`;
+      dynamicEl.querySelectorAll('.ag-j').forEach(b => { b.onclick = () => gotoSection(b.dataset.id); });
+      document.getElementById('jumpBack').onclick = showMenu;
+    }
+    function showDirectory(group) {
+      if (!Brain) return;
+      clearSpotlight(); setView('dir'); hideMenu();
+      const list = Brain.tiles(group === 'play' ? 'play' : 'surprises');
+      say(`<div class="ag-h"><span class="ag-ic">${group === 'play' ? '🎮' : '🎁'}</span><b>${group === 'play' ? 'The games' : 'The little surprises'}</b></div><p class="ag-what">Tap “Try” to open any of them.</p>`);
+      dynamicEl.innerHTML = `<div class="ag-dir">${list.map(t => `
+        <div class="ag-d"><div class="ag-dh"><span>${E(t.icon)}</span><b>${E(t.label)}${t.locked ? ' 🔒' : ''}</b><button type="button" class="ag-try" data-a="${E(t.act)}">Try</button></div><p>${E(t.line)}</p></div>`).join('')}</div>
+        <div class="agent-tour-bar"><div class="agent-tour-ctrls"><button class="agent-tour-btn" id="dirBack">⬅️ Back</button></div></div>`;
+      dynamicEl.querySelectorAll('.ag-try').forEach(b => { b.onclick = () => doAct(b.dataset.a, false); });
+      document.getElementById('dirBack').onclick = () => { if (tourIndex >= 0) showStep(tourIndex); else showMenu(); };
+    }
+
+    /* ===============================================================
+       CHAT
+       =============================================================== */
+    function showChat(first) {
+      clearSpotlight(); setView('chat'); hideMenu();
+      if (!chatLog.length) {
+        chatLog.push({ who: 'bot', t: 'Ask me anything about this website, ' + HER + '! How things work, where to find them, what Tayyab can see… I’ll show you, too. 🌸' });
+      }
+      say(`<div class="ag-h"><span class="ag-ic">💬</span><b>Chat with ${E(AGENT_FIRST)}</b></div>`);
+      const sug = Brain ? Brain.suggestions(tourIndex >= 0 && steps[tourIndex] ? steps[tourIndex].id : '') : [];
+      dynamicEl.innerHTML = `
+        <div class="ag-log" id="agLog" aria-live="polite"></div>
+        <div class="agent-chat-chips" id="agChips">${sug.map(q => `<span class="agent-chip" role="button" tabindex="0">${E(q)}</span>`).join('')}</div>
+        <div class="agent-chat-input-bar">
+          <input type="text" class="agent-chat-input" id="agentChatInp" placeholder="Ask a question..." autocomplete="off" maxlength="200" />
+          <button class="agent-chat-send" id="agentChatBtn" type="button" aria-label="Send">➤</button>
+        </div>
+        <button class="agent-tour-btn" id="agentChatBack" style="align-self:flex-start;margin-top:6px;">⬅️ Menu</button>`;
+      renderLog();
+      const inp = document.getElementById('agentChatInp');
+      document.getElementById('agentChatBtn').onclick = () => send(inp.value);
+      inp.onkeydown = e => { if (e.key === 'Enter') send(inp.value); };
+      document.querySelectorAll('#agChips .agent-chip').forEach(c => {
+        c.onclick = () => send(c.textContent);
+        c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); send(c.textContent); } };
+      });
+      document.getElementById('agentChatBack').onclick = () => { if (tourIndex >= 0) showStep(tourIndex); else showMenu(); };
+      if (typeof first === 'string' && first) send(first);
+    }
+    function renderLog() {
+      const log = document.getElementById('agLog'); if (!log) return;
+      log.innerHTML = chatLog.slice(-14).map((m, i, arr) => {
+        let h = `<div class="ag-m ${m.who}"><div class="ag-mb">${m.who === 'me' ? E(m.t) : fmt(m.t)}</div>`;
+        if (m.who === 'bot' && m.acts && m.acts.length) h += `<div class="ag-ma">${m.acts.map(a => `<button type="button" class="ag-act" data-a="${E(a.a)}">${E(a.l)}</button>`).join('')}</div>`;
+        if (m.who === 'bot' && m.f && m.f.length && i === arr.length - 1) h += `<div class="ag-mf">${m.f.map(q => `<span class="agent-chip" role="button" tabindex="0">${E(q)}</span>`).join('')}</div>`;
+        return h + '</div>';
+      }).join('');
+      log.querySelectorAll('.ag-act').forEach(b => { b.onclick = () => doAct(b.dataset.a, false); });
+      log.querySelectorAll('.ag-mf .agent-chip').forEach(c => { c.onclick = () => send(c.textContent); });
+      log.scrollTop = log.scrollHeight;
+      const body = document.getElementById('agentBody'); if (body) body.scrollTop = body.scrollHeight;
+    }
+    function send(raw) {
+      const val = String(raw || '').trim();
+      const inp = document.getElementById('agentChatInp');
+      if (!val) return;
+      if (inp) inp.value = '';
+      chatLog.push({ who: 'me', t: val });
+      chatLog.push({ who: 'typing', t: '' });
+      renderTyping();
+      setTimeout(() => {
+        chatLog = chatLog.filter(m => m.who !== 'typing');
+        let r = null;
+        try { r = Brain ? Brain.answer(val, { sections: steps.length ? steps : undefined }) : null; } catch (e) { r = null; }
+        if (!r) r = { t: 'Everything on this website was crafted just for you, ' + HER + '. ❤️', acts: [], f: [] };
+        chatLog.push({ who: 'bot', t: r.t, acts: r.acts, f: r.f });
+        renderLog(); playChime();
+      }, LITE_MODE ? 60 : 420);
+    }
+    function renderTyping() {
+      const log = document.getElementById('agLog'); if (!log) return;
+      renderLog();
+      log.insertAdjacentHTML('beforeend', '<div class="ag-m bot"><div class="ag-mb ag-dots"><i></i><i></i><i></i></div></div>');
+      log.scrollTop = log.scrollHeight;
+    }
+
+    /* ---------- menu buttons ---------- */
+    document.getElementById('actTour').onclick = () => startJourney();
+    document.getElementById('actChat').onclick = () => showChat();
+    document.getElementById('actJump').onclick = showJump;
+
     const notesList = (cfg.notes && cfg.notes.length) ? cfg.notes : [
       "Ifra, your smile makes even the dullest days feel like pure magic ✨",
       "You are Tayyab's favourite thought, morning and night 🌙",
-      "Did you know? In a room full of art, he would still only look at you 🎨❤️",
       "Your laugh is Tayyab's absolute favourite sound in the whole universe 🎶",
-      "No distance can ever weaken a bond written by Allah 🤲💖",
-      "You are not just his choice, you are his answered prayer 🌹",
-      "Every love song he listens to reminds him of you 🎵"
+      "You are not just his choice, you are his answered prayer 🌹"
     ];
-
-    document.getElementById('actPlan').onclick = () => {
-      closeBubble();
-      if (typeof window.openFun === 'function') window.openFun('calendar');
-    };
-
-    const dBtn = document.getElementById('actDiary');
-    if (dBtn) {
-      dBtn.onclick = () => {
-        closeBubble();
-        if (typeof window.openFun === 'function') window.openFun('diary');
-      };
-    }
-
-    document.getElementById('actWhisper').onclick = () => {
+    function whisper() {
       const note = notesList[Math.floor(Math.random() * notesList.length)];
-      speechEl.innerHTML = `💌 <b>A whisper from Tayyab:</b><br><br>“${escapeHtml(note)}”`;
+      say(`💌 <b>A whisper from Tayyab:</b><br><br>“${E(note)}”`);
       burstHearts(charWrap);
       playChime();
-    };
+    }
 
-    // Surprises Guide
+    document.getElementById('actPlan').onclick = () => { closeBubble(); doAct('tile:calendar', false); };
+    const dBtn = document.getElementById('actDiary');
+    if (dBtn) dBtn.onclick = () => { closeBubble(); doAct('click:#diaryBtn', false); };
+    document.getElementById('actWhisper').onclick = whisper;
     document.getElementById('actSurprise').onclick = () => {
       const s = document.querySelector('.surprises-section');
       if (s) s.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      speechEl.innerHTML = `🎁 <b>Little Surprises:</b><br><br>Every tile hides a wonder made just for you! You can scratch cards, build your bouquet, or test the love meter ✨ Tap any tile to open!`;
-      playChime();
+      showDirectory('surprises');
     };
-
-    // Music Player Control
     document.getElementById('actMusic').onclick = () => {
-      const music = document.getElementById('bgMusic');
-      const toggle = document.getElementById('musicToggle');
-      if (toggle) toggle.click();
-      else if (music) {
-        if (music.paused) music.play();
-        else music.pause();
-      }
-      speechEl.innerHTML = `🎶 <b>Playing romantic melody!</b><br><br>Close your eyes and listen to the song... You can change songs in Our Playlist anytime! 💕`;
+      if (Brain) Brain.run('player:play');
+      say(`🎶 <b>Music time!</b><br><br>Tap the song name in the player to choose another one. 💕`);
       playChime();
     };
 
-    // Chat / Q&A Feature
-    const qaList = (cfg.qa && cfg.qa.length) ? cfg.qa : [
-      { q: "Who made this website?", a: "Tayyab made this website with all his heart, pouring hours of love and care just to make you smile! ❤️" },
-      { q: "How much does Tayyab love me?", a: "To infinity and beyond, more than words, stars, or numbers could ever count! 💖" },
-      { q: "What should I explore first?", a: "Start with our playlist 🎶, read the unfolding letter 💌, and then scratch some surprise cards 🎁!" },
-      { q: "What if I miss him?", a: "Open the 'Open When You Miss Me' envelope 💌 or send him a message through the 'Write Back To Me' surprise tile!" },
-      { q: "Tell me a secret 🤫", a: "Shh... Tap the red heart near the letter multiple times to reveal secret messages! 💖" }
-    ];
-
-    document.getElementById('actChat').onclick = () => {
-      actionsGrid.style.display = 'none';
-      speechEl.innerHTML = `💬 <b>Chat with ${escapeHtml(cfg.name)}:</b><br>Ask me anything or choose a question below:`;
-
-      const chipsHtml = qaList.map((item, i) => `<span class="agent-chip" data-idx="${i}">${escapeHtml(item.q)}</span>`).join('');
-
-      dynamicEl.innerHTML = `
-        <div class="agent-chat-wrap">
-          <div class="agent-chat-chips">${chipsHtml}</div>
-          <div class="agent-chat-input-bar">
-            <input type="text" class="agent-chat-input" id="agentChatInp" placeholder="Ask a question..." />
-            <button class="agent-chat-send" id="agentChatBtn" type="button">➤</button>
-          </div>
-          <button class="agent-tour-btn" id="agentChatBack" style="align-self:flex-start;margin-top:4px;">⬅️ Back to Menu</button>
-        </div>
-      `;
-
-      dynamicEl.querySelectorAll('.agent-chip').forEach(chip => {
-        chip.onclick = () => {
-          const idx = Number(chip.dataset.idx);
-          const item = qaList[idx];
-          if (item) {
-            speechEl.innerHTML = `<b>You asked:</b> “${escapeHtml(item.q)}”<br><br>✨ ${escapeHtml(item.a)}`;
-            playChime();
-          }
-        };
-      });
-
-      const inp = document.getElementById('agentChatInp');
-      const send = document.getElementById('agentChatBtn');
-
-      const doSend = () => {
-        const val = (inp.value || '').trim();
-        if (!val) return;
-        inp.value = '';
-
-        // Match against QA
-        const found = qaList.find(x => x.q.toLowerCase().includes(val.toLowerCase()) || val.toLowerCase().includes(x.q.toLowerCase()));
-        let answer = '';
-        if (found) {
-          answer = found.a;
-        } else if (/love|pyaar|mohabbat/i.test(val)) {
-          answer = "Tayyab's love for you is pure, eternal, and growing every single second! 💖";
-        } else if (/miss|yaad/i.test(val)) {
-          answer = "He misses you more than words can say. Open an envelope in 'Open When' or leave him a note in Write Back! 💌";
-        } else if (/who are you|naam|name/i.test(val)) {
-          answer = `I am ${cfg.name}, your little AI companion created by Tayyab to bring a warm smile to your face! 🌹`;
-        } else {
-          answer = `Everything on this website was crafted just for you, Ifra. If there's ever anything in your heart, Tayyab is always right by your side! ❤️`;
-        }
-
-        speechEl.innerHTML = `<b>You:</b> “${escapeHtml(val)}”<br><br>✨ ${escapeHtml(answer)}`;
-        playChime();
-      };
-
-      send.onclick = doSend;
-      inp.onkeydown = (e) => { if (e.key === 'Enter') doSend(); };
-
-      document.getElementById('agentChatBack').onclick = () => {
-        dynamicEl.innerHTML = '';
-        actionsGrid.style.display = 'grid';
-        speechEl.innerHTML = escapeHtml(cfg.welcomeMsg);
-      };
-    };
-
-    // Ambient Scroll Tips
+    /* ---------- ambient tips (scrolling near sections) ---------- */
     if (cfg.ambientTips && 'IntersectionObserver' in window) {
       const shownTips = new Set();
       const tips = [
-        { sel: '.gallery-section', text: '📸 Tap any photo to see it full-screen with sweet memories!' },
-        { sel: '.letters-section', text: '💌 Open an envelope whenever your heart needs a little extra warmth!' },
-        { sel: '.surprises-section', text: '🎁 Every tile hides a surprise! Try Scratch Cards or Make a Wish ✨' },
-        { sel: '.tile-grid.three', text: '🎮 Mini games to play together! Catch Hearts is super fun!' },
-        { sel: '.proposal-section', text: '💍 One special question waiting straight from his heart...' }
+        { sel: '.gallery-section', text: '📸 Tap any photo to see it full-screen with its caption!' },
+        { sel: '.letters-section', text: '💌 Open an envelope whenever your heart needs a little warmth!' },
+        { sel: '.surprises-section', text: '🎁 Every tile hides a surprise. Want me to explain them?' },
+        { sel: '.tile-grid.three', text: '🎮 Mini games to play together. Wins earn ⭐ for your Love Jar!' },
+        { sel: '.proposal-section', text: '💍 One special question is waiting here for you…' }
       ];
-
       const obs = new IntersectionObserver((entries) => {
-        if (isBubbleOpen) return;
+        if (isBubbleOpen || welcomeEl) return;
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             const tip = tips.find(t => entry.target.matches(t.sel));
-            if (tip && !shownTips.has(tip.sel)) {
-              shownTips.add(tip.sel);
-              showAmbientTip(tip.text);
-            }
+            if (tip && !shownTips.has(tip.sel)) { shownTips.add(tip.sel); showAmbientTip(tip.text); }
           }
         });
       }, { threshold: 0.35 });
-
-      tips.forEach(t => {
-        const el = document.querySelector(t.sel);
-        if (el) obs.observe(el);
-      });
+      tips.forEach(t => { const el = document.querySelector(t.sel); if (el) obs.observe(el); });
     }
-
+    let tipTimer = null;
     function showAmbientTip(text) {
-      if (isBubbleOpen) return;
-      ambientTipEl.innerHTML = `<span>✨ ${escapeHtml(text)}</span>`;
+      if (isBubbleOpen || welcomeEl) return;
+      ambientTipEl.innerHTML = `<span>✨ ${E(text)}</span>`;
       ambientTipEl.style.display = 'block';
       badgeEl.style.display = 'flex';
-      setTimeout(hideAmbientTip, 6500);
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(hideAmbientTip, 6500);
     }
+    function hideAmbientTip() { ambientTipEl.style.display = 'none'; }
+    ambientTipEl.onclick = () => { hideAmbientTip(); openBubble(); };
 
-    function hideAmbientTip() {
-      ambientTipEl.style.display = 'none';
-    }
-
-    ambientTipEl.onclick = () => {
-      hideAmbientTip();
-      openBubble();
-    };
+    showMenu();
+    // let other scripts (or the console) talk to the guide
+    window.CuteAgent = { open: openBubble, close: closeBubble, tour: startJourney, chat: showChat, jump: showJump };
   }
 
   // Helper: Create Floating Sparkle

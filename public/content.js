@@ -9,6 +9,15 @@ window.SITE_CONTENT = {
     "ambientTips": true,
     "sound": true,
     "position": "bottom-right",
+    "welcomeScreen": true,
+    "welcomeTitle": "Assalam-o-Alaikum, {name} 🌹",
+    "welcomeBackTitle": "Welcome back, {name} 💕",
+    "survey": true,
+    "smallTalk": true,
+    "autoStartTour": false,
+    "useCustomTour": false,
+    "finalNote": "That was everything! Thank you for letting me show you around. Tayyab put his whole heart into every corner of this place. 🌹",
+    "sections": [],
     "tour": [
       { "id": "intro", "target": ".card", "title": "Welcome, Ifra 🌹", "text": "This whole website was created with endless love by Tayyab, just for you! Every word, song, and memory here belongs to your heart." },
       { "id": "playlist", "target": ".song-section", "title": "Our Romantic Playlist 🎶", "text": "Listen to sweet songs together while you browse! You can switch tracks anytime from the playlist dropdown." },
@@ -35,7 +44,7 @@ window.SITE_CONTENT = {
       { "q": "How much does Tayyab love me?", "a": "To infinity and beyond, more than words, stars, or numbers could ever count! 💖" },
       { "q": "What should I explore first?", "a": "Start with our playlist 🎶, read the unfolding letter 💌, and then scratch some surprise cards 🎁!" },
       { "q": "What if I miss him?", "a": "Open the 'Open When You Miss Me' envelope 💌 or send him a message through the 'Write Back To Me' surprise tile!" },
-      { "q": "Tell me a secret 🤫", "a": "Shh... Tap the red heart near the letter multiple times to reveal secret messages! 💖" },
+      { "q": "Tell me a secret 🤫", "k": "secret, hidden, raaz", "a": "Shh... Press and hold the big red heart for about three seconds, and don't let go. A secret message will appear! 💖" },
       { "q": "Why are you so cute?", "a": "Because I was designed to match a tiny fraction of Ifra's cuteness! 🥰✨" }
     ]
   },
