@@ -137,6 +137,7 @@
     let isBubbleOpen = false;
     let steps = [];
     let tourIndex = -1;          // -1 = no journey running
+    let stage = null, stageRaf = 0, stageTarget = null, titleTimer = 0, stageSingle = false, lastClip = '';
     let activeSpotlight = null;
     let spotRestore = null;
     let view = 'menu';
@@ -245,6 +246,7 @@
     function say(html) { speechEl.innerHTML = html; }
     function setView(v) { view = v; bubbleWin.setAttribute('data-view', v); }
     function showMenu() {
+      stageHide();
       clearSpotlight();
       tourIndex = -1;
       setView('menu');
@@ -271,14 +273,14 @@
       for (const s of list) { try { const el = document.querySelector(s); if (el) return el; } catch (e) { } }
       return null;
     }
-    function spotlight(sel) {
+    function spotlight(sel, block) {
       clearSpotlight();
       const el = findTarget(sel);
       if (!el) return null;
       if (getComputedStyle(el).position === 'static') { spotRestore = el.style.position; el.style.position = 'relative'; }
       el.classList.add('agent-tour-spotlight');
       activeSpotlight = el;
-      try { el.scrollIntoView({ behavior: LITE_MODE ? 'auto' : 'smooth', block: 'center' }); } catch (e) { }
+      try { el.scrollIntoView({ behavior: LITE_MODE ? 'auto' : 'smooth', block: block || 'center' }); } catch (e) { }
       return el;
     }
 
@@ -304,18 +306,17 @@
       if (act === 'tour') { startJourney(); return; }
       if (act === 'whisper') { whisper(); return; }
       if (act.indexOf('goto:') === 0) { gotoSection(act.slice(5)); return; }
-      if (act.indexOf('tiles:') === 0) { showDirectory(act.slice(6)); return; }
+      if (act.indexOf('tiles:') === 0) { stageHide(); if (!isBubbleOpen) openBubble(); showDirectory(act.slice(6)); return; }
       if (act.indexOf('ask:') === 0) { askTayyab(act.slice(4)); return; }
       const r = Brain.run(act);
       if (r === 'modal') {
-        closeBubble();
-        watchReturn(() => {
-          if (tourIndex >= 0 && fromStep) {
-            showAmbientTip('Welcome back! Tap me to continue the tour ✨');
-          } else {
-            showAmbientTip('Anything else? I’m right here 🌸');
-          }
-        });
+        if (stage) {                                  // the cinematic stage steps aside, then comes back by itself
+          stage.classList.add('away');
+          watchReturn(() => { if (stage) { stage.classList.remove('away'); lastClip = ''; } });
+        } else {
+          closeBubble();
+          watchReturn(() => showAmbientTip('Anything else? I’m right here 🌸'));
+        }
       } else if (r === 'ok' && fromStep) {
         // an inline action (play, switch look...): keep the bubble open
       } else if (r === false) {
@@ -414,7 +415,7 @@
       function afterSkip() {
         showAmbientTip(first ? 'I’m here if you want a tour. Just tap me 🌸' : 'Tap me anytime 🌸');
       }
-      go.onclick = () => leave(() => { openBubble(); startJourney(); });
+      go.onclick = () => leave(() => { startJourney(); });
       skip.onclick = () => leave(afterSkip);
       document.addEventListener('keydown', onKey, true);
       setTimeout(() => { try { go.focus({ preventScroll: true }); } catch (e) { } }, 450);
@@ -456,86 +457,172 @@
 
     function startJourney(from) {
       steps = loadSteps();
-      if (!steps.length) { say(E('There is nothing to show yet.')); return; }
-      if (!isBubbleOpen) openBubble();
+      if (!steps.length) { openBubble(); say(E('There is nothing to show yet.')); return; }
       let i = (typeof from === 'number') ? from : (G.step > 0 && !G.completed && G.step < steps.length ? G.step : 0);
       if (G.completed && typeof from !== 'number') { i = 0; G.completed = false; G.done = {}; G.react = {}; G.answers = {}; }
-      hideMenu();
+      closeBubble(); hideMenu();
       showStep(i);
     }
     function gotoSection(id) {
       steps = loadSteps();
       const i = steps.findIndex(s => s.id === id);
       if (i < 0) return;
-      if (!isBubbleOpen) openBubble();
-      hideMenu();
+      closeBubble(); hideMenu();
       showStep(i, true);
+    }
+
+    /* ---------- the cinematic stage ---------- */
+    const canClip = !!(window.CSS && CSS.supports && CSS.supports('clip-path', "path(evenodd, 'M0 0H10V10H0Z')"));
+    function buildStage() {
+      if (stage) return stage;
+      stage = document.createElement('div');
+      stage.className = 'agc';
+      stage.setAttribute('role', 'dialog');
+      stage.setAttribute('aria-label', 'Guided journey');
+      stage.innerHTML = `
+        <div class="agc-dim"></div>
+        <div class="agc-bar top"><div class="agc-film" id="agcFilm"></div><button type="button" class="agc-x" id="agcExit" aria-label="Leave the journey">✕</button></div>
+        <div class="agc-bar bot">
+          <button type="button" class="agc-nav" id="agcPrev">‹ Back</button>
+          <button type="button" class="agc-nav peek" id="agcPeek" aria-label="Hide the caption to see the page">👁</button>
+          <button type="button" class="agc-nav go" id="agcNext">Next ›</button>
+        </div>
+        <div class="agc-card" id="agcCard" aria-hidden="true"><span class="agc-ch" id="agcChT"></span><div class="agc-line"></div><div class="agc-ico" id="agcIco"></div><div class="agc-big" id="agcBig"></div></div>
+        <div class="agc-panel wait" id="agcPanel"></div>
+        <button type="button" class="agc-resume" id="agcResume">▶ Continue</button>`;
+      document.body.appendChild(stage);
+      container.classList.add('agc-hide');
+      closeBubble(); hideAmbientTip();
+      requestAnimationFrame(() => requestAnimationFrame(() => stage && stage.classList.add('on')));
+      const q = s => stage.querySelector(s);
+      q('#agcExit').onclick = () => { stageHide(); openBubble(); showMenu(); };
+      q('#agcPrev').onclick = () => { if (tourIndex > 0) showStep(tourIndex - 1, stageSingle); };
+      q('#agcNext').onclick = () => { if (stageSingle) { stageHide(); openBubble(); showMenu(); } else nextStep(); };
+      q('#agcPeek').onclick = () => stage.classList.add('peek');
+      q('#agcResume').onclick = () => stage.classList.remove('peek');
+      q('#agcCard').onclick = () => endTitle();
+      document.addEventListener('keydown', stageKeys, true);
+      stageRaf = requestAnimationFrame(tickStage);
+      return stage;
+    }
+    function stageKeys(e) {
+      if (!stage || stage.classList.contains('away')) return;
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (e.key === 'ArrowRight') { const n = stage.querySelector('#agcNext'); if (n) n.click(); }
+      else if (e.key === 'ArrowLeft') { const p = stage.querySelector('#agcPrev'); if (p && !p.hidden) p.click(); }
+      else if (e.key === 'Escape') { e.stopPropagation(); stage.querySelector('#agcExit').click(); }
+    }
+    function stageHide() {
+      cancelAnimationFrame(stageRaf); clearTimeout(titleTimer);
+      document.removeEventListener('keydown', stageKeys, true);
+      container.classList.remove('agc-hide');
+      if (!stage) return;
+      const st = stage; stage = null; stageTarget = null; lastClip = '';
+      clearSpotlight();
+      st.classList.remove('on');
+      setTimeout(() => st.remove(), LITE_MODE ? 0 : 500);
+    }
+    // the dim layer has a hole exactly where the section is: the rest of the page falls into shadow
+    function tickStage() {
+      if (!stage) return;
+      const dim = stage.firstElementChild;
+      let clip = 'none';
+      if (canClip && stage.dataset.mode === 'step' && !stage.classList.contains('away') && stageTarget && stageTarget.isConnected) {
+        const r = stageTarget.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight, p = 10;
+        const x = Math.max(0, r.left - p), y = Math.max(0, r.top - p), x2 = Math.min(W, r.right + p), y2 = Math.min(H, r.bottom + p);
+        if (x2 - x > 24 && y2 - y > 24) {
+          const rad = Math.min(18, (x2 - x) / 2, (y2 - y) / 2);
+          clip = `path(evenodd,'M0 0H${W}V${H}H0Z M${x + rad} ${y}H${x2 - rad}A${rad} ${rad} 0 0 1 ${x2} ${y + rad}V${y2 - rad}A${rad} ${rad} 0 0 1 ${x2 - rad} ${y2}H${x + rad}A${rad} ${rad} 0 0 1 ${x} ${y2 - rad}V${y + rad}A${rad} ${rad} 0 0 1 ${x + rad} ${y}Z')`;
+        }
+      }
+      if (clip !== lastClip) { dim.style.clipPath = clip; dim.style.webkitClipPath = clip; lastClip = clip; }
+      stageRaf = requestAnimationFrame(tickStage);
+    }
+    function endTitle() {
+      if (!stage) return;
+      clearTimeout(titleTimer);
+      stage.querySelector('#agcCard').classList.remove('show');
+      stage.querySelector('#agcPanel').classList.remove('wait');
     }
 
     function showStep(idx, single) {
       if (idx < 0) idx = 0;
       if (idx >= steps.length) { showSummary(); return; }
+      buildStage();
+      stage.dataset.mode = 'step';
+      stage.classList.remove('away', 'peek', 'end');
+      stageSingle = !!single;
       tourIndex = idx; setView('step');
       const st = steps[idx];
       if (!single) { G.step = idx; saveG(); }
-      spotlight(st.sel);
+      const q = s => stage.querySelector(s);
 
-      const pct = Math.round(((idx + 1) / steps.length) * 100);
-      say(`
-        ${single ? '' : `<div class="ag-prog" aria-label="Step ${idx + 1} of ${steps.length}"><span style="width:${pct}%"></span></div>`}
-        <div class="ag-h"><span class="ag-ic">${E(st.icon || '✨')}</span><b>${E(st.title)}</b></div>
-        <p class="ag-what">${E(st.what)}</p>
-        ${st.how && st.how.length ? `<details class="ag-how"><summary>How it works</summary><ol>${st.how.map(h => `<li>${E(h)}</li>`).join('')}</ol></details>` : ''}
-        ${st.tip ? `<p class="ag-tip">💡 ${E(st.tip)}</p>` : ''}
-      `);
+      // top bar: a strip of film frames, one per chapter
+      q('#agcFilm').innerHTML = single ? '' : steps.map((s, i) => `<i class="${i < idx ? 'done' : i === idx ? 'now' : ''}"></i>`).join('');
+      const prev = q('#agcPrev'), next = q('#agcNext');
+      prev.hidden = single || idx === 0;
+      next.textContent = single ? 'Done' : (idx < steps.length - 1 ? 'Next ›' : 'Finish ✦');
 
-      let ctl = '';
+      // the page behind: scroll the section to the top and let the shadow fall around it
+      stageTarget = spotlight(st.sel, 'start');
+      lastClip = '';
+
+      // chapter title card, then the caption
+      const card = q('#agcCard'), panel = q('#agcPanel');
+      clearTimeout(titleTimer);
+      q('#agcChT').textContent = single ? 'A closer look' : 'Chapter ' + (idx + 1);
+      q('#agcIco').textContent = st.icon || '✨';
+      q('#agcBig').textContent = st.title;
+      panel.innerHTML = panelHtml(st, idx, single);
+      panel.scrollTop = 0;
+      if (LITE_MODE) { card.classList.remove('show'); panel.classList.remove('wait'); }
+      else {
+        panel.classList.add('wait');
+        card.classList.remove('show'); void card.offsetWidth; card.classList.add('show');
+        titleTimer = setTimeout(endTitle, 1700);
+      }
+      playChime();
+      wirePanel(panel, st, single);
+      const av = panel.querySelector('#agcAvHost'); if (av) renderAvatar(av, cfg);
+    }
+    function panelHtml(st, idx, single) {
+      let h = `<div class="agc-top"><div class="agc-av"><div class="agc-avhost" id="agcAvHost"></div></div>
+        <div class="agc-hd"><span class="agc-sub">${single ? 'A closer look' : 'Chapter ' + (idx + 1) + ' of ' + steps.length}</span>
+        <h3 class="agc-title">${E(st.icon || '')} ${E(st.title)}</h3></div></div>
+        <p class="agc-what">${E(st.what)}</p>`;
+      if (st.how && st.how.length) h += `<details class="agc-how"><summary>How it works</summary><ol>${st.how.map(x => `<li>${E(x)}</li>`).join('')}</ol></details>`;
+      if (st.tip) h += `<p class="agc-tip">${E(st.tip)}</p>`;
       if (cfg.survey !== false && st.q) {
         const prev = G.answers[st.id];
-        ctl += `<div class="ag-q"><div class="ag-qt">${E(st.q)}</div><div class="ag-opts">${(st.opts || []).map((o, k) =>
-          `<button type="button" class="ag-opt${prev === o.l ? ' on' : ''}" data-k="${k}">${E(o.l)}</button>`).join('')}</div><div class="ag-reply" id="agReply"></div></div>`;
+        h += `<div class="agc-q"><div class="agc-qt">${E(st.q)}</div>${(st.opts || []).map((o, k) =>
+          `<button type="button" class="agc-opt${prev === o.l ? ' on' : ''}" data-k="${k}"><span>${E(o.l)}</span><i>›</i></button>`).join('')}<div class="agc-reply" id="agReply"></div></div>`;
       }
       if (cfg.survey !== false && !single) {
         const r = G.react[st.id];
-        ctl += `<div class="ag-react"><span>How does this part feel?</span>${[['😍', 'love'], ['🙂', 'ok'], ['😐', 'meh']].map(x =>
-          `<button type="button" class="ag-rx${r === x[1] ? ' on' : ''}" data-r="${x[1]}" aria-label="${x[1]}">${x[0]}</button>`).join('')}</div>`;
+        h += `<div class="agc-react"><span>How does this part feel?</span>${[['😍', 'love'], ['🙂', 'ok'], ['😐', 'meh']].map(x =>
+          `<button type="button" class="agc-rx${r === x[1] ? ' on' : ''}" data-r="${x[1]}" aria-label="${x[1]}">${x[0]}</button>`).join('')}</div>`;
       }
-      ctl += `<div class="agent-tour-bar">
-          ${single ? '' : `<span class="agent-tour-step">Step ${idx + 1} of ${steps.length}</span>`}
-          <div class="agent-tour-ctrls">
-            ${single ? `<button class="agent-tour-btn" id="tourMenu">⬅️ Menu</button>` : (idx > 0 ? '<button class="agent-tour-btn" id="tourPrev">⬅️</button>' : '')}
-            <button class="agent-tour-btn" id="tourPeek" title="Hide me for a moment">👁 Peek</button>
-            ${single ? '' : `<button class="agent-tour-btn next" id="tourNext">${idx < steps.length - 1 ? 'Next ➡️' : 'Finish ✨'}</button>`}
-            <button class="agent-tour-btn" id="tourExit">✕</button>
-          </div>
-        </div>`;
-      dynamicEl.innerHTML = ctl;
-      playChime();
-
-      dynamicEl.querySelectorAll('.ag-opt').forEach(b => {
+      return h;
+    }
+    function wirePanel(panel, st, single) {
+      panel.querySelectorAll('.agc-opt').forEach(b => {
         b.onclick = () => {
           const o = st.opts[Number(b.dataset.k)];
           if (!o) return;
           G.answers[st.id] = o.l; G.done[st.id] = 1; saveG();
-          dynamicEl.querySelectorAll('.ag-opt').forEach(x => x.classList.toggle('on', x === b));
-          if (o.reply) { const rp = document.getElementById('agReply'); if (rp) rp.textContent = o.reply; }
-          if (o.act) doAct(o.act, !single);
+          panel.querySelectorAll('.agc-opt').forEach(x => x.classList.toggle('on', x === b));
+          const rp = panel.querySelector('#agReply');
+          if (rp) rp.textContent = o.reply || '';
+          if (o.act) doAct(o.act, true);
         };
       });
-      dynamicEl.querySelectorAll('.ag-rx').forEach(b => {
+      panel.querySelectorAll('.agc-rx').forEach(b => {
         b.onclick = () => {
           G.react[st.id] = b.dataset.r; G.done[st.id] = 1; saveG();
-          dynamicEl.querySelectorAll('.ag-rx').forEach(x => x.classList.toggle('on', x === b));
+          panel.querySelectorAll('.agc-rx').forEach(x => x.classList.toggle('on', x === b));
           try { if (b.dataset.r === 'love' && typeof burstOn === 'function' && !LITE_MODE) burstOn(b, 6); } catch (e) { }
         };
       });
-      const byId = id => document.getElementById(id);
-      if (byId('tourNext')) byId('tourNext').onclick = nextStep;
-      if (byId('tourPrev')) byId('tourPrev').onclick = () => showStep(tourIndex - 1);
-      if (byId('tourMenu')) byId('tourMenu').onclick = showMenu;
-      byId('tourExit').onclick = () => { showMenu(); };
-      byId('tourPeek').onclick = () => { closeBubble(); showAmbientTip('Tap me when you’re ready to go on ✨'); };
-      const body = document.getElementById('agentBody'); if (body) body.scrollTop = 0;
     }
     function nextStep() {
       const st = steps[tourIndex];
@@ -544,29 +631,40 @@
     }
 
     function showSummary() {
-      clearSpotlight();
+      buildStage();
+      clearSpotlight(); stageTarget = null; lastClip = '';
       tourIndex = steps.length;
       setView('summary');
       G.completed = true; G.step = 0; saveG();
+      stage.dataset.mode = 'end';
+      stage.classList.remove('away', 'peek');
+      stage.classList.add('end');
+      const q = s => stage.querySelector(s);
+      q('#agcFilm').innerHTML = steps.map(() => '<i class="done"></i>').join('');
+      clearTimeout(titleTimer); q('#agcCard').classList.remove('show');
       const loved = steps.filter(s => G.react[s.id] === 'love');
       const explored = steps.filter(s => G.done[s.id]).length;
-      const chips = loved.map(s => `<span class="ag-chip-on">${E(s.icon || '')} ${E(s.title)}</span>`).join('');
-      say(`
-        <div class="ag-h"><span class="ag-ic">🎉</span><b>We made it, ${E(HER)}!</b></div>
-        <p class="ag-what">${E(cfg.finalNote)}</p>
-        <p class="ag-what">You explored <b>${explored}</b> of <b>${steps.length}</b> places.${loved.length ? ' You loved:' : ''}</p>
-        ${chips ? `<div class="ag-chips">${chips}</div>` : ''}
-      `);
-      dynamicEl.innerHTML = `
-        <div class="ag-opts col">
-          ${cfg.survey !== false ? `<button type="button" class="ag-opt solid" id="sumSend">💌 Tell ${E('Tayyab')} what I loved</button>` : ''}
-          <button type="button" class="ag-opt" id="sumChat">💬 Ask me anything</button>
-          <button type="button" class="ag-opt" id="sumAgain">🔁 Start again</button>
-          <button type="button" class="ag-opt" id="sumClose">✕ Done</button>
+      const panel = q('#agcPanel');
+      panel.classList.remove('wait');
+      panel.innerHTML = `
+        <div class="agc-fin">
+          <div class="agc-av big"><div class="agc-avhost" id="agcAvHost"></div></div>
+          <p class="agc-sub">The end, and only the beginning</p>
+          <h3 class="agc-finT">We made it, ${E(HER)}</h3>
+          <p class="agc-what">${E(cfg.finalNote)}</p>
+          <p class="agc-count2">You explored <b>${explored}</b> of <b>${steps.length}</b> places${loved.length ? ' and loved' : ''}</p>
+          ${loved.length ? `<div class="agc-credits">${loved.map(s => `<span>${E(s.icon || '')} ${E(s.title)}</span>`).join('')}</div>` : ''}
+          <div class="agc-fbtns">
+            ${cfg.survey !== false ? `<button type="button" class="agc-opt solid" id="sumSend"><span>💌 Tell Tayyab what I loved</span></button>` : ''}
+            <button type="button" class="agc-opt" id="sumChat"><span>💬 Ask me anything</span><i>›</i></button>
+            <button type="button" class="agc-opt" id="sumAgain"><span>🔁 Watch the journey again</span><i>›</i></button>
+            <button type="button" class="agc-opt" id="sumClose"><span>✕ Close</span></button>
+          </div>
         </div>`;
+      renderAvatar(panel.querySelector('#agcAvHost'), cfg);
       playChime();
-      try { if (typeof burstCenter === 'function' && !LITE_MODE) burstCenter(16); } catch (e) { }
-      const by = id => document.getElementById(id);
+      try { if (typeof burstCenter === 'function' && !LITE_MODE) burstCenter(18); } catch (e) { }
+      const by = id => panel.querySelector('#' + id);
       if (by('sumSend')) by('sumSend').onclick = () => {
         const L = steps.filter(s => G.react[s.id] === 'love').map(s => s.title);
         const M = steps.filter(s => G.react[s.id] === 'meh').map(s => s.title);
@@ -575,18 +673,18 @@
         if (M.length) msg += 'Not my favourite: ' + M.join(', ') + '.\n';
         msg += 'Thank you for all of this 💕';
         try { if (typeof writebackPrefill !== 'undefined') writebackPrefill = msg; } catch (e) { }
-        doAct('tile:writeback', false);
+        doAct('tile:writeback', true);
       };
-      by('sumChat').onclick = () => showChat();
-      by('sumAgain').onclick = () => { G.done = {}; G.react = {}; G.answers = {}; G.completed = false; saveG(); startJourney(0); };
-      by('sumClose').onclick = () => { showMenu(); closeBubble(); };
+      by('sumChat').onclick = () => { stageHide(); openBubble(); showChat(); };
+      by('sumAgain').onclick = () => { G.done = {}; G.react = {}; G.answers = {}; G.completed = false; saveG(); showStep(0); };
+      by('sumClose').onclick = () => { stageHide(); showMenu(); };
     }
 
     /* ===============================================================
        JUMP TO A SECTION + TILE DIRECTORY
        =============================================================== */
     function showJump() {
-      clearSpotlight(); steps = loadSteps(); setView('jump');
+      stageHide(); clearSpotlight(); steps = loadSteps(); setView('jump');
       hideMenu();
       say(`<div class="ag-h"><span class="ag-ic">🧭</span><b>Where would you like to go?</b></div><p class="ag-what">Pick a place and I’ll take you there and explain it.</p>`);
       dynamicEl.innerHTML = `<div class="ag-jump">${steps.map(s => `<button type="button" class="ag-j" data-id="${E(s.id)}"><span>${E(s.icon || '✨')}</span>${E(s.title)}</button>`).join('')}</div>
@@ -596,7 +694,7 @@
     }
     function showDirectory(group) {
       if (!Brain) return;
-      clearSpotlight(); setView('dir'); hideMenu();
+      stageHide(); clearSpotlight(); setView('dir'); hideMenu();
       const list = Brain.tiles(group === 'play' ? 'play' : 'surprises');
       say(`<div class="ag-h"><span class="ag-ic">${group === 'play' ? '🎮' : '🎁'}</span><b>${group === 'play' ? 'The games' : 'The little surprises'}</b></div><p class="ag-what">Tap “Try” to open any of them.</p>`);
       dynamicEl.innerHTML = `<div class="ag-dir">${list.map(t => `
@@ -610,7 +708,7 @@
        CHAT
        =============================================================== */
     function showChat(first) {
-      clearSpotlight(); setView('chat'); hideMenu();
+      stageHide(); clearSpotlight(); setView('chat'); hideMenu();
       if (!chatLog.length) {
         chatLog.push({ who: 'bot', t: 'Ask me anything about this website, ' + HER + '! How things work, where to find them, what Tayyab can see… I’ll show you, too. 🌸' });
       }
@@ -728,7 +826,7 @@
     }
     let tipTimer = null;
     function showAmbientTip(text) {
-      if (isBubbleOpen || welcomeEl) return;
+      if (isBubbleOpen || welcomeEl || stage) return;
       ambientTipEl.innerHTML = `<span>✨ ${E(text)}</span>`;
       ambientTipEl.style.display = 'block';
       badgeEl.style.display = 'flex';
