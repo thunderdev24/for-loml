@@ -52,12 +52,13 @@ export default async (req) => {
              (cleanPlan.note ? `💬 Note: “${cleanPlan.note}”` : '');
     }
 
-    const ok = await sendOwner(text, title || '🎮 Valorant / Date Plan from Ifra! 💖', {
+    const r = await sendOwner(text, title || '🎮 Valorant / Date Plan from Ifra! 💖', {
       tags: 'video_game,calendar,heart',
       priority: '4',
-      plan: cleanPlan
+      plan: cleanPlan,
+      detail: true
     });
-    return json({ ok: true, plan: cleanPlan, notified: ok });
+    return json({ ok: true, plan: cleanPlan, notified: r.ok, channels: { discord: r.discord, ntfy: r.ntfy, push: r.push } });
   }
 
   const diary = body.diary && typeof body.diary === 'object' ? body.diary : null;
@@ -89,12 +90,13 @@ export default async (req) => {
              `Read the full page in your admin panel 💖`;
     }
 
-    const ok = await sendOwner(text, title || `📖 Diary Page from Ifra: ${cleanEntry.title} 💖`, {
+    const r = await sendOwner(text, title || `📖 Diary Page from Ifra: ${cleanEntry.title} 💖`, {
       tags: 'book,heart,pencil2',
       priority: '4',
-      diary: cleanEntry
+      diary: cleanEntry,
+      detail: true
     });
-    return json({ ok: true, entry: cleanEntry, notified: ok });
+    return json({ ok: true, entry: cleanEntry, notified: r.ok, channels: { discord: r.discord, ntfy: r.ntfy, push: r.push } });
   }
 
   if (body.type === 'diary-unshare' && body.id) {
