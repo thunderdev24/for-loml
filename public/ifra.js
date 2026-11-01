@@ -2380,7 +2380,7 @@ FUN.calendar = (body, initialType) => {
       };
 
       try {
-        await fetch('/api/notify', {
+        const planRes = await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2390,12 +2390,15 @@ FUN.calendar = (body, initialType) => {
             plan: planData
           })
         });
+        if (!planRes.ok) throw new Error('notify ' + planRes.status);   // not saved: use the WhatsApp fallback below
+        let delivered = true;                                           // saved AND his phone was alerted?
+        try { const pj = await planRes.json(); if (pj && pj.notified === false) delivered = false; } catch (e) { }
 
         burstCenter(24);
 
-        const sTitle = esc(pCfg.successTitle || 'Plan Sent to Tayyab!');
-        const sSub = esc(pCfg.successSubtitle || 'Your plan has been sent straight to his phone and devices! 📲');
-        const sHint = esc(pCfg.successHint || 'He will receive an instant notification alert on his phone so you two can enjoy your time together! 💕');
+        const sTitle = esc(pCfg.successTitle || (delivered ? 'Plan Sent to Tayyab!' : 'Plan Saved!'));
+        const sSub = esc(delivered ? (pCfg.successSubtitle || 'Your plan has been sent straight to his phone and devices! 📲') : 'Your plan is saved in his planner 📅');
+        const sHint = esc(delivered ? (pCfg.successHint || 'He will receive an instant notification alert on his phone so you two can enjoy your time together! 💕') : 'His phone alert might arrive a little late, so give him a nudge on WhatsApp too to be sure 💕');
 
         body.innerHTML = `
           <div class="plan-success-wrap">
