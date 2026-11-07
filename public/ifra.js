@@ -1721,13 +1721,375 @@ function stopCineSong() {
   if (cineResume) { setTimeout(() => { music.play().catch(() => { }); }, 1500); cineResume = false; }
 }
 
+/* ---------- 🎤 LYRICS INSIDE THE CINEMATIC ----------
+   Reads the lyrics saved for the cinematic song (admin -> Songs -> that song -> Lyrics; lines like
+   [00:41.67] text  or  0:41 text, with the song's own time) and shows them in time with the music.
+   They start CINE_LYRIC_DELAY seconds after the cinematic begins (default 6), so the first line shown is
+   the first one at or after that moment. Optional setting: settings.cineLyricsDelay (seconds). */
+function parseLrc(src) {
+  return String(src || '').split(/\r?\n/).map(ln => {
+    const m = /^\s*\[?(\d+):(\d{1,2})(?:[.,]\d+)?\]?\s*(.*)$/.exec(ln);
+    if (!m) return null;
+    const f = /^\s*\[?\d+:\d{1,2}([.,]\d+)?/.exec(ln);
+    const frac = f && f[1] ? Number('0.' + f[1].slice(1)) : 0;
+    return { t: Number(m[1]) * 60 + Number(m[2]) + frac, l: m[3].replace(/<\d+:\d{1,2}(?:[.,]\d+)?>/g, '').replace(/\s+/g, ' ').trim() };
+  }).filter(Boolean).sort((a, b) => a.t - b.t);
+}
+function cineLyrics(delay) {
+  const base = f => String(f || '').split('/').pop();
+  const song = (SITE.songs || []).find(s => s && base(s.file) === base(CINE_SONG_FILE));
+  const all = parseLrc((song && song.lyricsText) || SITE.settings.cineLyricsText);
+  const from = CINE_SONG_START + delay - 1;   // first line shown = first one at/after (start + delay)
+  return all.filter(x => x.t >= from);
+}
+
+/* ---------- 🌹 CINEMATIC ROSE ----------
+   A real-looking rose, drawn on the same canvas as the heart (no images):
+   every petal is a curved, shaded 3D sheet (lit from the top-left, darker towards the
+   centre, glossy lip at the edge). The stem grows after the heart bursts, the bud opens
+   ring by ring while the flower turns slowly, then - at the very end - the petals let go
+   ONE BY ONE, flutter down and settle on the ground. */
+function makeCineRose(ctx, lite) {
+  const clamp = x => x < 0 ? 0 : x > 1 ? 1 : x;
+  const ease = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  /* timeline (seconds from the start of the cinematic) */
+  const R0 = 12.4,         // stem starts growing (embers are still fading)
+        BLOOM0 = 15.6,     // bud starts opening
+        BLOOM1 = 22.4,     // fully open
+        PULL0 = 24,        // camera pulls back
+        STARS0 = 24.5,     // shooting stars begin
+        SHED0 = 29.5,      // the first petal lets go
+        SHED_GAP = 2.7;    // ...and then one more every few seconds
+  const TAU = 0.36, CT = Math.cos(TAU), ST = Math.sin(TAU);   // camera looks slightly down on the flower
+  const NU = lite ? 4 : 9, NV = lite ? 4 : 8;                  // mesh detail of each petal
+  const LL = Math.hypot(-0.45, -0.55, 0.7), LX = -0.45 / LL, LY = -0.55 / LL, LZ = 0.7 / LL;   // light direction
+
+  /* petal rings: inner (tight, wrapped) -> outer (big, curling back) */
+  const RINGS = [
+    { n: 3, r0: 0.04, z0: 0.40, L: 0.62, wf: 0.64, a0: 0.10, cl: -0.80, op: 0.0, curl: 0.0, ruf: 0.012, ao: 0.60 },
+    { n: 4, r0: 0.12, z0: 0.32, L: 0.80, wf: 0.62, a0: 0.16, cl: -0.62, op: 0.16, curl: 0.3, ruf: 0.018, ao: 0.68 },
+    { n: 5, r0: 0.22, z0: 0.24, L: 0.98, wf: 0.60, a0: 0.22, cl: -0.44, op: 0.36, curl: 0.6, ruf: 0.024, ao: 0.76 },
+    { n: 6, r0: 0.32, z0: 0.16, L: 1.16, wf: 0.58, a0: 0.30, cl: -0.28, op: 0.62, curl: 1.0, ruf: 0.03, ao: 0.85 },
+    { n: 7, r0: 0.42, z0: 0.08, L: 1.32, wf: 0.56, a0: 0.38, cl: -0.12, op: 0.92, curl: 1.4, ruf: 0.035, ao: 0.93 },
+    { n: 8, r0: 0.52, z0: 0.00, L: 1.45, wf: 0.54, a0: 0.46, cl: 0.04, op: 1.25, curl: 1.8, ruf: 0.04, ao: 1.00 }
+  ];
+  const SEPAL = { n: 5, r0: 0.16, z0: 0.0, L: 1.25, wf: 0.3, a0: 0.5, cl: 0.25, op: 1.9, curl: 0, ruf: 0.01, ao: 1 };
+  const PETAL_TAB = [[44, 0, 8], [104, 3, 24], [160, 10, 38], [198, 28, 60], [226, 70, 98]];   // base -> glossy edge
+  const SEPAL_TAB = [[16, 58, 30], [32, 94, 50], [56, 134, 74], [82, 164, 94], [108, 184, 116]];
+
+  const jit = () => ({ l: 0.92 + Math.random() * 0.16, a: (Math.random() - 0.5) * 0.14, p: Math.random() * 6.28, az: (Math.random() - 0.5) * 0.25 });
+  RINGS.forEach(R => { R.d = []; for (let i = 0; i < R.n; i++) R.d.push(jit()); R.gone = []; });
+  SEPAL.d = []; for (let i = 0; i < SEPAL.n; i++) SEPAL.d.push(jit());
+  const ringAz = (R, k, i, yaw) => i * 6.2832 / R.n + k * 0.62 + yaw + R.d[i].az;
+
+  /* the order in which the petals let go: outer ring first, in a loose random order */
+  const queue = [];
+  [5, 4, 3].forEach(k => {
+    const ids = []; for (let i = 0; i < RINGS[k].n; i++) ids.push(i);
+    ids.sort(() => Math.random() - 0.5);
+    ids.forEach(i => queue.push({ k: k, i: i }));
+  });
+  queue.forEach((q, n) => { q.t = SHED0 + n * SHED_GAP; });
+  let sp = 0;
+  const falling = [];
+
+  /* ----- mesh of one petal (curved sheet): points land in GX/GY/GZ ----- */
+  const NP = (NU + 1) * (NV + 1);
+  const GX = new Float32Array(NP), GY = new Float32Array(NP), GZ = new Float32Array(NP);
+  const TX = new Float32Array(NP), TY = new Float32Array(NP), TZ = new Float32Array(NP), SX = new Float32Array(NP), SY = new Float32Array(NP);
+  const pr = new Float32Array(NV + 1), pz = new Float32Array(NV + 1);
+  function wid(v) {
+    if (v < 0.55) return 0.36 + 0.64 * Math.pow(v / 0.55, 0.85);
+    const q = (v - 0.55) / 0.45;
+    return Math.max(0.2, Math.sqrt(Math.max(0, 1 - q * q * q)));
+  }
+  function grid(P, d, o, az, sepal) {
+    const L = P.L * d.l, aEnd = lerp(P.cl, P.op, o) + d.a, a0 = P.a0 + d.a * 0.3;
+    const st = 3, dl = L / (NV * st);
+    let rho = P.r0, z = P.z0; pr[0] = rho; pz[0] = z;
+    for (let j = 1; j <= NV; j++) {
+      for (let s = 0; s < st; s++) {
+        const vm = (j - 1 + (s + 0.5) / st) / NV, a = a0 + (aEnd - a0) * Math.pow(vm, 1.6);
+        rho = Math.max(0.012, rho + Math.sin(a) * dl); z += Math.cos(a) * dl;
+      }
+      pr[j] = rho; pz[j] = z;
+    }
+    const cap = Math.PI / P.n * 1.8;
+    for (let iu = 0; iu <= NU; iu++) {
+      const w = -1 + 2 * iu / NU;
+      for (let iv = 0; iv <= NV; iv++) {
+        const v = iv / NV, hw = (sepal ? Math.max(0.05, 1 - 0.9 * v) : wid(v)) * P.wf * L;
+        const ang = az + w * Math.min(hw / Math.max(pr[iv], 0.07), cap);
+        const rr = pr[iv] + P.curl * o * w * w * v * v * 0.14 * L;                       // edges curl outward
+        const zz = pz[iv] + P.ruf * Math.sin(w * 2.7 + d.p) * v * v * (0.25 + 0.75 * o) * L;   // soft ruffle
+        const q = iu * (NV + 1) + iv;
+        GX[q] = rr * Math.cos(ang); GY[q] = rr * Math.sin(ang); GZ[q] = zz;
+      }
+    }
+  }
+
+  /* ----- shading + painter's sort ----- */
+  const quads = []; let qn = 0;
+  const rgb = [0, 0, 0];
+  function ramp(tab, v) {
+    const f = v * 4, i = Math.min(3, f | 0), t = f - i, a = tab[i], b = tab[i + 1];
+    rgb[0] = a[0] + (b[0] - a[0]) * t; rgb[1] = a[1] + (b[1] - a[1]) * t; rgb[2] = a[2] + (b[2] - a[2]) * t;
+  }
+  function emit(tab, ao, M, c, dx, dy, ox, oy, Rp) {
+    for (let q = 0; q < NP; q++) {
+      let x = GX[q], y = GY[q], z = GZ[q];
+      if (M) {
+        const rx = x - c[0], ry = y - c[1], rz = z - c[2];
+        x = c[0] + M[0] * rx + M[1] * ry + M[2] * rz; y = c[1] + M[3] * rx + M[4] * ry + M[5] * rz; z = c[2] + M[6] * rx + M[7] * ry + M[8] * rz;
+      }
+      TX[q] = x; TY[q] = y; TZ[q] = z;
+      SX[q] = ox + dx + x * Rp; SY[q] = oy + dy - (z * CT + y * ST) * Rp;
+    }
+    for (let iu = 0; iu < NU; iu++) {
+      for (let iv = 0; iv < NV; iv++) {
+        const a = iu * (NV + 1) + iv, b = a + NV + 1, c2 = a + 1, d2 = b + 1;
+        const ux = TX[b] + TX[d2] - TX[a] - TX[c2], uy = TY[b] + TY[d2] - TY[a] - TY[c2], uz = TZ[b] + TZ[d2] - TZ[a] - TZ[c2];
+        const vx = TX[c2] + TX[d2] - TX[a] - TX[b], vy = TY[c2] + TY[d2] - TY[a] - TY[b], vz = TZ[c2] + TZ[d2] - TZ[a] - TZ[b];
+        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const ln = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1; nx /= ln; ny /= ln; nz /= ln;
+        const diff = Math.abs(nx * LX + ny * LY + nz * LZ), nv = Math.abs(-ny * CT + nz * ST);
+        const vm = (iv + 0.5) / NV;
+        ramp(tab, vm);
+        const sh = (0.34 + 0.72 * diff) * ao * (0.5 + 0.5 * Math.min(1, vm * 1.4)), rim = Math.pow(1 - nv, 3) * 0.18;
+        const r = Math.min(255, rgb[0] * sh + rim * 70), g = Math.min(255, rgb[1] * sh + rim * 25), bl = Math.min(255, rgb[2] * sh + rim * 40);
+        const o = quads[qn] || (quads[qn] = {}); qn++;
+        o.x0 = SX[a]; o.y0 = SY[a]; o.x1 = SX[b]; o.y1 = SY[b]; o.x2 = SX[d2]; o.y2 = SY[d2]; o.x3 = SX[c2]; o.y3 = SY[c2];
+        o.d = ((TY[a] + TY[b] + TY[c2] + TY[d2]) * CT - (TZ[a] + TZ[b] + TZ[c2] + TZ[d2]) * ST) * 0.25;
+        o.c = 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (bl | 0) + ')';
+      }
+    }
+  }
+  function flush() {
+    if (!qn) return;
+    const arr = quads.slice(0, qn).sort((p, q) => q.d - p.d);   // far side first
+    ctx.lineWidth = 0.8; ctx.lineJoin = 'round';
+    for (let i = 0; i < arr.length; i++) {
+      const o = arr[i];
+      ctx.fillStyle = o.c; ctx.strokeStyle = o.c;
+      ctx.beginPath(); ctx.moveTo(o.x0, o.y0); ctx.lineTo(o.x1, o.y1); ctx.lineTo(o.x2, o.y2); ctx.lineTo(o.x3, o.y3); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    qn = 0;
+  }
+
+  /* ----- small 3x3 rotation helpers (for the falling petals) ----- */
+  const rotZ = a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+  const rotY = a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
+  const rotX = a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; };
+  function mul(A, B) {
+    const o = new Array(9);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o[r * 3 + c] = A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c];
+    return o;
+  }
+
+  /* ----- leaf with a serrated edge and veins ----- */
+  function leaf(x, y, a, len, w) {
+    if (len < 1) return;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    const N = 18, hwAt = s => w * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.75)), 0.9) * (1 - 0.15 * s);
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    for (let k = 1; k <= N; k++) { const s = k / N; ctx.lineTo(len * s, -hwAt(s) * (k % 2 ? 1 : 0.84)); }
+    for (let k = N - 1; k >= 0; k--) { const s = k / N; ctx.lineTo(len * s, hwAt(s) * (k % 2 ? 1 : 0.84)); }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, '#103f22'); g.addColorStop(0.5, '#256f3e'); g.addColorStop(1, '#3f9d5c');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(200,255,205,.30)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len * 0.93, 0);
+    for (let k = 1; k <= 4; k++) { const s = k * 0.2, h = hwAt(s) * 0.8; ctx.moveTo(len * s, 0); ctx.lineTo(len * (s + 0.12), -h); ctx.moveTo(len * s, 0); ctx.lineTo(len * (s + 0.12), h); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const motes = [], shots = [];
+  for (let i = 0; i < (lite ? 14 : 34); i++) motes.push({ ph: Math.random(), sp: 0.6 + Math.random() * 0.9, r: Math.random(), gold: Math.random() < 0.6, z: 1 + Math.random() * 1.6 });
+  let last = 0, nextShot = STARS0;
+
+  return function draw(t, W, H, S) {
+    const dt = Math.min(0.05, Math.max(0, t - last)); last = t;
+    if (t < R0 - 0.2) return;
+    const u = S, cx = W / 2, baseY = H * 0.74, stemH = H * 0.27;
+    const tg = t - R0;
+    const g = ease(tg / 3.6);                              // stem growth
+    const tb = clamp((t - BLOOM0) / (BLOOM1 - BLOOM0));    // bloom
+    const sc = 1 - 0.38 * ease((t - PULL0) / 3.4);         // camera pull-back
+    const sway = Math.sin(t * 1.1) * u * 0.3 * g;
+    const hx = cx + sway, hy = baseY - stemH * g;
+    const p1x = cx - u * 3.2 * g, p1y = baseY - stemH * g * 0.55;
+    const pt = s => [(1 - s) * (1 - s) * cx + 2 * (1 - s) * s * p1x + s * s * hx,
+                     (1 - s) * (1 - s) * baseY + 2 * (1 - s) * s * p1y + s * s * hy];
+    const size = (0.55 + 0.45 * (1 - Math.pow(1 - g, 3))) * (tb >= 1 ? 1 + 0.01 * Math.sin(t * 2) : 1);
+    const Rp = u * 4.6 * size, yaw = 0.1 * (t - R0);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = clamp(tg / 0.9);
+    ctx.translate(cx, baseY); ctx.scale(sc, sc); ctx.translate(-cx, -baseY);
+
+    /* pool of light on the ground */
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.save(); ctx.translate(cx, baseY + u); ctx.scale(1, 0.32);
+    const gp = ctx.createRadialGradient(0, 0, 0, 0, 0, u * 14);
+    gp.addColorStop(0, 'rgba(255,90,130,' + (0.30 * ease(tg / 2)).toFixed(3) + ')'); gp.addColorStop(1, 'rgba(255,90,130,0)');
+    ctx.fillStyle = gp; ctx.fillRect(-u * 14, -u * 14, u * 28, u * 28);
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+
+    /* stem, thorns, leaves */
+    if (g > 0.01) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const sg = ctx.createLinearGradient(0, baseY, 0, hy - 1);
+      sg.addColorStop(0, '#103c22'); sg.addColorStop(1, '#3a9a58');
+      ctx.strokeStyle = sg; ctx.lineWidth = u * 0.55;
+      ctx.beginPath();
+      for (let k = 0; k <= 28; k++) { const q = pt(k / 28); if (k) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }
+      ctx.stroke();
+      ctx.fillStyle = '#2b7d47';
+      [[0.2, 1], [0.48, -1], [0.74, 1]].forEach(a => {
+        if (g < a[0] + 0.03) return;
+        const q = pt(a[0]), k = ease((tg - a[0] * 3.6) / 1.2);
+        ctx.beginPath(); ctx.moveTo(q[0], q[1] - u * 0.25);
+        ctx.lineTo(q[0] + a[1] * u * 0.9 * k, q[1] + u * 0.3); ctx.lineTo(q[0], q[1] + u * 0.2); ctx.fill();
+      });
+      [[0.30, 1, 1.0], [0.50, -1, 1.0], [0.68, 1, 0.7]].forEach(a => {
+        if (g < a[0]) return;
+        const q = pt(a[0]), lg = ease((tg - a[0] * 3.6) / 1.8);
+        const ang = a[1] > 0 ? -(1.1 - 0.55 * lg) : Math.PI + (1.1 - 0.55 * lg);
+        leaf(q[0], q[1], ang + Math.sin(t * 1.3 + a[0] * 9) * 0.04, u * 7.2 * lg * a[2], u * 2.3 * lg * a[2]);
+      });
+    }
+
+    /* glow behind the rose */
+    const hcy = hy - Rp * 0.75;
+    if (g > 0.5) {
+      ctx.globalCompositeOperation = 'lighter';
+      const gr = u * 20 * size, gg = ctx.createRadialGradient(hx, hcy, 0, hx, hcy, gr);
+      const ga = (0.10 + 0.22 * tb) * ease((g - 0.5) * 2);
+      gg.addColorStop(0, 'rgba(255,70,120,' + ga.toFixed(3) + ')'); gg.addColorStop(1, 'rgba(255,70,120,0)');
+      ctx.fillStyle = gg; ctx.fillRect(hx - gr, hcy - gr, gr * 2, gr * 2);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    /* the flower: green hip, dark heart, sepals, then every petal as a shaded sheet */
+    if (g > 0.2) {
+      ctx.fillStyle = '#245f38';
+      ctx.beginPath(); ctx.ellipse(hx, hy - Rp * 0.04, Rp * 0.24, Rp * 0.3, 0, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = '#2a030c';
+      ctx.beginPath(); ctx.ellipse(hx, hy - Rp * 0.5 * CT, Rp * (0.2 + 0.3 * tb), Rp * (0.16 + 0.2 * tb), 0, 0, 6.2832); ctx.fill();
+
+      const so = ease(tb * 1.5);
+      for (let i = 0; i < SEPAL.n; i++) {
+        grid(SEPAL, SEPAL.d[i], so, i * 1.2566 + yaw + SEPAL.d[i].az, true);
+        emit(SEPAL_TAB, 1, null, null, 0, 0, hx, hy, Rp);
+      }
+      for (let k = 0; k < RINGS.length; k++) {
+        const R = RINGS[k], o = ease((tb - (RINGS.length - 1 - k) * 0.08) / 0.6);   // outer petals open first
+        for (let i = 0; i < R.n; i++) {
+          if (R.gone[i]) continue;
+          grid(R, R.d[i], o, ringAz(R, k, i, yaw), false);
+          emit(PETAL_TAB, R.ao, null, null, 0, 0, hx, hy, Rp);
+        }
+      }
+      flush();
+    }
+
+    /* a soft ring of light rolls out when the rose is fully open */
+    const pr2 = (t - (BLOOM1 - 0.2)) / 2.6;
+    if (pr2 > 0 && pr2 < 1) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(255,190,210,' + (0.55 * (1 - pr2)).toFixed(3) + ')'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(hx, hcy, u * 8 + pr2 * u * 26, 0, 6.2832); ctx.stroke();
+    }
+    ctx.restore();
+
+    /* ---- the end: petals let go one by one ---- */
+    const oxS = cx + (hx - cx) * sc, oyS = baseY + (hy - baseY) * sc, RpS = Rp * sc;
+    while (sp < queue.length && t >= queue[sp].t && g >= 1) {
+      const q = queue[sp++], R = RINGS[q.k], az = ringAz(R, q.k, q.i, yaw);
+      grid(R, R.d[q.i], 1, az, false);
+      let mx = 0, my = 0, mz = 0;
+      for (let j = 0; j < NP; j++) { mx += GX[j]; my += GY[j]; mz += GZ[j]; }
+      const c = [mx / NP, my / NP, mz / NP];
+      const s0x = oxS + c[0] * RpS, s0y = oyS - (c[2] * CT + c[1] * ST) * RpS;
+      const lx = cx + (Math.random() - 0.5) * u * 24 * sc, ly = baseY + u * (0.2 + Math.random() * 3.4) * sc;
+      R.gone[q.i] = true;
+      falling.push({
+        k: q.k, i: q.i, az: az, c: c, t0: t, ox: oxS, oy: oyS, Rp: RpS, s0x: s0x, s0y: s0y, lx: lx, ly: ly,
+        T: Math.max(2.8, Math.min(8, (ly - s0y) / (u * (4.6 + Math.random() * 2)))),
+        A: 0.5 + Math.random() * 0.6, B: 0.6 + Math.random() * 0.6, f1: 1.6 + Math.random(), f2: 1.2 + Math.random(), p1: Math.random() * 6.28, p2: Math.random() * 6.28, p3: Math.random() * 6.28,
+        at: (Math.random() - 0.5) * 0.5, bt: (Math.random() < 0.5 ? 1 : -1) * (1.38 + Math.random() * 0.12), gt: (Math.random() - 0.5) * 6.2
+      });
+    }
+    [true, false].forEach(landedPass => {   // petals already lying on the ground first, then the ones still in the air
+      for (let n = 0; n < falling.length; n++) {
+        const f = falling[n], age = Math.min(f.T, t - f.t0), p = age / f.T, landed = age >= f.T;
+        if (landed !== landedPass) continue;
+        const b = ease((p - 0.4) / 0.6), air = 1 - b;
+        const al = lerp(f.A * (Math.sin(f.f1 * age + f.p1) - Math.sin(f.p1)), f.at, b);
+        const be = lerp(f.B * (Math.sin(f.f2 * age + f.p2) - Math.sin(f.p2)), f.bt, b);
+        const ga = f.gt * ease(p);
+        const M = mul(mul(mul(rotZ(f.az + ga), rotY(be)), rotX(al)), rotZ(-f.az));
+        const dx = (f.lx - f.s0x) * ease(p) + Math.sin(age * 1.9 + f.p3) * u * 1.8 * air * sc;
+        const dy = (f.ly - f.s0y) * p + Math.sin(age * 3.1 + f.p3) * u * 0.25 * air * sc;
+        const R = RINGS[f.k];
+        grid(R, R.d[f.i], 1, f.az, false);
+        emit(PETAL_TAB, R.ao, M, f.c, dx, dy, f.ox, f.oy, f.Rp);
+      }
+      flush();
+    });
+
+    /* fireflies rising around the rose */
+    if (t > R0 + 2) {
+      const k = clamp((t - R0 - 2) / 3);
+      ctx.globalCompositeOperation = 'lighter';
+      for (const m of motes) {
+        const prog = (t * m.sp * 0.045 + m.ph) % 1;
+        const x = cx + Math.sin(t * 0.8 * m.sp + m.ph * 20) * u * (5 + m.r * 9) * (0.6 + 0.4 * sc);
+        const y = baseY + u * 2 - prog * H * 0.72;
+        const a = Math.sin(prog * Math.PI) * 0.85 * k;
+        const col = m.gold ? '255,214,120' : '255,150,185';
+        ctx.fillStyle = 'rgba(' + col + ',' + (a * 0.16).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(x, y, m.z * 4.5, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = 'rgba(' + col + ',' + a.toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(x, y, m.z, 0, 6.2832); ctx.fill();
+      }
+    }
+
+    /* shooting stars */
+    if (!lite && t > STARS0) {
+      if (t >= nextShot) {
+        nextShot = t + 1.8 + Math.random() * 2.6;
+        const sp2 = 700 + Math.random() * 400, an = 0.42 + Math.random() * 0.3;
+        shots.push({ x: W * (0.35 + Math.random() * 0.65), y: H * (0.04 + Math.random() * 0.28), vx: -Math.cos(an) * sp2, vy: Math.sin(an) * sp2, age: 0 });
+      }
+      ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (let i = shots.length - 1; i >= 0; i--) {
+        const s = shots[i]; s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+        if (s.age > 0.9) { shots.splice(i, 1); continue; }
+        const a = Math.sin(clamp(s.age / 0.9) * Math.PI);
+        const gl = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 0.17, s.y - s.vy * 0.17);
+        gl.addColorStop(0, 'rgba(255,245,235,' + a.toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,170,200,0)');
+        ctx.strokeStyle = gl; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.17, s.y - s.vy * 0.17); ctx.stroke();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  };
+}
+
 let cineStop = null;
 function playCinematic() {
   if (cineStop) return;
   const ov = document.createElement('div');
   ov.className = 'cine';
   ov.innerHTML = '<canvas class="cine-cv"></canvas><div class="cine-bar top"></div><div class="cine-bar bottom"></div>' +
-    '<div class="cine-inf">∞</div><div class="cine-text"></div><div class="cine-hint">Tap anywhere to close</div>';
+    '<div class="cine-inf">∞</div><div class="cine-lyric"></div><div class="cine-text"></div><div class="cine-hint">Tap anywhere to close</div>';
   document.body.appendChild(ov);
   document.body.classList.add('cine-on');
   startCineSong();
@@ -1735,6 +2097,10 @@ function playCinematic() {
 
   const cv = ov.querySelector('canvas'), ctx = cv.getContext('2d');
   const textEl = ov.querySelector('.cine-text'), infEl = ov.querySelector('.cine-inf');
+  const lyrEl = ov.querySelector('.cine-lyric');
+  const CINE_LYRIC_DELAY = (SITE.settings.cineLyricsDelay != null && SITE.settings.cineLyricsDelay !== '') ? Number(SITE.settings.cineLyricsDelay) || 0 : 6;
+  const lyr = cineLyrics(CINE_LYRIC_DELAY);
+  let lyrIdx = -1;
   const dpr = (LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
   let W = 0, H = 0, S = 1;
   function size() {
@@ -1769,10 +2135,12 @@ function playCinematic() {
     });
   }
 
+  const rose = makeCineRose(ctx, LITE);
   const lines = SITE.cinemaLines;
   let lineIdx = -1, closed = false, raf = 0;
   const t0 = performance.now(), openedAt = t0;
   const BURST = 11;
+  const INF_AT = 25.2;   // the infinity sign appears after the rose has bloomed
 
   function setLine(txt) {
     textEl.classList.remove('on');
@@ -1806,6 +2174,9 @@ function playCinematic() {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, H);
     }
+
+    // 🌹 the rose grows, blooms, petals fall (starts as the embers fade)
+    rose(t, W, H, S);
 
     // particles (assemble -> beat -> burst into golden embers)
     ctx.globalCompositeOperation = 'lighter';
@@ -1862,11 +2233,24 @@ function playCinematic() {
       }
     }
 
+    // 🎤 song lyrics, in time with the actual music (falls back to the clock if the audio is blocked)
+    if (lyr.length) {
+      const st = (cineAudio && !cineAudio.paused && cineAudio.currentTime > 0) ? cineAudio.currentTime : CINE_SONG_START + t;
+      let n = -1;
+      for (let i = 0; i < lyr.length; i++) { if (lyr[i].t <= st) n = i; else break; }
+      if (n !== lyrIdx) {
+        lyrIdx = n;
+        lyrEl.classList.remove('on');
+        const txt = n >= 0 ? lyr[n].l : '';
+        setTimeout(() => { if (closed) return; lyrEl.textContent = txt; if (txt) lyrEl.classList.add('on'); }, 350);
+      }
+    }
+
     // poetic lines
     let idx = -1;
     for (let i = 0; i < lines.length; i++) if (t >= lines[i][0]) idx = i;
     if (idx !== lineIdx) { lineIdx = idx; if (idx >= 0) setLine(lines[idx][1]); }
-    if (t >= BURST + 0.2 && !infEl.classList.contains('on')) infEl.classList.add('on');
+    if (t >= INF_AT && !infEl.classList.contains('on')) infEl.classList.add('on');
 
     raf = requestAnimationFrame(frame);
   }
